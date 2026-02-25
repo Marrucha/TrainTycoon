@@ -1,0 +1,141 @@
+.board {
+  background: #0a0a0a;
+  border: 1px solid #2a4a2a;
+  border-radius: 0;
+  overflow: hidden;
+  font-family: 'Share Tech Mono', monospace;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  background: #1a1a1a;
+  border-bottom: 2px solid #f0c040;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: #4a6a4a;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+  letter-spacing: 1px;
+  text-align: left;
+}
+
+.backBtn:hover { color: #8aab8a; }
+
+.stationName {
+  color: #f0c040;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.title {
+  color: #6a8a6a;
+  font-size: 9px;
+  letter-spacing: 3px;
+}
+
+.clock {
+  color: #f0c040;
+  font-size: 16px;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 2px;
+}
+
+.colHeaders {
+  display: grid;
+  grid-template-columns: 70px 1fr 55px 90px 90px;
+  padding: 6px 16px;
+  background: #111;
+  color: #4a6a4a;
+  font-size: 9px;
+  letter-spacing: 2px;
+  border-bottom: 1px solid #2a4a2a;
+  flex-shrink: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 70px 1fr 55px 90px 90px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #1a2a1a;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.row:hover { background: #0f1f0f; }
+
+.boardingRow { background: #1a1500; }
+
+.time {
+  color: #f0c040;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.flipCell {
+  display: inline-block;
+  perspective: 400px;
+}
+
+.destination {
+  color: #d0d0d0;
+  font-size: 13px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.platform {
+  color: #40a840;
+  font-size: 13px;
+  text-align: center;
+}
+
+.trainId {
+  color: #6a9a6a;
+  font-size: 11px;
+}
+
+.status {
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-weight: bold;
+}
+
+.onTime { color: #40a840; }
+
+.boarding {
+  color: #f0c040;
+  animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0.3; }
+}
+
+.empty {
+  padding: 40px;
+  text-align: center;
+  color: #4a6a4a;
+  font-size: 12px;
+  letter-spacing: 2px;
+}

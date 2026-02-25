@@ -1,0 +1,199 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.header {
+  background: #0f1a0f;
+  border-bottom: 2px solid #f0c040;
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: #4a6a4a;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+
+.backBtn:hover { color: #8aab8a; }
+
+.routeTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cities {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #f0c040;
+  letter-spacing: 1px;
+}
+
+.meta {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #6a8a6a;
+}
+
+.body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0;
+}
+
+.section {
+  padding: 12px 16px;
+  border-bottom: 1px solid #1a2a1a;
+}
+
+.sectionLabel {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #4a6a4a;
+  margin-bottom: 8px;
+}
+
+.sectionLabelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.depCount {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  color: #6a8a6a;
+}
+
+.trainCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trainType {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  padding: 2px 6px;
+  border: 1px solid #f0c040;
+  color: #f0c040;
+  border-radius: 2px;
+}
+
+.trainName {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #c0d0c0;
+}
+
+.trainDetail {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #6a8a6a;
+  margin-left: auto;
+}
+
+.noTrain {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: #5a3a3a;
+  padding: 6px 0;
+}
+
+.schedule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.depTime {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  color: #f0c040;
+  background: #1a1500;
+  border: 1px solid #3a3000;
+  border-radius: 3px;
+  padding: 3px 8px;
+}
+
+.emptySchedule {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #3a5a3a;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.editBtn {
+  background: transparent;
+  border: 1px solid #2a4a2a;
+  color: #6aaa6a;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+
+.editBtn:hover {
+  border-color: #f0c040;
+  color: #f0c040;
+  background: #1a1500;
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.statRow.total {
+  border-top: 1px solid #2a4a2a;
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.statLabel {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #6a8a6a;
+  letter-spacing: 1px;
+}
+
+.statValue {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  color: #a0c0a0;
+}
+
+.statValueGreen {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  color: #40c840;
+  font-weight: bold;
+}

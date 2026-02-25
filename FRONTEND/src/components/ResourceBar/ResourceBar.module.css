@@ -1,0 +1,42 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 100%;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 20px;
+}
+
+.label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #4a6a4a;
+}
+
+.value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 15px;
+  color: #c0d0c0;
+}
+
+.revenue {
+  color: #40c840;
+}
+
+.unit {
+  font-size: 11px;
+  color: #6a8a6a;
+}
+
+.divider {
+  width: 1px;
+  height: 28px;
+  background: #2a4a2a;
+  margin: 0 4px;
+}

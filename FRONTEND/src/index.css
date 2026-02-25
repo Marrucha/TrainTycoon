@@ -1,0 +1,29 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Share Tech Mono', monospace;
+  background: #060f06;
+  color: #c0d0c0;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a150a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a4a2a;
+  border-radius: 3px;
+}
+
+.leaflet-container {
+  background: #0a1a0a;
+}

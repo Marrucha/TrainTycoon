@@ -1,0 +1,137 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #2a4a2a;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f0c040;
+  letter-spacing: 3px;
+}
+
+.summary {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #4a6a4a;
+}
+
+.section {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.section:first-of-type {
+  flex: 0 0 auto;
+  max-height: 45%;
+  border-bottom: 1px solid #1a2a1a;
+}
+
+.sectionLabel {
+  padding: 6px 16px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #4a6a4a;
+  background: #0a0f0a;
+  position: sticky;
+  top: 0;
+}
+
+.row {
+  padding: 8px 16px;
+  border-bottom: 1px solid #141e14;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.row:hover {
+  background: #0f1f0f;
+}
+
+.row.selected {
+  background: #0f1f0f;
+  border-left: 2px solid #80ff80;
+}
+
+.routeName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.indicator {
+  font-size: 8px;
+  color: #f0c040;
+}
+
+.active .indicator {
+  color: #f0c040;
+}
+
+.row:not(.active) .indicator {
+  color: #4a6a4a;
+}
+
+.cities {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c0d0c0;
+  flex: 1;
+}
+
+.distance {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #4a6a4a;
+}
+
+.routeMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 14px;
+}
+
+.trainBadge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  padding: 1px 5px;
+  border: 1px solid #f0c040;
+  color: #f0c040;
+  border-radius: 2px;
+}
+
+.trainName {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #8aab8a;
+}
+
+.noTrain {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #3a5a3a;
+  font-style: italic;
+}
+
+.revenue {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #40c840;
+  margin-left: auto;
+}
