@@ -2,6 +2,8 @@
   background: #0a0f0a;
   border-left: 1px solid #2a4a2a;
   height: 100%;
+  width: 420px;
+  min-width: 420px;
   overflow: hidden;
   display: flex;
   flex-direction: column;

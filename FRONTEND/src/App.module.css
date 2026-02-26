@@ -44,15 +44,51 @@
   font-weight: 700;
 }
 
+.nav {
+  display: flex;
+  gap: 8px;
+  background: #020502;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid #1a331a;
+  margin-left: 20px;
+}
+
+.navBtn {
+  background: transparent;
+  color: #8aab8a;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+
+.navBtn:hover {
+  color: #c0d0c0;
+  background: #0d1a0d;
+}
+
+.navBtn.active {
+  background: #2a4a2a;
+  color: #f0c040;
+}
+
 .main {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
   flex: 1;
   overflow: hidden;
+  width: 100%;
 }
 
 .mapSection {
   display: flex;
+  flex: 1;
   align-items: flex-start;
   padding: 16px;
   overflow: auto;

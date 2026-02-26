@@ -1,15 +1,62 @@
-import { createContext, useContext, useState, useMemo } from 'react'
-import { INITIAL_BUDGET, TRAINS, INITIAL_ROUTES } from '../data/gameData'
-import { CITIES } from '../data/cities'
+import { createContext, useContext, useState, useMemo, useEffect } from 'react'
+import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
+import { INITIAL_BUDGET } from '../data/gameData'
 
 const GameContext = createContext(null)
 
 export function GameProvider({ children }) {
   const [budget] = useState(INITIAL_BUDGET)
-  const [trains] = useState(TRAINS)
-  const [routes, setRoutes] = useState(INITIAL_ROUTES)
+  const [baseTrains, setBaseTrains] = useState([]) // "Katalog sklepu"
+  const [playerTrains, setPlayerTrains] = useState([]) // Moje ID i parent_id
+  const [trainsSets, setTrainsSets] = useState([]) // Zestawy/składy pociagów z DB
+  const [routes, setRoutes] = useState([])
+  const [cities, setCities] = useState([])
+  const [loading, setLoading] = useState(true)
   const [selectedCity, setSelectedCity] = useState(null)
   const [selectedRoute, setSelectedRoute] = useState(null)
+
+  useEffect(() => {
+    const unsubCities = onSnapshot(collection(db, 'cities'), (snapshot) => {
+      setCities(snapshot.docs.map(doc => doc.data()))
+    })
+
+    // Sklep bazowy
+    const unsubBaseTrains = onSnapshot(collection(db, 'trains'), (snapshot) => {
+      setBaseTrains(snapshot.docs.map(doc => doc.data()))
+    })
+
+    // Inwentarz gracza
+    const unsubPlayerTrains = onSnapshot(collection(db, 'players/player1/trains'), (snapshot) => {
+      setPlayerTrains(snapshot.docs.map(doc => doc.data()))
+    })
+
+    const unsubTrainsSets = onSnapshot(collection(db, 'players/player1/trainSet'), (snapshot) => {
+      setTrainsSets(snapshot.docs.map(doc => doc.data()))
+    })
+
+    const unsubRoutes = onSnapshot(collection(db, 'routes'), (snapshot) => {
+      setRoutes(snapshot.docs.map(doc => doc.data()))
+    })
+
+    setTimeout(() => setLoading(false), 1000)
+
+    return () => {
+      unsubCities()
+      unsubBaseTrains()
+      unsubPlayerTrains()
+      unsubTrainsSets()
+      unsubRoutes()
+    }
+  }, [])
+
+  // Budujemy żywą tabelę, w której maszyny gracza połykają swoje statystyki z katalogu głównego
+  const trains = useMemo(() => {
+    return playerTrains.map(pt => {
+      const baseModel = baseTrains.find(bt => bt.id === pt.parent_id) || {}
+      return { ...baseModel, id: pt.id, parent_id: pt.parent_id } // zachowujemy ID obiektu w ekwipunku nadpisując ID z katalogu
+    })
+  }, [baseTrains, playerTrains])
 
   const dailyRevenue = useMemo(
     () => routes.reduce((sum, r) => sum + (r.dailyRevenue || 0) + (r.subsidy || 0), 0),
@@ -39,14 +86,16 @@ export function GameProvider({ children }) {
     }
   }
 
-  function updateRouteSchedule(routeId, departures) {
-    setRoutes((prev) =>
-      prev.map((r) => (r.id === routeId ? { ...r, departures } : r))
-    )
-    // Aktualizuj selectedRoute jeśli to ta sama trasa
-    setSelectedRoute((prev) =>
-      prev?.id === routeId ? { ...prev, departures } : prev
-    )
+  async function updateRouteSchedule(routeId, departures) {
+    try {
+      await updateDoc(doc(db, 'routes', routeId), { departures })
+
+      setSelectedRoute((prev) =>
+        prev?.id === routeId ? { ...prev, departures } : prev
+      )
+    } catch (e) {
+      console.error("Błąd aktualizacji harmonogramu: ", e)
+    }
   }
 
   function getTrainById(id) {
@@ -54,7 +103,7 @@ export function GameProvider({ children }) {
   }
 
   function getCityById(id) {
-    return CITIES.find((c) => c.id === id) || null
+    return cities.find((c) => c.id === id) || null
   }
 
   // Zwraca odjazdy z danego miasta (wszystkie trasy wychodzące)
@@ -90,7 +139,10 @@ export function GameProvider({ children }) {
       value={{
         budget,
         trains,
+        trainsSets,
         routes,
+        cities,
+        loading,
         selectedCity,
         selectedRoute,
         dailyRevenue,

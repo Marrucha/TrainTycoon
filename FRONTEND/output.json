@@ -1,0 +1,88 @@
+{
+  "cities": [
+    {
+      "id": "kalisz",
+      "tier": 2,
+      "lon": 18.09,
+      "svgX": 195,
+      "svgY": 293,
+      "voivodeship": "Wielkopolskie",
+      "population": 97000,
+      "platforms": 3,
+      "lat": 51.76,
+      "name": "Kalisz"
+    },
+    {
+      "id": "lodz",
+      "platforms": 5,
+      "name": "Łódź",
+      "lat": 51.77,
+      "population": 672000,
+      "svgX": 259,
+      "lon": 19.45,
+      "tier": 1,
+      "voivodeship": "Łódzkie",
+      "svgY": 292
+    },
+    {
+      "id": "warszawa",
+      "svgY": 249,
+      "voivodeship": "Mazowieckie",
+      "svgX": 334,
+      "tier": 1,
+      "isCapital": true,
+      "lon": 21.01,
+      "population": 1794000,
+      "name": "Warszawa",
+      "lat": 52.23,
+      "platforms": 11
+    },
+    {
+      "id": "wroclaw",
+      "population": 641000,
+      "platforms": 6,
+      "lat": 51.11,
+      "name": "Wrocław",
+      "tier": 1,
+      "lon": 17.04,
+      "svgX": 145,
+      "svgY": 353,
+      "voivodeship": "Dolnośląskie"
+    }
+  ],
+  "trainSets": [
+    {
+      "id": "trainset-1772062501119",
+      "trainIds": [
+        "t3",
+        "t4",
+        "t4-10",
+        "t4-6",
+        "t4-7",
+        "t4-8",
+        "t4-9",
+        "t4-5"
+      ],
+      "maxSpeed": 200,
+      "name": "Kopernik",
+      "type": "Lokomotywa",
+      "totalSeats": 686,
+      "totalCostPerKm": 44.400000000000006
+    },
+    {
+      "id": "trainset-moniuszko",
+      "trainIds": [
+        "t1",
+        "t4-1",
+        "t4-2",
+        "t4-3",
+        "t4-4"
+      ],
+      "totalCostPerKm": 84,
+      "totalSeats": 1000,
+      "maxSpeed": 160,
+      "name": "Moniuszko",
+      "type": "InterCity"
+    }
+  ]
+}

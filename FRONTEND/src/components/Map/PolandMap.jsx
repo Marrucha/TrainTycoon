@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import { CITIES } from '../../data/cities'
 import { useGame } from '../../context/GameContext'
 import CityMarker from './CityMarker'
 import TrainDot from './TrainDot'
@@ -9,7 +8,7 @@ import styles from './PolandMap.module.css'
 
 function MapOverlay() {
   const map = useMap()
-  const { selectedCity, selectedRoute, routes, selectCity, selectRoute, getTrainById, getCityById } = useGame()
+  const { selectedCity, selectedRoute, routes, cities, loading, selectCity, selectRoute, getTrainById, getCityById } = useGame()
   const [hoveredCity, setHoveredCity] = useState(null)
   const [hoveredRoute, setHoveredRoute] = useState(null)
   const [, setTick] = useState(0)
@@ -86,14 +85,14 @@ function MapOverlay() {
         {/* Trasy */}
         {routes.map(route => {
           const from = getCityById(route.from)
-          const to   = getCityById(route.to)
+          const to = getCityById(route.to)
           if (!from || !to) return null
           const fp = getPos(from.lat, from.lon)
           const tp = getPos(to.lat, to.lon)
-          const color    = getRouteColor(route)
+          const color = getRouteColor(route)
           const selected = selectedRoute?.id === route.id
-          const dimmed   = isRouteDimmed(route)
-          const d        = getCurvedPath(fp.x, fp.y, tp.x, tp.y, route.id)
+          const dimmed = isRouteDimmed(route)
+          const d = getCurvedPath(fp.x, fp.y, tp.x, tp.y, route.id)
           return (
             <g
               key={route.id}
@@ -118,8 +117,8 @@ function MapOverlay() {
 
         {/* Animowane pociągi */}
         {activeRoutes.map(route => {
-          const from  = getCityById(route.from)
-          const to    = getCityById(route.to)
+          const from = getCityById(route.from)
+          const to = getCityById(route.to)
           if (!from || !to) return null
           const train = getTrainById(route.trainId)
           return (
@@ -134,7 +133,7 @@ function MapOverlay() {
         })}
 
         {/* Markery miast */}
-        {CITIES.map(city => {
+        {(!loading && cities) && cities.map(city => {
           const pos = getPos(city.lat, city.lon)
           return (
             <CityMarker
@@ -169,8 +168,8 @@ function MapOverlay() {
                   {hoveredCity.country
                     ? `${hoveredCity.country}${hoveredCity.population ? ' · ' + hoveredCity.population.toLocaleString('pl-PL') + ' mk.' : ''}`
                     : hoveredCity.voivodeship
-                    ? `${hoveredCity.voivodeship} · ${hoveredCity.population?.toLocaleString('pl-PL')} mk.`
-                    : `${hoveredCity.population?.toLocaleString('pl-PL')} mk.`}
+                      ? `${hoveredCity.voivodeship} · ${hoveredCity.population?.toLocaleString('pl-PL')} mk.`
+                      : `${hoveredCity.population?.toLocaleString('pl-PL')} mk.`}
                 </span>
               )}
               {hoveredCity.platforms && (
@@ -197,7 +196,7 @@ function MapOverlay() {
 
       {/* Kontrolki zoom */}
       <div className={styles.zoomControls}>
-        <button className={styles.zoomBtn} onClick={() => map.zoomIn()}  title="Przybliż">+</button>
+        <button className={styles.zoomBtn} onClick={() => map.zoomIn()} title="Przybliż">+</button>
         <button className={styles.zoomBtn} onClick={() => map.zoomOut()} title="Oddal">−</button>
         <button className={styles.zoomBtn} onClick={() => map.setView([52.0, 19.5], 6)} title="Reset">⌂</button>
       </div>
