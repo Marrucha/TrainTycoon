@@ -1,32 +1,39 @@
 import { createContext, useContext, useState, useMemo, useEffect } from 'react'
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore'
+import { collection, onSnapshot, getDocs, doc, updateDoc, setDoc, deleteField } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { INITIAL_BUDGET } from '../data/gameData'
 
 const GameContext = createContext(null)
 
+// Domyślny cennik globalny — używany zanim gracz zapisze własny
+export const DEFAULT_PRICE_CONFIG = {
+  class1Per100km: 10,
+  class2Per100km: 6,
+  multipliers: [1.0, 0.9, 0.8, 0.7, 0.65, 0.6],
+}
+
 export function GameProvider({ children }) {
   const [budget] = useState(INITIAL_BUDGET)
-  const [baseTrains, setBaseTrains] = useState([]) // "Katalog sklepu"
-  const [playerTrains, setPlayerTrains] = useState([]) // Moje ID i parent_id
-  const [trainsSets, setTrainsSets] = useState([]) // Zestawy/składy pociagów z DB
+  const [baseTrains, setBaseTrains] = useState([])
+  const [playerTrains, setPlayerTrains] = useState([])
+  const [trainsSets, setTrainsSets] = useState([])
   const [routes, setRoutes] = useState([])
   const [cities, setCities] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedCity, setSelectedCity] = useState(null)
   const [selectedRoute, setSelectedRoute] = useState(null)
+  const [demandMap, setDemandMap] = useState(new Map())
+  const [playerDoc, setPlayerDoc] = useState({})
 
   useEffect(() => {
     const unsubCities = onSnapshot(collection(db, 'cities'), (snapshot) => {
       setCities(snapshot.docs.map(doc => doc.data()))
     })
 
-    // Sklep bazowy
     const unsubBaseTrains = onSnapshot(collection(db, 'trains'), (snapshot) => {
       setBaseTrains(snapshot.docs.map(doc => doc.data()))
     })
 
-    // Inwentarz gracza
     const unsubPlayerTrains = onSnapshot(collection(db, 'players/player1/trains'), (snapshot) => {
       setPlayerTrains(snapshot.docs.map(doc => doc.data()))
     })
@@ -39,6 +46,21 @@ export function GameProvider({ children }) {
       setRoutes(snapshot.docs.map(doc => doc.data()))
     })
 
+    // Karta gracza — zawiera m.in. globalny cennik domyślny
+    const unsubPlayer = onSnapshot(doc(db, 'players', 'player1'), (snap) => {
+      setPlayerDoc(snap.exists() ? snap.data() : {})
+    })
+
+    getDocs(collection(db, 'demand')).then(snapshot => {
+      const map = new Map()
+      snapshot.docs.forEach(d => {
+        const { from, to, demand } = d.data()
+        map.set(`${from}--${to}`, demand)
+        map.set(`${to}--${from}`, demand)
+      })
+      setDemandMap(map)
+    })
+
     setTimeout(() => setLoading(false), 1000)
 
     return () => {
@@ -47,14 +69,20 @@ export function GameProvider({ children }) {
       unsubPlayerTrains()
       unsubTrainsSets()
       unsubRoutes()
+      unsubPlayer()
     }
   }, [])
 
-  // Budujemy żywą tabelę, w której maszyny gracza połykają swoje statystyki z katalogu głównego
+  // Globalny cennik gracza — fallback na domyślne wartości jeśli gracz jeszcze nie zapisał
+  const defaultPricing = useMemo(
+    () => playerDoc.defaultPricing ?? DEFAULT_PRICE_CONFIG,
+    [playerDoc]
+  )
+
   const trains = useMemo(() => {
     return playerTrains.map(pt => {
       const baseModel = baseTrains.find(bt => bt.id === pt.parent_id) || {}
-      return { ...baseModel, id: pt.id, parent_id: pt.parent_id } // zachowujemy ID obiektu w ekwipunku nadpisując ID z katalogu
+      return { ...baseModel, id: pt.id, parent_id: pt.parent_id }
     })
   }, [baseTrains, playerTrains])
 
@@ -89,7 +117,6 @@ export function GameProvider({ children }) {
   async function updateRouteSchedule(routeId, departures) {
     try {
       await updateDoc(doc(db, 'routes', routeId), { departures })
-
       setSelectedRoute((prev) =>
         prev?.id === routeId ? { ...prev, departures } : prev
       )
@@ -106,7 +133,37 @@ export function GameProvider({ children }) {
     return cities.find((c) => c.id === id) || null
   }
 
-  // Zwraca odjazdy z danego miasta (wszystkie trasy wychodzące)
+  function getDemandForRoute(route) {
+    return demandMap.get(`${route.from}--${route.to}`) ?? 0
+  }
+
+  // Zwraca efektywny cennik składu: własny jeśli ustawiony, globalny jeśli nie
+  function getTicketPrice(trainSetId) {
+    const ts = trainsSets.find(t => t.id === trainSetId)
+    return ts?.pricing ?? defaultPricing
+  }
+
+  // Zapisuje własny cennik składu; null — usuwa własny i przywraca globalny
+  async function updateTicketPrice(trainSetId, config) {
+    try {
+      await updateDoc(
+        doc(db, 'players/player1/trainSet', trainSetId),
+        { pricing: config === null ? deleteField() : config }
+      )
+    } catch (e) {
+      console.error('Błąd aktualizacji cen biletów składu:', e)
+    }
+  }
+
+  // Zapisuje globalny cennik gracza (w dokumencie players/player1)
+  async function updateDefaultPricing(config) {
+    try {
+      await setDoc(doc(db, 'players', 'player1'), { defaultPricing: config }, { merge: true })
+    } catch (e) {
+      console.error('Błąd aktualizacji globalnego cennika:', e)
+    }
+  }
+
   function getDeparturesForCity(cityId) {
     const cityRoutes = routes.filter(
       (r) => (r.from === cityId || r.to === cityId) && r.departures.length > 0
@@ -147,12 +204,17 @@ export function GameProvider({ children }) {
         selectedRoute,
         dailyRevenue,
         activeTrainsCount,
+        defaultPricing,
         selectCity,
         selectRoute,
         updateRouteSchedule,
         getTrainById,
         getCityById,
         getDeparturesForCity,
+        getDemandForRoute,
+        getTicketPrice,
+        updateTicketPrice,
+        updateDefaultPricing,
       }}
     >
       {children}

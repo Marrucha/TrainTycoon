@@ -4,6 +4,7 @@ import PolandMap from './components/Map/PolandMap'
 import Sidebar from './components/Sidebar/Sidebar'
 import ResourceBar from './components/ResourceBar/ResourceBar'
 import FleetMenu from './components/FleetMenu/FleetMenu'
+import { migrateToFirestore, migrateDemand, migrateHourDemandMap } from './firebase/migration'
 import styles from './App.module.css'
 
 export default function App() {
@@ -34,6 +35,14 @@ export default function App() {
           </nav>
 
           <ResourceBar />
+
+          {import.meta.env.DEV && (
+            <div className={styles.devTools}>
+              <button onClick={migrateToFirestore}>↑ Migruj dane</button>
+              <button onClick={migrateDemand}>↑ Migruj popyt</button>
+              <button onClick={migrateHourDemandMap}>↑ Migruj rozkład godz.</button>
+            </div>
+          )}
         </header>
 
         <main className={styles.main}>

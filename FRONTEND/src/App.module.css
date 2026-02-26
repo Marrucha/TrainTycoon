@@ -79,6 +79,29 @@
   color: #f0c040;
 }
 
+.devTools {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.devTools button {
+  background: #1a0a0a;
+  color: #ff6b6b;
+  border: 1px solid #4a1a1a;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: monospace;
+  opacity: 0.7;
+}
+
+.devTools button:hover {
+  opacity: 1;
+  background: #2a1010;
+}
+
 .main {
   display: flex;
   flex: 1;

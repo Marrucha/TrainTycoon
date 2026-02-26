@@ -1,0 +1,479 @@
+.panel {
+  background: #020d02;
+  border: 1px solid #4a7a4a;
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+/* ── nagłówek ── */
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panelTitle {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f0c040;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  color: #8aab8a;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+.closeBtn:hover { color: #e74c3c; }
+
+/* ── przełącznik trybu ── */
+.modeSwitcher {
+  display: flex;
+  gap: 6px;
+  background: #0a150a;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid #1a331a;
+  width: fit-content;
+}
+
+.modeBtn {
+  background: transparent;
+  color: #8aab8a;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.modeBtn:hover { color: #c0d0c0; }
+.modeActive {
+  background: #2a4a2a;
+  color: #f0c040;
+}
+
+/* ── TRYB DYSTANSOWY ── */
+.distanceSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.baseRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.rowLabel {
+  font-size: 13px;
+  color: #8aab8a;
+  white-space: nowrap;
+}
+
+.baseInputs {
+  display: flex;
+  gap: 12px;
+}
+
+.classField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #8aab8a;
+}
+
+.classField span:first-child {
+  color: #c0d0c0;
+  font-weight: 600;
+}
+
+.classField input {
+  width: 64px;
+  background: #0d1a0d;
+  border: 1px solid #2a4a2a;
+  border-radius: 4px;
+  color: #f0c040;
+  padding: 4px 8px;
+  font-size: 14px;
+  font-family: monospace;
+  text-align: right;
+}
+.classField input:focus { outline: none; border-color: #4a7a4a; }
+
+.unit {
+  color: #6a8a6a;
+  font-size: 12px;
+}
+
+/* ── tabela mnożników ── */
+.multipliersSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  color: #6a8a6a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.multiplierRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bracket {
+  font-family: monospace;
+  font-size: 12px;
+  color: #8aab8a;
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.times {
+  color: #6a8a6a;
+  font-size: 13px;
+}
+
+.multiplierInput {
+  width: 70px;
+  background: #0d1a0d;
+  border: 1px solid #2a4a2a;
+  border-radius: 4px;
+  color: #f0c040;
+  padding: 4px 8px;
+  font-size: 14px;
+  font-family: monospace;
+  text-align: right;
+}
+.multiplierInput:focus { outline: none; border-color: #4a7a4a; }
+
+.cumPrice {
+  font-family: monospace;
+  font-size: 12px;
+  color: #4a9a6a;
+  flex: 1;
+}
+
+.removeBtn {
+  background: transparent;
+  border: 1px solid #4a1a1a;
+  color: #e74c3c;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.removeBtn:hover { background: #e74c3c; color: #fff; }
+
+.addBracketBtn {
+  background: transparent;
+  border: 1px dashed #2a4a2a;
+  color: #8aab8a;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  width: fit-content;
+  margin-top: 4px;
+  transition: all 0.2s;
+}
+.addBracketBtn:hover { border-color: #4a7a4a; color: #c0d0c0; }
+
+/* ── macierz przystanków ── */
+.matrixSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.matrixHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.classSwitcher {
+  display: flex;
+  gap: 4px;
+  background: #0a150a;
+  padding: 3px;
+  border-radius: 5px;
+  border: 1px solid #1a331a;
+}
+
+.classBtn {
+  background: transparent;
+  color: #8aab8a;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+.classBtn:hover { color: #c0d0c0; }
+.classActive {
+  background: #2a4a2a;
+  color: #f0c040;
+}
+
+.matrixScroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 320px;
+  border: 1px solid #1a331a;
+  border-radius: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #2a4a2a #020502;
+}
+
+.matrix {
+  border-collapse: collapse;
+  font-family: monospace;
+  font-size: 11px;
+  width: 100%;
+}
+
+.matrixCorner {
+  background: #060f06;
+  border-right: 1px solid #2a4a2a;
+  border-bottom: 1px solid #2a4a2a;
+  min-width: 90px;
+}
+
+.matrixColHdr {
+  background: #0d200d;
+  color: #8aab8a;
+  text-align: center;
+  padding: 6px 8px;
+  border-right: 1px solid #1a331a;
+  border-bottom: 1px solid #2a4a2a;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.matrixRowHdr {
+  background: #0d200d;
+  color: #8aab8a;
+  padding: 6px 10px;
+  border-right: 1px solid #2a4a2a;
+  border-bottom: 1px solid #1a331a;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.matrixDiag {
+  background: #060f06;
+  text-align: center;
+  color: #2a4a2a;
+  border-right: 1px solid #1a331a;
+  border-bottom: 1px solid #1a331a;
+  padding: 6px;
+}
+
+.matrixPrice {
+  text-align: center;
+  padding: 5px 8px;
+  border-right: 1px solid #1a331a;
+  border-bottom: 1px solid #1a331a;
+  background: #0a150a;
+  vertical-align: middle;
+  position: relative;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.matrixPrice:hover {
+  background: #0d2a0d;
+}
+
+.matrixOverridden {
+  background: #0d1a08;
+  border-right-color: #4a7a4a;
+  border-bottom-color: #4a7a4a;
+}
+
+.matrixOverridden:hover {
+  background: #122008;
+}
+
+.priceVal {
+  display: block;
+  color: #f0c040;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.matrixOverridden .priceVal {
+  color: #a0e060;
+}
+
+.distHint {
+  display: block;
+  color: #4a6a4a;
+  font-size: 10px;
+}
+
+.cellInput {
+  width: 58px;
+  background: #0d2a0d;
+  border: 1px solid #4a7a4a;
+  border-radius: 3px;
+  color: #a0e060;
+  padding: 3px 5px;
+  font-size: 12px;
+  font-family: monospace;
+  text-align: center;
+}
+.cellInput:focus { outline: none; border-color: #7aba4a; }
+
+.clearBtn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: transparent;
+  border: none;
+  color: #4a6a4a;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  padding: 0 1px;
+  transition: color 0.15s;
+}
+.clearBtn:hover { color: #e74c3c; }
+
+.overrideBadge {
+  color: #a0e060;
+  font-size: 10px;
+  font-style: normal;
+  background: #1a3010;
+  border: 1px solid #4a7a4a;
+  padding: 1px 7px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.matrixHint {
+  font-size: 11px;
+  color: #4a6a4a;
+  font-style: italic;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.emptyNote {
+  color: #6a8a6a;
+  font-size: 13px;
+  font-style: italic;
+  padding: 12px;
+  text-align: center;
+  background: #0a150a;
+  border: 1px dashed #1a331a;
+  border-radius: 6px;
+}
+
+.modeNote {
+  font-size: 12px;
+  color: #8aab8a;
+  font-style: italic;
+  background: #0a150a;
+  border: 1px solid #1a331a;
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+/* ── stopka ── */
+.panelFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #1a331a;
+}
+
+.footerBtns {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.resetBtn {
+  background: transparent;
+  color: #8aab8a;
+  border: 1px solid #2a4a2a;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.resetBtn:hover {
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
+.hint {
+  font-size: 12px;
+  color: #6a8a6a;
+  font-style: italic;
+}
+
+.saveBtn {
+  background: #2a4a2a;
+  color: #f0c040;
+  border: 1px solid #4a7a4a;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.saveBtn:hover {
+  background: #f0c040;
+  color: #060f06;
+}

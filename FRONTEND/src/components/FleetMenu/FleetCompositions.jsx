@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useGame } from '../../context/GameContext'
 import TrainComposer from './TrainComposer'
+import PricingPanel from './PricingPanel'
 import styles from './FleetCompositions.module.css'
 
 export default function FleetCompositions() {
     // Pobieramy całą flotę (trains), wygenerowane składy (trainsSets) i opublikowane trasy (routes)
-    const { trainsSets, trains, routes } = useGame()
+    const { trainsSets, trains, routes, cities, defaultPricing, updateTicketPrice, updateDefaultPricing } = useGame()
     const [isComposing, setIsComposing] = useState(false)
+    const [pricingOpenFor, setPricingOpenFor] = useState(null) // id składu z otwartym cennikiem
 
     if (isComposing) {
         return <TrainComposer onCancel={() => setIsComposing(false)} />
@@ -143,11 +145,44 @@ export default function FleetCompositions() {
                                     <div className={styles.cardFooter}>
                                         <div className={styles.statsRow}>
                                             <span>Miejsca:<strong>{trainSet.totalSeats}</strong></span>
-                                            <span>Koszt:<strong>{trainSet.totalCostPerKm} PLN/km</strong></span>
+                                            <span>Koszt:<strong>{Number(trainSet.totalCostPerKm).toFixed(2)} PLN/km</strong></span>
                                             <span>Max V:<strong>{trainSet.maxSpeed} km/h</strong></span>
                                         </div>
-                                        <button className={styles.compActionBtn}>Rozwiąż</button>
+                                        <div className={styles.footerActions}>
+                                            <button
+                                                className={styles.pricingBtn}
+                                                onClick={() => setPricingOpenFor(
+                                                    pricingOpenFor === trainSet.id ? null : trainSet.id
+                                                )}
+                                            >
+                                                {pricingOpenFor === trainSet.id ? '▲ Cennik' : '▼ Cennik'}
+                                            </button>
+                                            <button className={styles.compActionBtn}>Rozwiąż</button>
+                                        </div>
                                     </div>
+
+                                    {pricingOpenFor === trainSet.id && (
+                                        <PricingPanel
+                                            trainSet={trainSet}
+                                            routes={routes}
+                                            cities={cities}
+                                            customConfig={trainSet.pricing ?? null}
+                                            defaultConfig={defaultPricing}
+                                            onSaveCustom={config => {
+                                                updateTicketPrice(trainSet.id, config)
+                                                setPricingOpenFor(null)
+                                            }}
+                                            onSaveDefault={config => {
+                                                updateDefaultPricing(config)
+                                                setPricingOpenFor(null)
+                                            }}
+                                            onResetToDefault={() => {
+                                                updateTicketPrice(trainSet.id, null)
+                                                setPricingOpenFor(null)
+                                            }}
+                                            onClose={() => setPricingOpenFor(null)}
+                                        />
+                                    )}
                                 </div>
                             )
                         })

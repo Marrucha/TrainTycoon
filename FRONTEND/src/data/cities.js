@@ -126,8 +126,8 @@ export const CITIES = [
   { id: 'hamburg',     name: 'Hamburg',     tier: 'international', country: 'Niemcy',   lat: 53.55, lon: 10.00, svgX: -190, svgY: 126,  population: 1900000, platforms: 8  },
 
   // ── CROSSING — przejścia graniczne ──────────────────────────────────────────
-  { id: 'zgorzelec',   name: 'Zgorzelec',    tier: 'crossing', crosses: 'Polska ↔ Niemcy',    lat: 51.154, lon: 15.012, svgX: 48,  svgY: 349 },
-  { id: 'slubice',     name: 'Słubice',      tier: 'crossing', crosses: 'Polska ↔ Niemcy',    lat: 52.350, lon: 14.556, svgX: 27,  svgY: 238 },
+  { id: 'zgorzelec',   name: 'Zgorzelec',    tier: 2, voivodeship: 'Dolnośląskie', crosses: 'Polska ↔ Niemcy', lat: 51.154, lon: 15.012, svgX: 48,  svgY: 349, population: 25000,  platforms: 2 },
+  { id: 'slubice',     name: 'Słubice',      tier: 2, voivodeship: 'Lubuskie',     crosses: 'Polska ↔ Niemcy', lat: 52.350, lon: 14.556, svgX: 27,  svgY: 238, population: 17000,  platforms: 2 },
   { id: 'terespol',    name: 'Terespol',     tier: 'crossing', crosses: 'Polska ↔ Białoruś',  lat: 52.083, lon: 23.618, svgX: 458, svgY: 263 },
   { id: 'budzisko',    name: 'Budzisko',     tier: 'crossing', crosses: 'Polska ↔ Litwa',     lat: 54.223, lon: 23.077, svgX: 432, svgY: 63  },
   { id: 'hrebenne',    name: 'Hrebenne',     tier: 'crossing', crosses: 'Polska ↔ Ukraina',   lat: 50.305, lon: 23.573, svgX: 456, svgY: 428 },
