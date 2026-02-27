@@ -2,12 +2,48 @@
   background: #0a0f0a;
   border-left: 1px solid #2a4a2a;
   height: 100%;
-  width: 420px;
-  min-width: 420px;
+  width: 640px;
+  min-width: 640px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  position: relative;
+  transition: width 0.25s ease, min-width 0.25s ease;
+}
+
+.sidebar.collapsed {
+  width: 28px;
+  min-width: 28px;
+}
+
+.toggleBtn {
+  width: 28px;
+  min-width: 28px;
+  height: 100%;
+  background: #0d1a0d;
+  border: none;
+  border-right: 1px solid #2a4a2a;
+  color: #4a6a4a;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.toggleBtn:hover {
+  background: #162016;
+  color: #8aab8a;
+}
+
+.content {
+  flex: 1;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  position: relative;
+  min-width: 0;
 }
 
 .panel {

@@ -106,6 +106,60 @@ export async function migrateDemand() {
 }
 
 /**
+ * Przenosi popyt z kolekcji `demand` do pola `demand` w każdym dokumencie miasta.
+ * Struktura: cities/{cityId}.demand = { [otherCityId]: liczba, ... }
+ * Zapis obustronny — każde miasto ma pełną mapę do wszystkich innych miast.
+ * Stara kolekcja `demand` pozostaje niezmieniona (można usunąć ręcznie po migracji).
+ */
+export async function migrateDemandToCities() {
+  try {
+    // Budujemy pełne mapy popytu dla każdego miasta (obustronnie)
+    const demandMaps = {}
+    for (const city of CITIES) {
+      demandMaps[city.id] = {}
+    }
+
+    for (let i = 0; i < CITIES.length; i++) {
+      for (let j = i + 1; j < CITIES.length; j++) {
+        const a = CITIES[i]
+        const b = CITIES[j]
+        const demand = getDemand(a, b)
+        if (demand === 0) continue
+        demandMaps[a.id][b.id] = demand
+        demandMaps[b.id][a.id] = demand
+      }
+    }
+
+    // Batch update — dodaje pole `demand` do istniejących dokumentów miast
+    const BATCH_LIMIT = 500
+    let batch = writeBatch(db)
+    let batchCount = 0
+    let total = 0
+
+    for (const city of CITIES) {
+      const map = demandMaps[city.id]
+      if (Object.keys(map).length === 0) continue
+      batch.set(doc(db, 'cities', city.id), { demand: map }, { merge: true })
+      batchCount++
+      total++
+      if (batchCount === BATCH_LIMIT) {
+        await batch.commit()
+        batch = writeBatch(db)
+        batchCount = 0
+      }
+    }
+
+    if (batchCount > 0) await batch.commit()
+
+    console.log(`Zaktualizowano ${total} miast z mapą popytu.`)
+    alert(`Migracja demand do miast zakończona: ${total} miast.`)
+  } catch (error) {
+    console.error('Błąd migracji demand do miast:', error)
+    alert('Błąd: ' + error.message)
+  }
+}
+
+/**
  * Zapisuje 3 profile godzinowe do kolekcji `hourDemandMap`.
  * Profile: 'maly-duzy', 'podobne', 'duzy-maly' — 24 wagi (suma ≈ 100%).
  * Wyznaczenie profilu dla konkretnej trasy → getHourProfileId() w demand.js.

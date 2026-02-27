@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo, useEffect } from 'react'
-import { collection, onSnapshot, getDocs, doc, updateDoc, setDoc, deleteField } from 'firebase/firestore'
+import { collection, onSnapshot, doc, updateDoc, setDoc, deleteField, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { INITIAL_BUDGET } from '../data/gameData'
 
@@ -22,7 +22,6 @@ export function GameProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [selectedCity, setSelectedCity] = useState(null)
   const [selectedRoute, setSelectedRoute] = useState(null)
-  const [demandMap, setDemandMap] = useState(new Map())
   const [playerDoc, setPlayerDoc] = useState({})
 
   useEffect(() => {
@@ -51,16 +50,6 @@ export function GameProvider({ children }) {
       setPlayerDoc(snap.exists() ? snap.data() : {})
     })
 
-    getDocs(collection(db, 'demand')).then(snapshot => {
-      const map = new Map()
-      snapshot.docs.forEach(d => {
-        const { from, to, demand } = d.data()
-        map.set(`${from}--${to}`, demand)
-        map.set(`${to}--${from}`, demand)
-      })
-      setDemandMap(map)
-    })
-
     setTimeout(() => setLoading(false), 1000)
 
     return () => {
@@ -78,6 +67,8 @@ export function GameProvider({ children }) {
     () => playerDoc.defaultPricing ?? DEFAULT_PRICE_CONFIG,
     [playerDoc]
   )
+
+  const companyName = playerDoc.companyName ?? ''
 
   const trains = useMemo(() => {
     return playerTrains.map(pt => {
@@ -133,8 +124,10 @@ export function GameProvider({ children }) {
     return cities.find((c) => c.id === id) || null
   }
 
+  // Popyt dla trasy — czyta pole `demand` z dokumentu miasta źródłowego
   function getDemandForRoute(route) {
-    return demandMap.get(`${route.from}--${route.to}`) ?? 0
+    const fromCity = cities.find(c => c.id === route.from)
+    return fromCity?.demand?.[route.to] ?? 0
   }
 
   // Zwraca efektywny cennik składu: własny jeśli ustawiony, globalny jeśli nie
@@ -164,31 +157,133 @@ export function GameProvider({ children }) {
     }
   }
 
+  // Czyta rozkład bezpośrednio z pola city.rozklad (źródło prawdy w bazie)
   function getDeparturesForCity(cityId) {
-    const cityRoutes = routes.filter(
-      (r) => (r.from === cityId || r.to === cityId) && r.departures.length > 0
-    )
+    const city = getCityById(cityId)
+    if (!city?.rozklad?.length) return []
+    return [...city.rozklad]
+      .filter(entry => {
+        // nie pokazuj odjazdu do tego samego miasta
+        const destCity = cities.find(c => c.name === entry.destination || c.id === entry.destination)
+        return !destCity || destCity.id !== cityId
+      })
+      .sort((a, b) => a.departure.localeCompare(b.departure))
+      .map((entry, i) => ({
+        id: `${entry.trainSetId}-${entry.kurs}-${entry.departure}`,
+        destination: entry.destination,
+        departure: entry.departure,
+        platform: (i % 6) + 1,
+        trainId: entry.trainName,
+        trainType: entry.trainType,
+        trainNo: entry.trainNo ?? null,
+        kurs: entry.kurs ?? null,
+        via: (entry.via || []).map(v => cities.find(c => c.id === v || c.name === v)?.name || v),
+        status: 'ON TIME',
+      }))
+  }
 
-    const result = []
-    cityRoutes.forEach((route) => {
-      const train = getTrainById(route.trainId)
-      const otherCityId = route.from === cityId ? route.to : route.from
-      const otherCity = getCityById(otherCityId)
-      route.departures.forEach((dep, i) => {
-        result.push({
-          id: `${route.id}-${dep}`,
-          destination: otherCity?.name || otherCityId,
-          departure: dep,
-          platform: (result.length % 6) + 1,
-          trainId: train?.name || '—',
-          trainType: train?.type || '',
-          status: i === 0 ? 'BOARDING' : 'ON TIME',
-          routeId: route.id,
+  // Aktualizuje city.rozklad dla jednego składu (usuwa stare, wpisuje nowe)
+  async function updateCitySchedules(trainSetId, newRozklad, trainSetMeta = {}) {
+    try {
+      const batch = writeBatch(db)
+      const resolveCityId = (miasto) =>
+        cities.find(c => c.id === miasto || c.name === miasto)?.id
+
+      const newCityEntries = {}
+      if (newRozklad?.length) {
+        const byKurs = {}
+        newRozklad.forEach(stop => {
+          if (!byKurs[stop.kurs]) byKurs[stop.kurs] = []
+          byKurs[stop.kurs].push(stop)
+        })
+        Object.values(byKurs).forEach(stops => {
+          stops.forEach((stop, idx) => {
+            if (!stop.odjazd) return
+            const cityId = resolveCityId(stop.miasto)
+            if (!cityId) return
+            const via = stops.slice(idx + 1, stops.length - 1).map(s => s.miasto)
+            const terminal = stops[stops.length - 1]
+            const destination = stop.kierunek || terminal?.miasto || '—'
+            if (resolveCityId(destination) === cityId) return // odjazd do siebie samego
+            if (!newCityEntries[cityId]) newCityEntries[cityId] = []
+            newCityEntries[cityId].push({
+              trainSetId,
+              trainName: trainSetMeta.name || '—',
+              trainType: trainSetMeta.type || '',
+              trainNo: trainSetMeta.trainNo || null,
+              departure: stop.odjazd,
+              destination,
+              kurs: stop.kurs,
+              via,
+            })
+          })
+        })
+      }
+
+      const affectedIds = new Set([
+        ...cities.filter(c => c.rozklad?.some(e => e.trainSetId === trainSetId)).map(c => c.id),
+        ...Object.keys(newCityEntries),
+      ])
+      affectedIds.forEach(cityId => {
+        const city = cities.find(c => c.id === cityId)
+        if (!city) return
+        const kept = (city.rozklad || []).filter(e => e.trainSetId !== trainSetId)
+        batch.update(doc(db, 'cities', cityId), { rozklad: [...kept, ...(newCityEntries[cityId] || [])] })
+      })
+
+      await batch.commit()
+    } catch (e) {
+      console.error('Błąd aktualizacji rozkładu miast:', e)
+    }
+  }
+
+  // Przebudowuje city.rozklad dla wszystkich składów na podstawie trainSet.rozklad
+  async function rebuildAllCitySchedules() {
+    try {
+      const batch = writeBatch(db)
+      const resolveCityId = (miasto) =>
+        cities.find(c => c.id === miasto || c.name === miasto)?.id
+
+      const newCityEntries = {}
+      trainsSets.forEach(ts => {
+        if (!ts.rozklad?.length) return
+        const byKurs = {}
+        ts.rozklad.forEach(stop => {
+          if (!byKurs[stop.kurs]) byKurs[stop.kurs] = []
+          byKurs[stop.kurs].push(stop)
+        })
+        Object.values(byKurs).forEach(stops => {
+          stops.forEach((stop, idx) => {
+            if (!stop.odjazd) return
+            const cityId = resolveCityId(stop.miasto)
+            if (!cityId) return
+            const via = stops.slice(idx + 1, stops.length - 1).map(s => s.miasto)
+            const terminal = stops[stops.length - 1]
+            const destination = stop.kierunek || terminal?.miasto || '—'
+            if (resolveCityId(destination) === cityId) return // odjazd do siebie samego
+            if (!newCityEntries[cityId]) newCityEntries[cityId] = []
+            newCityEntries[cityId].push({
+              trainSetId: ts.id,
+              trainName: ts.name || '—',
+              trainType: ts.type || '',
+              trainNo: ts.trainNo || null,
+              departure: stop.odjazd,
+              destination,
+              kurs: stop.kurs,
+              via,
+            })
+          })
         })
       })
-    })
 
-    return result.sort((a, b) => a.departure.localeCompare(b.departure))
+      cities.forEach(city => {
+        batch.update(doc(db, 'cities', city.id), { rozklad: newCityEntries[city.id] || [] })
+      })
+      await batch.commit()
+      console.log('Rozkłady miast przebudowane.')
+    } catch (e) {
+      console.error('Błąd przebudowy rozkładów miast:', e)
+    }
   }
 
   return (
@@ -215,6 +310,9 @@ export function GameProvider({ children }) {
         getTicketPrice,
         updateTicketPrice,
         updateDefaultPricing,
+        companyName,
+        updateCitySchedules,
+        rebuildAllCitySchedules,
       }}
     >
       {children}

@@ -62,7 +62,7 @@
 
 .colHeaders {
   display: grid;
-  grid-template-columns: 70px 1fr 55px 90px 90px;
+  grid-template-columns: 70px 1fr 70px 45px 120px 80px;
   padding: 6px 16px;
   background: #111;
   color: #4a6a4a;
@@ -72,18 +72,28 @@
   flex-shrink: 0;
 }
 
-.row {
-  display: grid;
-  grid-template-columns: 70px 1fr 55px 90px 90px;
-  padding: 8px 16px;
+.rowWrapper {
   border-bottom: 1px solid #1a2a1a;
-  align-items: center;
   transition: background 0.2s;
 }
 
-.row:hover { background: #0f1f0f; }
+.rowWrapper:hover { background: #0f1f0f; }
 
 .boardingRow { background: #1a1500; }
+
+.row {
+  display: grid;
+  grid-template-columns: 70px 1fr 70px 45px 120px 80px;
+  padding: 8px 16px 4px;
+  align-items: center;
+}
+
+.viaLine {
+  padding: 0 16px 7px 86px;
+  color: #4a6a4a;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
 
 .time {
   color: #f0c040;
@@ -104,15 +114,33 @@
   letter-spacing: 1px;
 }
 
+.trainNo {
+  color: #f0c040;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
 .platform {
   color: #40a840;
   font-size: 13px;
   text-align: center;
 }
 
+.trainCell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .trainId {
   color: #6a9a6a;
   font-size: 11px;
+}
+
+.carrier {
+  color: #3a5a3a;
+  font-size: 9px;
+  letter-spacing: 1px;
 }
 
 .status {
@@ -138,4 +166,51 @@
   color: #4a6a4a;
   font-size: 12px;
   letter-spacing: 2px;
+}
+
+/* ── Popyt pasażerski ── */
+.demandSection {
+  border-top: 1px solid #2a4a2a;
+  padding: 12px 16px 16px;
+  overflow-y: auto;
+}
+
+.demandTitle {
+  color: #4a6a4a;
+  font-size: 9px;
+  letter-spacing: 3px;
+  margin-bottom: 10px;
+}
+
+.demandGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px 12px;
+}
+
+.demandRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 0;
+  border-bottom: 1px solid #111;
+}
+
+.demandCity {
+  color: #8aab8a;
+  font-size: 11px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.demandValue {
+  color: #f0c040;
+  font-size: 11px;
+  font-family: 'Share Tech Mono', monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
 }

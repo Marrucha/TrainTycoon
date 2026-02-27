@@ -1,11 +1,23 @@
 import { useState } from 'react'
-import { GameProvider } from './context/GameContext'
+import { GameProvider, useGame } from './context/GameContext'
 import PolandMap from './components/Map/PolandMap'
 import Sidebar from './components/Sidebar/Sidebar'
 import ResourceBar from './components/ResourceBar/ResourceBar'
 import FleetMenu from './components/FleetMenu/FleetMenu'
-import { migrateToFirestore, migrateDemand, migrateHourDemandMap } from './firebase/migration'
+import { migrateToFirestore, migrateDemandToCities, migrateHourDemandMap } from './firebase/migration'
 import styles from './App.module.css'
+
+function DevTools() {
+  const { rebuildAllCitySchedules } = useGame()
+  return (
+    <div className={styles.devTools}>
+      <button onClick={migrateToFirestore}>↑ Migruj dane</button>
+      <button onClick={migrateDemandToCities}>↑ Migruj popyt do miast</button>
+      <button onClick={migrateHourDemandMap}>↑ Migruj rozkład godz.</button>
+      <button onClick={rebuildAllCitySchedules}>↑ Przelicz rozkłady miast</button>
+    </div>
+  )
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('map')
@@ -36,13 +48,7 @@ export default function App() {
 
           <ResourceBar />
 
-          {import.meta.env.DEV && (
-            <div className={styles.devTools}>
-              <button onClick={migrateToFirestore}>↑ Migruj dane</button>
-              <button onClick={migrateDemand}>↑ Migruj popyt</button>
-              <button onClick={migrateHourDemandMap}>↑ Migruj rozkład godz.</button>
-            </div>
-          )}
+          {import.meta.env.DEV && <DevTools />}
         </header>
 
         <main className={styles.main}>
