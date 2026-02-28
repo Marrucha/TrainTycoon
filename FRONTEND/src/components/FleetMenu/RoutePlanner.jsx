@@ -44,8 +44,8 @@ function RoutePlannerMapOverlay({ selectedStops, currentPathEdges, onCityClick, 
                 <line
                     key={`net-${i}-${route.id}`}
                     x1={fp.x} y1={fp.y} x2={tp.x} y2={tp.y}
-                    stroke="rgba(255, 255, 255, 0.15)"
-                    strokeWidth={2}
+                    stroke={route.routeTier === 1 ? "rgba(255, 100, 100, 0.4)" : "rgba(255, 255, 255, 0.15)"}
+                    strokeWidth={route.routeTier === 1 ? 3 : 2}
                 />
             )
         })
