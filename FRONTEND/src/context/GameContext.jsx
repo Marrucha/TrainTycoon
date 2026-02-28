@@ -237,6 +237,18 @@ export function GameProvider({ children }) {
     }
   }
 
+  // Zapisuje układ przystanków na obiekcie składu pociągu
+  async function saveTrainRoute(trainSetId, routeStops, newRozklad) {
+    try {
+      await updateDoc(doc(db, 'players/player1/trainSet', trainSetId), {
+        routeStops,
+        rozklad: newRozklad
+      })
+    } catch (e) {
+      console.error('Błąd zapisu przypisanej trasy na składzie', e)
+    }
+  }
+
   // Przebudowuje city.rozklad dla wszystkich składów na podstawie trainSet.rozklad
   async function rebuildAllCitySchedules() {
     try {
@@ -313,6 +325,7 @@ export function GameProvider({ children }) {
         companyName,
         updateCitySchedules,
         rebuildAllCitySchedules,
+        saveTrainRoute,
       }}
     >
       {children}

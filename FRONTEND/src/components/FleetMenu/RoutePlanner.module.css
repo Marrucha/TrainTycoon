@@ -1,0 +1,261 @@
+.overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 20, 10, 0.95);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    background: #112211;
+    border-bottom: 1px solid #2a402a;
+    color: #a0d0a0;
+}
+
+.header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #4CAF50;
+}
+
+.closeBtn {
+    background: transparent;
+    border: 1px solid #4CAF50;
+    color: #4CAF50;
+    padding: 5px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.closeBtn:hover {
+    background: #4CAF50;
+    color: #000;
+}
+
+.content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.mapArea {
+    flex: 1;
+    position: relative;
+    background: #0d1a0d;
+}
+
+.sidebar {
+    width: 380px;
+    background: #112211;
+    border-left: 1px solid #2a402a;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    color: #a0d0a0;
+    overflow-y: auto;
+}
+
+.sectionTitle {
+    font-size: 1.1rem;
+    color: #4CAF50;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #2a402a;
+    padding-bottom: 5px;
+}
+
+.stopsList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.stopItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #1a331a;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.stopNumber {
+    background: #4CAF50;
+    color: #000;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+.stopName {
+    flex: 1;
+}
+
+.removeStopBtn {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0 5px;
+}
+
+.emptyStops {
+    color: #6a8a6a;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.modeToggle {
+    display: flex;
+    background: #1a331a;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.modeBtn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: transparent;
+    color: #a0d0a0;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.modeBtn.active {
+    background: #4CAF50;
+    color: #000;
+    font-weight: bold;
+}
+
+.routeStats {
+    background: #1a331a;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.statRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+}
+
+.statValue {
+    font-weight: bold;
+    color: #fff;
+}
+
+.segmentDetails {
+    margin-bottom: 20px;
+    flex: 1;
+}
+
+.segmentInfo {
+    background: #1a331a;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.segmentHeader {
+    font-weight: bold;
+    color: #4CAF50;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.segmentData {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+}
+
+.competitionList {
+    margin-top: 5px;
+    color: #ffb74d;
+}
+
+.saveBtn {
+    background: #4CAF50;
+    color: #000;
+    border: none;
+    padding: 15px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: 0.2s;
+    margin-top: auto;
+}
+
+.saveBtn:hover:not(:disabled) {
+    background: #45a049;
+    transform: translateY(-2px);
+}
+
+.saveBtn:disabled {
+    background: #2a402a;
+    color: #555;
+    cursor: not-allowed;
+}
+
+/* Tooltip dla kliknięcia w miasto na mapie */
+export .cityActionTooltip {
+    position: absolute;
+    background: #112211;
+    border: 1px solid #4CAF50;
+    padding: 10px;
+    border-radius: 6px;
+    z-index: 500;
+    pointer-events: auto;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+export .cityActionTooltip strong {
+    color: #4CAF50;
+}
+
+.actionBtn {
+    background: #4CAF50;
+    color: #000;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+}
+
+.removeActionBtn {
+    background: #ff6b6b;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+}

@@ -1,0 +1,304 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 5, 0, 0.9);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    font-family: monospace;
+}
+
+.header {
+    background: #0d1a0d;
+    border-bottom: 2px solid #2a4a2a;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h2 {
+    color: #f0c040;
+    margin: 0;
+    font-size: 20px;
+}
+
+.closeBtn {
+    background: transparent;
+    border: 1px solid #4a7a4a;
+    color: #8aab8a;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.closeBtn:hover {
+    background: #4a7a4a;
+    color: #fff;
+}
+
+.content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 300px;
+    background: #0a150a;
+    border-right: 1px solid #1a331a;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+}
+
+.mainArea {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #020502;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.sectionTitle {
+    color: #8aab8a;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #1a331a;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+.infoBox {
+    background: #112211;
+    border: 1px solid #2a4a2a;
+    padding: 16px;
+    border-radius: 8px;
+    color: #c0d0c0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.infoBox p {
+    margin: 0 0 8px 0;
+}
+
+.infoBox p:last-child {
+    margin: 0;
+}
+
+.infoBox strong {
+    color: #f0c040;
+}
+
+.coursesList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.courseBtn {
+    background: #0d1a0d;
+    border: 1px solid #2a4a2a;
+    color: #8aab8a;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    font-family: inherit;
+    font-weight: bold;
+}
+
+.courseBtn:hover {
+    background: #1a331a;
+}
+
+.courseBtn.active {
+    background: #2a4a2a;
+    color: #f0c040;
+    border-color: #4a7a4a;
+}
+
+.addCourseBtn {
+    background: transparent;
+    border: 1px dashed #4a7a4a;
+    color: #4CAF50;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.addCourseBtn:hover {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.addCourseBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.actionPanel {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.saveDraftBtn {
+    background: #1a331a;
+    color: #c0d0c0;
+    border: 1px solid #2a4a2a;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.saveDraftBtn:hover {
+    background: #2a4a2a;
+    color: #fff;
+}
+
+.submitBtn {
+    background: #4CAF50;
+    color: #000;
+    border: none;
+    padding: 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.submitBtn:hover {
+    background: #45a049;
+}
+
+.submitBtn:disabled {
+    background: #2a4a2a;
+    color: #4a7a4a;
+    cursor: not-allowed;
+}
+
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.timelineHeader {
+    display: flex;
+    padding: 12px 24px;
+    background: #0d1a0d;
+    border: 1px solid #1a331a;
+    border-radius: 8px 8px 0 0;
+    color: #8aab8a;
+    font-weight: bold;
+}
+
+.colStation {
+    width: 40%;
+}
+
+.colArr {
+    width: 20%;
+    text-align: center;
+}
+
+.colDep {
+    width: 20%;
+    text-align: center;
+}
+
+.colTravel {
+    width: 20%;
+    text-align: right;
+}
+
+.timelineRow {
+    display: flex;
+    align-items: center;
+    padding: 16px 24px;
+    background: #020502;
+    border-left: 1px solid #1a331a;
+    border-right: 1px solid #1a331a;
+    border-bottom: 1px solid #1a331a;
+}
+
+.timelineRow:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.timelineRow span {
+    font-size: 16px;
+}
+
+.stationName {
+    font-weight: bold;
+    color: #fff;
+}
+
+.stationTerminal {
+    color: #4cc9f0;
+}
+
+.timeInput {
+    background: #112211;
+    border: 1px solid #4a7a4a;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 16px;
+    width: 120px;
+    text-align: center;
+}
+
+.timeInput:focus {
+    outline: none;
+    border-color: #f0c040;
+}
+
+.timeInput:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #2a4a2a;
+}
+
+.travelTime {
+    color: #8aab8a;
+    font-size: 14px;
+}
+
+.errorBox {
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid #e74c3c;
+    color: #e74c3c;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.errorIcon {
+    font-size: 24px;
+}
