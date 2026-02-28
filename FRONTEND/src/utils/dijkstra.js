@@ -119,8 +119,8 @@ export function findShortestPath(connections = [], startId, endId, mode = 'faste
 /**
  * Łączy ścieżki dla wielu punktów na trasie w kolejności
  */
-export function findMultiPath(connections = [], stopIds, mode = 'fastest') {
-    if (!stopIds || stopIds.length < 2) return null;
+export function findMultiPath(connections = [], waypoints, mode = 'fastest') {
+    if (!waypoints || waypoints.length < 2) return null;
 
     let fullPath = [];
     let fullEdges = [];
