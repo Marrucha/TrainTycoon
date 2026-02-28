@@ -154,9 +154,10 @@ export default function PricingPanel({
     const baseConfig = { class1Per100km: base1, class2Per100km: base2, multipliers }
 
     if (isCustom) {
-      // Generujemy routePrices dla każdej trasy z uwzględnieniem nadpisań macierzy
+      // Generujemy routePrices dla każdej trasy przypisanej do tego składu z uwzględnieniem nadpisań macierzy
       const computedRoutePrices = {}
-      routesWithDist.forEach(r => {
+      const assignedRoutes = routesWithDist.filter(r => r.trainId === trainSet.id)
+      assignedRoutes.forEach(r => {
         const fromCity = cities.find(c => c.id === r.from)
         const toCity = cities.find(c => c.id === r.to)
         computedRoutePrices[r.id] = fromCity && toCity
