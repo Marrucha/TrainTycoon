@@ -130,6 +130,21 @@ export default function PricingPanel({
       .filter(Boolean)
   }, [trainSet.rozklad, trainSet.id, routes, cities])
 
+  // Obliczamy najdłuższy możliwy dystans między dowolną parą przystanków składu
+  const maxRouteDist = useMemo(() => {
+    let max = 0
+    for (let i = 0; i < stopCities.length; i++) {
+      for (let j = i + 1; j < stopCities.length; j++) {
+        const d = haversineKm(stopCities[i].lat, stopCities[i].lon, stopCities[j].lat, stopCities[j].lon)
+        if (d > max) max = d
+      }
+    }
+    return Math.round(max)
+  }, [stopCities])
+
+  // Wymagany rozmiar tablicy mnożników dla tego składu (np. 340km wymaga 4 przedziałów)
+  const requiredMultipliersCount = isCustom ? Math.max(1, Math.ceil(maxRouteDist / 100)) : multipliers.length
+
   const overrideCount = Object.values(matrixOverrides).filter(
     o => (showClass === 1 ? o.class1 : o.class2) !== undefined
   ).length
@@ -151,7 +166,9 @@ export default function PricingPanel({
   }
 
   function handleSave() {
-    const baseConfig = { class1Per100km: base1, class2Per100km: base2, multipliers }
+    // Jeżeli tryb własny, obcinamy tablicę mnożników do faktycznie wymaganej długości
+    const finalMultipliers = isCustom ? multipliers.slice(0, requiredMultipliersCount) : multipliers
+    const baseConfig = { class1Per100km: base1, class2Per100km: base2, multipliers: finalMultipliers }
 
     if (isCustom) {
       // Generujemy routePrices dla każdej trasy przypisanej do tego składu z uwzględnieniem nadpisań macierzy
@@ -218,7 +235,7 @@ export default function PricingPanel({
       {/* Mnożniki */}
       <div className={styles.multipliersSection}>
         <div className={styles.sectionLabel}>Mnożniki przedziałów (ceny łączne po prawej):</div>
-        {multipliers.map((m, i) => (
+        {multipliers.slice(0, requiredMultipliersCount).map((m, i) => (
           <div key={i} className={styles.multiplierRow}>
             <span className={styles.bracket}>{i * 100}–{(i + 1) * 100} km</span>
             <span className={styles.times}>×</span>
@@ -230,12 +247,19 @@ export default function PricingPanel({
             <span className={styles.cumPrice}>
               → {p1((i + 1) * 100)} / {p2((i + 1) * 100)} PLN
             </span>
-            {multipliers.length > 1 && (
+            {(!isCustom && multipliers.length > 1) && (
               <button className={styles.removeBtn} onClick={() => removeBracket(i)}>−</button>
             )}
           </div>
         ))}
-        <button className={styles.addBracketBtn} onClick={addBracket}>+ Dodaj przedział</button>
+        {!isCustom && (
+          <button className={styles.addBracketBtn} onClick={addBracket}>+ Dodaj przedział</button>
+        )}
+        {isCustom && stopCities.length > 1 && (
+          <div className={styles.hint} style={{ marginTop: '10px' }}>
+            Skład obsługuje maksymalny dystans {maxRouteDist} km. Więcej przedziałów nie jest potrzebnych.
+          </div>
+        )}
       </div>
 
       {/* Macierz cen — tylko w trybie własnym */}
