@@ -73,6 +73,9 @@ function RoutePlannerMapOverlay({ selectedStops, currentPathEdges, onCityClick, 
 
     const hoveredCityPos = hoveredCity ? getPos(hoveredCity.lat, hoveredCity.lon) : null
 
+    const container = map.getContainer()
+    if (!container) return null
+
     return createPortal(
         <>
             <svg style={{ position: 'absolute', top: 0, left: 0, width: size.x, height: size.y, zIndex: 400, overflow: 'visible', pointerEvents: 'none' }}>
@@ -114,7 +117,7 @@ function RoutePlannerMapOverlay({ selectedStops, currentPathEdges, onCityClick, 
                 </div>
             )}
         </>,
-        map.getContainer()
+        container
     )
 }
 

@@ -27,7 +27,7 @@ class PriorityQueue {
  * @param {Array} connections - lista połączeń np. z INITIAL_ROUTES lub bieżących routes
  * @param {String} mode - 'fastest' (czas przejazdu) lub 'cheapest' (koszt)
  */
-function buildGraph(connections, mode) {
+function buildGraph(connections = [], mode) {
     const graph = {};
 
     connections.forEach(conn => {
@@ -53,16 +53,17 @@ function buildGraph(connections, mode) {
     return graph;
 }
 
-export function findShortestPath(connections, startNode, endNode, mode = 'fastest') {
+export function findShortestPath(connections = [], startId, endId, mode = 'fastest') {
+    if (!startId || !endId) return null;
     const graph = buildGraph(connections, mode);
-    if (!graph[startNode] || !graph[endNode]) return null;
+    if (!graph[startId] || !graph[endId]) return null;
 
     const distances = {};
     const previous = {};
     const pq = new PriorityQueue();
 
     for (let node in graph) {
-        if (node === startNode) {
+        if (node === startId) {
             distances[node] = 0;
             pq.enqueue(node, 0);
         } else {
@@ -78,7 +79,7 @@ export function findShortestPath(connections, startNode, endNode, mode = 'fastes
     while (!pq.isEmpty()) {
         const smallest = pq.dequeue().val;
 
-        if (smallest === endNode) {
+        if (smallest === endId) {
             // Znaleziono ścieżkę, odtwarzanie
             let curr = smallest;
             while (previous[curr]) {
@@ -86,7 +87,7 @@ export function findShortestPath(connections, startNode, endNode, mode = 'fastes
                 edges.push(previous[curr].edge);
                 curr = previous[curr].node;
             }
-            path.push(startNode);
+            path.push(startId);
             path.reverse();
             edges.reverse();
 
@@ -118,8 +119,8 @@ export function findShortestPath(connections, startNode, endNode, mode = 'fastes
 /**
  * Łączy ścieżki dla wielu punktów na trasie w kolejności
  */
-export function findMultiPath(connections, waypoints, mode = 'fastest') {
-    if (!waypoints || waypoints.length < 2) return null;
+export function findMultiPath(connections = [], stopIds, mode = 'fastest') {
+    if (!stopIds || stopIds.length < 2) return null;
 
     let fullPath = [];
     let fullEdges = [];
