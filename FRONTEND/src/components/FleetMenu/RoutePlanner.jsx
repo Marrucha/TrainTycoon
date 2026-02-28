@@ -9,6 +9,8 @@ import styles from './RoutePlanner.module.css'
 
 function RoutePlannerMapOverlay({ selectedStops, currentPathEdges, onCityClick, hoveredCity, setHoveredCity }) {
     const { cities, routes, getCityById } = useGame()
+    const map = useMap()
+    const [tick, setTick] = useState(0)
 
     useMapEvents({
         move: () => setTick(t => t + 1),
