@@ -18,7 +18,7 @@ const T2_LABEL_ZOOM       = 7
 const TOURIST_LABEL_ZOOM  = 7
 const CROSSING_LABEL_ZOOM = 9
 
-export default function CityMarker({ city, cx, cy, isSelected, isHovered, onSelect, onHover, leafletZoom = 6 }) {
+export default function CityMarker({ city, cx, cy, isSelected, isHovered, onSelect, onHover, leafletZoom = 6, trainCount = 0 }) {
   const isTourist  = city.tourist === true
   const isT2       = city.tier === 2 && !isTourist
   const isIntl     = city.tier === 'international'
@@ -90,6 +90,18 @@ export default function CityMarker({ city, cx, cy, isSelected, isHovered, onSele
           strokeWidth={isIntl ? 1.2 : isT2 ? 0.4 : isTourist ? 0.6 : 1.0}
           style={{ transition: 'r 0.15s ease' }}
         />
+      )}
+
+      {/* Liczba pociągów wewnątrz kropki */}
+      {trainCount > 0 && (
+        <text
+          x={cx} y={cy}
+          textAnchor="middle" dominantBaseline="central"
+          fontSize={r * 1.1} fontWeight="bold" fill="#0a1a0a"
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
+          {trainCount}
+        </text>
       )}
 
       {/* Etykieta */}

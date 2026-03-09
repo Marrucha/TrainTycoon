@@ -49,21 +49,26 @@ export default function RouteSegmentPanel() {
     }
 
     Object.values(byKurs).forEach((stops) => {
-      const fromStop = stops.find((s) => resolveCityId(s.miasto) === selectedRoute.from)
-      const toStop = stops.find((s) => resolveCityId(s.miasto) === selectedRoute.to)
-      if (!fromStop || !toStop) return
+      // Kierunek ustalamy wg pozycji w kursie (indeks), nie porównania czasu
+      // — dzięki temu kursy przekraczające północ działają poprawnie
+      const fromIdx = stops.findIndex((s) => resolveCityId(s.miasto) === selectedRoute.from)
+      const toIdx = stops.findIndex((s) => resolveCityId(s.miasto) === selectedRoute.to)
+      if (fromIdx === -1 || toIdx === -1) return
+      const fromStop = stops[fromIdx]
+      const toStop = stops[toIdx]
       const f = fix(fromStop), t = fix(toStop)
-      if (!f.dep || !t.arr) return
 
       let odjazd, przyjazd
-      if (timeToMin(f.dep) <= timeToMin(t.arr)) {
+      if (fromIdx < toIdx) {
+        // from → to (kierunek zgodny z kursem)
         odjazd = f.dep
         przyjazd = t.arr
       } else {
-        if (!t.dep || !f.arr) return
+        // to → from (kurs odwrotny)
         odjazd = t.dep
         przyjazd = f.arr
       }
+      if (!odjazd || !przyjazd) return
       results.push({
         kurs: fromStop.kurs,
         odjazd,
@@ -80,7 +85,10 @@ export default function RouteSegmentPanel() {
       .filter((t) => {
         const dep = timeToMin(t.odjazd)
         const arr = timeToMin(t.przyjazd)
-        return dep >= 0 && arr >= 0 && dep <= currentMin && currentMin <= arr
+        if (dep < 0 || arr < 0) return false
+        if (dep <= arr) return dep <= currentMin && currentMin <= arr
+        // Kurs przekracza północ (np. 23:35 → 00:06)
+        return currentMin >= dep || currentMin <= arr
       })
       .map((t) => ({ ts, ...t }))
   )

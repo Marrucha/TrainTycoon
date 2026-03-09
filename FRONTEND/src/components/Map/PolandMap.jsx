@@ -3,20 +3,55 @@ import { createPortal } from 'react-dom'
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { useGame } from '../../context/GameContext'
 import CityMarker from './CityMarker'
-import TrainDot from './TrainDot'
 import styles from './PolandMap.module.css'
+
+function timeToMin(t) {
+  if (!t || t === '—') return -1
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+
+function getBezierCP(x1, y1, x2, y2, id) {
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2
+  const dx = x2 - x1, dy = y2 - y1
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  if (dist < 1) return { cpx: mx, cpy: my }
+  const offset = Math.min(dist * 0.12, 35)
+  const sign = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 2 === 0 ? 1 : -1
+  return { cpx: mx + (-dy / dist) * offset * sign, cpy: my + (dx / dist) * offset * sign }
+}
+
+function quadBezierPoint(x1, y1, cpx, cpy, x2, y2, t) {
+  return {
+    x: (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cpx + t * t * x2,
+    y: (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cpy + t * t * y2,
+  }
+}
+
+function quadBezierAngle(x1, y1, cpx, cpy, x2, y2, t) {
+  const dx = 2 * (1 - t) * (cpx - x1) + 2 * t * (x2 - cpx)
+  const dy = 2 * (1 - t) * (cpy - y1) + 2 * t * (y2 - cpy)
+  return Math.atan2(dy, dx) * 180 / Math.PI
+}
 
 function MapOverlay() {
   const map = useMap()
-  const { selectedCity, selectedRoute, routes, cities, loading, selectCity, selectRoute, getTrainById, getCityById } = useGame()
+  const { selectedCity, selectedRoute, selectedTrainSet, routes, cities, trains, trainsSets, loading, selectCity, selectRoute, selectTrainSet, getTrainById, getCityById, defaultPricing } = useGame()
   const [hoveredCity, setHoveredCity] = useState(null)
   const [hoveredRoute, setHoveredRoute] = useState(null)
+  const [hoveredTrain, setHoveredTrain] = useState(null) // { ts, x, y }
   const [, setTick] = useState(0)
+  const [now, setNow] = useState(() => new Date())
 
   useMapEvents({
     move: () => setTick(t => t + 1),
     zoom: () => setTick(t => t + 1),
   })
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30000)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
     const observer = new ResizeObserver(() => map.invalidateSize())
@@ -31,7 +66,6 @@ function MapOverlay() {
 
   const leafletZoom = map.getZoom()
   const size = map.getSize()
-  const activeRoutes = routes.filter(r => r.trainId)
   const hoveredCityPos = hoveredCity ? getPos(hoveredCity.lat, hoveredCity.lon) : null
 
   function getRouteColor(route) {
@@ -67,6 +101,142 @@ function MapOverlay() {
   function isRouteDimmed(route) {
     if (selectedCity) return route.from !== selectedCity.id && route.to !== selectedCity.id
     return false
+  }
+
+  // Pozycje pociągów z rozkładu (czas rzeczywisty)
+  const currentMin = now.getHours() * 60 + now.getMinutes()
+  const trainPositions = []
+  if (trainsSets) {
+    trainsSets.forEach(ts => {
+      if (!ts.rozklad?.length) return
+      const byKurs = {}
+      ts.rozklad.forEach(s => {
+        if (!byKurs[s.kurs]) byKurs[s.kurs] = []
+        byKurs[s.kurs].push(s)
+      })
+      Object.values(byKurs).forEach(kursStops => {
+        for (let i = 0; i < kursStops.length - 1; i++) {
+          const fromStop = kursStops[i]
+          const toStop = kursStops[i + 1]
+          const depMin = timeToMin(fromStop.odjazd)
+          const arrMin = timeToMin(toStop.przyjazd || toStop.odjazd)
+          if (depMin < 0 || arrMin < 0) continue
+          const onSegment = depMin <= arrMin
+            ? currentMin >= depMin && currentMin <= arrMin
+            : currentMin >= depMin || currentMin <= arrMin
+          if (!onSegment) continue
+          const fromCity = cities.find(c => c.id === fromStop.miasto || c.name === fromStop.miasto)
+          const toCity = cities.find(c => c.id === toStop.miasto || c.name === toStop.miasto)
+          if (!fromCity || !toCity) continue
+          // Progress (z obsługą przekroczenia północy)
+          let progress
+          if (depMin <= arrMin) {
+            progress = (currentMin - depMin) / (arrMin - depMin)
+          } else {
+            const total = 1440 - depMin + arrMin
+            const elapsed = currentMin >= depMin ? currentMin - depMin : 1440 - depMin + currentMin
+            progress = elapsed / total
+          }
+          progress = Math.max(0, Math.min(1, progress))
+          // Znajdź odpowiadający odcinek trasy (dla krzywej Beziera)
+          const route = routes.find(r =>
+            (r.from === fromCity.id && r.to === toCity.id) ||
+            (r.to === fromCity.id && r.from === toCity.id)
+          )
+          if (route) {
+            const reversed = route.from !== fromCity.id
+            const routeFromCity = reversed ? toCity : fromCity
+            const routeToCity = reversed ? fromCity : toCity
+            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, routeFromCity, routeToCity, progress, reversed, routeId: route.id })
+          } else {
+            // Fallback: linia prosta
+            const fp = getPos(fromCity.lat, fromCity.lon)
+            const tp = getPos(toCity.lat, toCity.lon)
+            const lat = fromCity.lat + (toCity.lat - fromCity.lat) * progress
+            const lon = fromCity.lon + (toCity.lon - fromCity.lon) * progress
+            const angle = Math.atan2(tp.y - fp.y, tp.x - fp.x) * 180 / Math.PI
+            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, lat, lon, angle, linear: true })
+          }
+          break
+        }
+      })
+    })
+  }
+
+  // Pociągi stojące na stacjach
+  const trainCounts = {}
+  if (trainsSets) {
+    trainsSets.forEach(ts => {
+      if (!ts.rozklad?.length) return
+
+      // Grupuj po kursie i sortuj kursy chronologicznie
+      const byKurs = {}
+      ts.rozklad.forEach(s => {
+        if (!byKurs[s.kurs]) byKurs[s.kurs] = []
+        byKurs[s.kurs].push(s)
+      })
+      const kursGroups = Object.values(byKurs).sort((a, b) => {
+        const aMin = Math.min(...a.map(s => timeToMin(s.odjazd)).filter(m => m >= 0), 9999)
+        const bMin = Math.min(...b.map(s => timeToMin(s.odjazd)).filter(m => m >= 0), 9999)
+        return aMin - bMin
+      })
+
+      const seen = new Set()
+      const addCity = (miasto) => {
+        const city = cities.find(c => c.id === miasto || c.name === miasto)
+        if (!city) return
+        const key = `${ts.id}-${city.id}`
+        if (seen.has(key)) return
+        seen.add(key)
+        trainCounts[city.id] = (trainCounts[city.id] || 0) + 1
+      }
+
+      kursGroups.forEach((stops, ki) => {
+        // Postój na stacji pośredniej: przyjazd <= teraz <= odjazd
+        stops.forEach(stop => {
+          const arrMin = timeToMin(stop.przyjazd)
+          const depMin = timeToMin(stop.odjazd)
+          if (arrMin < 0 || depMin < 0) return
+          const lo = Math.min(arrMin, depMin)
+          const hi = Math.max(arrMin, depMin)
+          if (currentMin >= lo && currentMin <= hi) addCity(stop.miasto)
+        })
+
+        // Okno między końcem tego kursu a początkiem następnego
+        const nextKurs = kursGroups[ki + 1]
+        if (nextKurs) {
+          const lastStop = stops[stops.length - 1]
+          const firstNextStop = nextKurs[0]
+          const arrMin = timeToMin(lastStop.przyjazd)
+          const depMin = timeToMin(firstNextStop.odjazd)
+          if (arrMin >= 0 && depMin >= 0) {
+            const inGap = arrMin <= depMin
+              ? currentMin >= arrMin && currentMin <= depMin
+              : currentMin >= arrMin || currentMin <= depMin
+            if (inGap) addCity(lastStop.miasto)
+          }
+        }
+      })
+
+      // Okno bezczynności: od końca ostatniego kursu do początku pierwszego
+      // (okno okrężne — może przekraczać północ, np. przyjeżdża 23:30, odjeżdża 07:00)
+      if (kursGroups.length > 0) {
+        const firstStop = kursGroups[0].find(s => timeToMin(s.odjazd) >= 0)
+        const lastKurs = kursGroups[kursGroups.length - 1]
+        const lastStop = lastKurs[lastKurs.length - 1]
+        const firstDep = firstStop ? timeToMin(firstStop.odjazd) : -1
+        const lastArr = timeToMin(lastStop.przyjazd)
+        if (firstDep >= 0 && lastArr >= 0) {
+          const inIdle = lastArr > firstDep
+            ? currentMin >= lastArr || currentMin <= firstDep   // przekracza północ
+            : currentMin >= lastArr && currentMin <= firstDep   // w ciągu dnia
+          if (inIdle) {
+            addCity(lastStop.miasto)
+            if (firstStop && firstStop.miasto !== lastStop.miasto) addCity(firstStop.miasto)
+          }
+        }
+      }
+    })
   }
 
   const container = map.getContainer()
@@ -115,22 +285,6 @@ function MapOverlay() {
           )
         })}
 
-        {/* Animowane pociągi */}
-        {activeRoutes.map(route => {
-          const from = getCityById(route.from)
-          const to = getCityById(route.to)
-          if (!from || !to) return null
-          const train = getTrainById(route.trainId)
-          return (
-            <TrainDot
-              key={`dot-${route.id}`}
-              from={from} to={to}
-              travelTime={route.travelTime}
-              trainType={train?.type}
-              getPos={getPos}
-            />
-          )
-        })}
 
         {/* Markery miast */}
         {(!loading && cities) && cities.map(city => {
@@ -145,7 +299,43 @@ function MapOverlay() {
               leafletZoom={leafletZoom}
               onSelect={c => selectCity(c)}
               onHover={setHoveredCity}
+              trainCount={trainCounts[city.id] || 0}
             />
+          )
+        })}
+
+        {/* Pociągi z rozkładu — zawsze na wierzchu */}
+        {trainPositions.map(p => {
+          let pos, angle
+          if (p.linear) {
+            pos = getPos(p.lat, p.lon)
+            angle = p.angle
+          } else {
+            const fp = getPos(p.routeFromCity.lat, p.routeFromCity.lon)
+            const tp = getPos(p.routeToCity.lat, p.routeToCity.lon)
+            const { cpx, cpy } = getBezierCP(fp.x, fp.y, tp.x, tp.y, p.routeId)
+            const t = p.reversed ? 1 - p.progress : p.progress
+            pos = quadBezierPoint(fp.x, fp.y, cpx, cpy, tp.x, tp.y, t)
+            angle = quadBezierAngle(fp.x, fp.y, cpx, cpy, tp.x, tp.y, t)
+          }
+          const isSelected = selectedTrainSet?.id === p.ts.id
+          return (
+            <g
+              key={p.id}
+              transform={`translate(${pos.x}, ${pos.y})`}
+              style={{ pointerEvents: 'all', cursor: 'pointer' }}
+              onClick={e => { e.stopPropagation(); selectTrainSet(p.ts) }}
+              onMouseEnter={() => setHoveredTrain({ ts: p.ts, x: pos.x, y: pos.y })}
+              onMouseLeave={() => setHoveredTrain(null)}
+            >
+              <circle r={8} fill="transparent" />
+              <g transform={`rotate(${angle})`}>
+                <rect x={-4} y={-4} width={8} height={8} rx={1}
+                  fill={isSelected ? '#ff8080' : '#c03030'}
+                  stroke="#fff" strokeWidth={0.8} />
+                <polygon points="4,-3 4,3 8,0" fill={isSelected ? '#ffaaaa' : '#ff5555'} />
+              </g>
+            </g>
           )
         })}
       </svg>
@@ -193,6 +383,47 @@ function MapOverlay() {
           )}
         </div>
       )}
+
+      {/* Tooltip najechanego pociągu */}
+      {hoveredTrain && (() => {
+        const { ts, x, y } = hoveredTrain
+        const pricing = ts.pricing ?? defaultPricing ?? {}
+        const stops = ts.routeStops || []
+        const firstCity = getCityById(stops[0])?.name
+        const lastCity = getCityById(stops[stops.length - 1])?.name
+        const viaNames = stops.slice(1, -1).map(id => getCityById(id)?.name).filter(Boolean)
+        return (
+          <div
+            className={styles.tooltip}
+            style={{ left: Math.min(x + 14, size.x - 210), top: Math.max(y - 10, 4), bottom: 'auto' }}
+          >
+            <strong>{ts.name}</strong>
+            {firstCity && lastCity && (
+              <span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{firstCity}</span>
+                {viaNames.length > 0 && (
+                  <span style={{ color: '#8aab8a', fontSize: '0.9em' }}> › {viaNames.join(' › ')} › </span>
+                )}
+                {viaNames.length === 0 && <span style={{ color: '#8aab8a' }}> ↔ </span>}
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{lastCity}</span>
+              </span>
+            )}
+            <span style={{ display: 'flex', gap: 10 }}>
+              <span>{ts.totalSeats} miejsc</span>
+              <span style={{ color: '#8aab8a' }}>·</span>
+              <span>pasażerowie: <span style={{ color: '#f0c040' }}>— (brak danych)</span></span>
+            </span>
+            {pricing.class1Per100km != null && (
+              <span style={{ color: '#8aab8a', fontSize: '0.9em' }}>
+                Kl.1: <span style={{ color: '#c0d0c0' }}>{pricing.class1Per100km} PLN</span>
+                {' · '}
+                Kl.2: <span style={{ color: '#c0d0c0' }}>{pricing.class2Per100km} PLN</span>
+                {' '}/ 100km
+              </span>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Kontrolki zoom */}
       <div className={styles.zoomControls}>
