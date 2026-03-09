@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../../context/GameContext'
 import DepartureBoard from '../DepartureBoard/DepartureBoard'
 import RouteList from './RouteList'
-import RoutePanel from './RoutePanel'
+import RouteSegmentPanel from './RouteSegmentPanel'
 import TrainSetPanel from './TrainSetPanel'
 import styles from './Sidebar.module.css'
 
@@ -37,14 +37,14 @@ export default function Sidebar() {
           )}
           {selectedRoute && !selectedCity && !selectedTrainSet && (
             <motion.div
-              key="route"
+              key="segment"
               className={styles.panel}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.2 }}
             >
-              <RoutePanel />
+              <RouteSegmentPanel />
             </motion.div>
           )}
           {selectedTrainSet && !selectedCity && (
@@ -59,7 +59,7 @@ export default function Sidebar() {
               <TrainSetPanel />
             </motion.div>
           )}
-          {!selectedCity && !selectedRoute && !selectedTrainSet && (
+          {!selectedCity && !selectedTrainSet && !selectedRoute && (
             <motion.div
               key="list"
               className={styles.panel}

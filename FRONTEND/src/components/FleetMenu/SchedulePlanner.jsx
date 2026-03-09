@@ -31,6 +31,14 @@ export default function SchedulePlanner({ trainSet, onClose }) {
         return res ? res.totalTime : 60; // fallback 60min
     };
 
+    const getStopDuration = (cityId) => {
+        const city = getCityById(cityId)
+        const pop = city?.population ?? 0
+        if (pop >= 500000) return 10
+        if (pop >= 100000) return 5
+        return 3
+    }
+
     // Generuje obiekty postojów dla pojedynczego kursu
     const generateStops = (stopIds, startMins) => {
         let curr = startMins;
@@ -46,7 +54,7 @@ export default function SchedulePlanner({ trainSet, onClose }) {
                 const prevId = stopIds[i - 1];
                 const travel = getTravelTime(prevId, cityId);
                 const arr = curr + travel;
-                const stopD = i === stopIds.length - 1 ? 0 : 10;
+                const stopD = i === stopIds.length - 1 ? 0 : getStopDuration(cityId);
                 const dep = arr + stopD;
                 curr = dep;
                 result.push({
@@ -144,6 +152,13 @@ export default function SchedulePlanner({ trainSet, onClose }) {
     }, [trainSet.routeStops, trainSet.rozklad, cities]);
 
     const handleAddCourse = () => {
+        if (courses.length === 0) {
+            const c1Stops = generateStops(trainSet.routeStops, 8 * 60)
+            const newCourse = { id: 1, direction: 'forward', stops: c1Stops }
+            setCourses([newCourse])
+            setActiveCourseId(1)
+            return
+        }
         const lastCourse = courses[courses.length - 1];
         if (!lastCourse) return;
 
@@ -164,10 +179,10 @@ export default function SchedulePlanner({ trainSet, onClose }) {
     };
 
     const handleRemoveLastCourse = () => {
-        if (courses.length > 1) {
-            setCourses(courses.slice(0, -1));
-            setActiveCourseId(courses[courses.length - 2].id);
-        }
+        if (courses.length === 0) return
+        const newCourses = courses.slice(0, -1)
+        setCourses(newCourses)
+        setActiveCourseId(newCourses.length > 0 ? newCourses[newCourses.length - 1].id : null)
     };
 
     const recalculateCoursesFrom = (courseIndex, stopIndex, newDepMins, explicitVal = null) => {
@@ -251,7 +266,13 @@ export default function SchedulePlanner({ trainSet, onClose }) {
             targetAbsMins -= 24 * 60;
         }
 
-        recalculateCoursesFrom(courseIndex, stopIndex, targetAbsMins, val);
+        // Odjazd nie może być wcześniej niż przyjazd + 3 minuty
+        const arrMins = courses[courseIndex].stops[stopIndex].arrMins;
+        if (arrMins !== null && arrMins !== undefined && targetAbsMins < arrMins + 3) {
+            targetAbsMins = arrMins + 3;
+        }
+
+        recalculateCoursesFrom(courseIndex, stopIndex, targetAbsMins, minsToTime(targetAbsMins));
     };
 
     // Usuń błąd, gdy użytkownik modyfikuje rozkład
@@ -360,9 +381,9 @@ export default function SchedulePlanner({ trainSet, onClose }) {
                             className={styles.addCourseBtn}
                             onClick={handleAddCourse}
                         >
-                            + Dodaj Kurs Powrotny
+                            {courses.length === 0 ? '+ Dodaj Pierwszy Kurs' : '+ Dodaj Kurs Powrotny'}
                         </button>
-                        {courses.length > 1 && (
+                        {courses.length > 0 && (
                             <button
                                 className={styles.addCourseBtn}
                                 style={{ color: '#e74c3c', borderColor: '#e74c3c' }}

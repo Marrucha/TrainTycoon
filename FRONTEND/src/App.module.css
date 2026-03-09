@@ -79,27 +79,26 @@
   color: #f0c040;
 }
 
-.devTools {
+.clock {
   margin-left: auto;
   display: flex;
-  gap: 6px;
+  align-items: baseline;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
-.devTools button {
-  background: #1a0a0a;
-  color: #ff6b6b;
-  border: 1px solid #4a1a1a;
-  padding: 4px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 11px;
-  font-family: monospace;
-  opacity: 0.7;
+.clockTime {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 22px;
+  color: #f0c040;
+  letter-spacing: 2px;
 }
 
-.devTools button:hover {
-  opacity: 1;
-  background: #2a1010;
+.clockSec {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  color: #6a8a4a;
+  letter-spacing: 1px;
 }
 
 .main {

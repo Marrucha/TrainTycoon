@@ -172,10 +172,14 @@ export default function RoutePlanner({ trainSet, onClose }) {
     const saveRoute = async () => {
         if (!multiPathResult || selectedStops.length < 2) return
 
-        // Zapisz układ przystanków bezpośrednio na obiekcie składu
-        // Usuwamy stary rozkład, bo trasa się zmieniła i wymaga ułożenia na nowo w SchedulePlanner
-        await saveTrainRoute(trainSet.id, selectedStops, [])
+        const routeChanged =
+            selectedStops.length !== (trainSet.routeStops || []).length ||
+            selectedStops.some((id, i) => id !== (trainSet.routeStops || [])[i])
 
+        // Czyść rozkład tylko jeśli trasa faktycznie się zmieniła
+        const rozkladToSave = routeChanged ? [] : (trainSet.rozklad || [])
+
+        await saveTrainRoute(trainSet.id, selectedStops, rozkladToSave)
         onClose()
     }
 
