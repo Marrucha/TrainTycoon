@@ -22,6 +22,7 @@ export function GameProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [selectedCity, setSelectedCity] = useState(null)
   const [selectedRoute, setSelectedRoute] = useState(null)
+  const [selectedTrainSet, setSelectedTrainSet] = useState(null)
   const [playerDoc, setPlayerDoc] = useState({})
 
   useEffect(() => {
@@ -102,6 +103,17 @@ export function GameProvider({ children }) {
     } else {
       setSelectedRoute(route)
       setSelectedCity(null)
+      setSelectedTrainSet(null)
+    }
+  }
+
+  function selectTrainSet(trainSet) {
+    if (selectedTrainSet?.id === trainSet?.id) {
+      setSelectedTrainSet(null)
+    } else {
+      setSelectedTrainSet(trainSet)
+      setSelectedCity(null)
+      setSelectedRoute(null)
     }
   }
 
@@ -309,11 +321,13 @@ export function GameProvider({ children }) {
         loading,
         selectedCity,
         selectedRoute,
+        selectedTrainSet,
         dailyRevenue,
         activeTrainsCount,
         defaultPricing,
         selectCity,
         selectRoute,
+        selectTrainSet,
         updateRouteSchedule,
         getTrainById,
         getCityById,

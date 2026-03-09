@@ -4,10 +4,11 @@ import { useGame } from '../../context/GameContext'
 import DepartureBoard from '../DepartureBoard/DepartureBoard'
 import RouteList from './RouteList'
 import RoutePanel from './RoutePanel'
+import TrainSetPanel from './TrainSetPanel'
 import styles from './Sidebar.module.css'
 
 export default function Sidebar() {
-  const { selectedCity, selectedRoute } = useGame()
+  const { selectedCity, selectedRoute, selectedTrainSet } = useGame()
   const [collapsed, setCollapsed] = useState(false)
 
   return (
@@ -34,7 +35,7 @@ export default function Sidebar() {
               <DepartureBoard />
             </motion.div>
           )}
-          {selectedRoute && !selectedCity && (
+          {selectedRoute && !selectedCity && !selectedTrainSet && (
             <motion.div
               key="route"
               className={styles.panel}
@@ -46,7 +47,19 @@ export default function Sidebar() {
               <RoutePanel />
             </motion.div>
           )}
-          {!selectedCity && !selectedRoute && (
+          {selectedTrainSet && !selectedCity && (
+            <motion.div
+              key="trainset"
+              className={styles.panel}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <TrainSetPanel />
+            </motion.div>
+          )}
+          {!selectedCity && !selectedRoute && !selectedTrainSet && (
             <motion.div
               key="list"
               className={styles.panel}
