@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Symulator Popytu OD</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #060f06; color: #c0d0c0; font-family: 'Segoe UI', monospace; font-size: 13px; }
+  h1 { color: #f0c040; font-size: 18px; padding: 16px 20px; border-bottom: 1px solid #1a331a; }
+  h2 { color: #80c080; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .layout { display: grid; grid-template-columns: 340px 1fr; gap: 0; height: calc(100vh - 53px); }
+  .sidebar { background: #0a150a; border-right: 1px solid #1a331a; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .main { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .card { background: #0d1a0d; border: 1px solid #2a4a2a; border-radius: 8px; padding: 14px; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .row label { color: #8aab8a; min-width: 130px; font-size: 12px; }
+  input[type=number], input[type=text] {
+    background: #060f06; border: 1px solid #2a4a2a; color: #e0e8e0;
+    padding: 4px 8px; border-radius: 4px; width: 100%; font-size: 12px;
+  }
+  input[type=range] { width: 100%; accent-color: #40a840; }
+  .val-label { color: #f0c040; min-width: 40px; text-align: right; font-size: 12px; }
+  button {
+    background: #1a331a; color: #80c080; border: 1px solid #2a4a2a;
+    padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  button:hover { background: #2a4a2a; color: #f0c040; }
+  .btn-danger { color: #e74c3c; border-color: #e74c3c; }
+  .btn-danger:hover { background: #e74c3c; color: #fff; }
+  .kurs-item { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 6px; align-items: center; margin-bottom: 6px; background: #0a150a; padding: 6px 8px; border-radius: 4px; border: 1px solid #1a331a; }
+  .kurs-item input { width: 100%; }
+  .kurs-hour { color: #f0c040; font-weight: bold; font-size: 14px; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .result-table th { color: #8aab8a; text-transform: uppercase; font-size: 11px; padding: 4px 8px; border-bottom: 1px solid #1a331a; text-align: left; }
+  .result-table td { padding: 5px 8px; border-bottom: 1px solid #0d1a0d; }
+  .result-table tr:last-child td { border-bottom: none; }
+  .result-table .total-row td { color: #f0c040; font-weight: bold; border-top: 1px solid #2a4a2a; }
+  .num { text-align: right; color: #c0d8c0; font-family: monospace; }
+  .highlight { color: #f0c040; }
+  .muted { color: #4a7a4a; font-size: 11px; }
+  .tag-ic { background: #1a3a1a; color: #60c060; padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+  .tag-eic { background: #1a1a3a; color: #6060e0; padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+  .allocation-row { display: flex; gap: 4px; align-items: center; margin: 2px 0; font-size: 11px; }
+  .alloc-bar { height: 10px; background: #40a840; border-radius: 2px; transition: width 0.3s; }
+  .alloc-bar.pub { background: #888; }
+  select {
+    background: #060f06; border: 1px solid #2a4a2a; color: #e0e8e0;
+    padding: 4px 8px; border-radius: 4px; font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<h1>⚙ Symulator Popytu OD — TrainTycoon</h1>
+<div class="layout">
+
+<!-- ===== SIDEBAR ===== -->
+<div class="sidebar">
+
+  <div class="card">
+    <h2>Para miast <span id="cities-status" style="font-size:10px;color:#4a7a4a;font-weight:normal;margin-left:6px">ładowanie...</span></h2>
+    <datalist id="cities-datalist"></datalist>
+    <div class="row"><label>Miasto A</label><input type="text" list="cities-datalist" id="cityA" value="Skierniewice" onchange="onCityChange('A')" autocomplete="off"></div>
+    <div class="row"><label>Miasto B</label><input type="text" list="cities-datalist" id="cityB" value="Łódź" onchange="onCityChange('B')" autocomplete="off"></div>
+    <div id="route-info" style="color:#8aab8a;font-size:11px;margin:6px 0 8px 0;line-height:1.7;padding:6px 8px;background:#060f06;border-radius:4px;border:1px solid #1a331a">
+      Wybierz oba miasta
+    </div>
+    <div class="row"><label>Czas przejazdu (min)</label>
+      <input type="number" id="travelTime" value="35" min="1" max="600" step="1" style="width:80px">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Gracz publiczny (samorządowy)</h2>
+    <div style="color:#6a9a6a;font-size:11px;margin-bottom:6px">Tylko kl.2 — brak kl.1 w ofercie.</div>
+    <div class="row"><label>Prędkość (km/h)</label>
+      <input type="range" id="pubSpeed" min="40" max="160" value="80" oninput="document.getElementById('pubSpeedV').textContent=this.value;document.getElementById('pubTravelTime').value=Math.round(routeDistKm/+this.value*60);render()">
+      <span class="val-label" id="pubSpeedV">80</span>
+    </div>
+    <div class="row"><label>Czas przejazdu (min)</label>
+      <input type="number" id="pubTravelTime" value="41" min="1" max="1440" step="1" style="width:80px">
+    </div>
+    <div class="row"><label>Cena kl.2 /100km</label>
+      <input type="range" id="pubP2" min="1" max="80" value="50" step="1" oninput="document.getElementById('pubP2V').textContent=this.value">
+      <span class="val-label" id="pubP2V">50</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Wydatki marketingowe</h2>
+    <div style="color:#6a9a6a;font-size:11px;margin-bottom:8px;line-height:1.6">
+      bonus/mies. = LOG(⌈wydatki/pop_tys×100⌉; 2,2) / 100<br>
+      Stabilny = bonus×2 &nbsp;·&nbsp; retencja ×1/2/mies. &nbsp;·&nbsp; po 4 mies.: 6,25%
+    </div>
+    <div class="row"><label>Budżet (PLN/mies.)</label>
+      <input type="number" id="marketingBudget" value="5000" min="0" step="500" style="width:110px" oninput="computeRep()">
+    </div>
+    <div class="row"><label>Obsług. pop. (tys.)</label>
+      <input type="number" id="connectedPop" value="500" min="1" step="100" style="width:110px" oninput="computeRep()">
+    </div>
+    <div id="rep-computed" style="margin-top:6px;padding:6px 8px;background:#060f06;border-radius:4px;border:1px solid #1a331a;font-size:11px;color:#8aab8a;line-height:1.8">—</div>
+  </div>
+
+  <div class="card">
+    <h2>Parametry mode-split</h2>
+    <div class="row"><label>Elastyczność cenowa ε</label>
+      <input type="range" id="elasticity" min="-6" max="-0.2" value="-3" step="0.1" oninput="document.getElementById('elasticityV').textContent=this.value;render()">
+      <span class="val-label" id="elasticityV">-3</span>
+    </div>
+    <div id="beta-info" style="color:#4a7a4a;font-size:10px;margin:-4px 0 6px 0;padding-left:4px"></div>
+    <div class="row"><label>β czas (za h)</label>
+      <input type="range" id="bTime" min="0.1" max="3.0" value="0.8" step="0.05" oninput="document.getElementById('bTimeV').textContent=this.value">
+      <span class="val-label" id="bTimeV">0.8</span>
+    </div>
+    <div class="row"><label>Rep. bazowa (przed mkt)</label>
+      <input type="range" id="rep" min="0" max="1" value="0.5" step="0.05" oninput="document.getElementById('repV').textContent=this.value;computeRep()">
+      <span class="val-label" id="repV">0.5</span>
+    </div>
+    <div class="row"><label>Rep. finalna (z mkt)</label>
+      <span id="finalRepV" style="color:#f0c040;font-size:13px;font-weight:bold;min-width:40px;text-align:right">—</span>
+    </div>
+    <div class="row"><label>β reputacja</label>
+      <input type="range" id="bRep" min="0" max="3" value="1.0" step="0.05" oninput="document.getElementById('bRepV').textContent=this.value">
+      <span class="val-label" id="bRepV">1.0</span>
+    </div>
+    <div style="color:#4a7a4a;font-size:10px;margin:-4px 0 4px 130px">publiczny = 0.3 (ref.)</div>
+    <div class="row"><label>Wagon rest./bar</label>
+      <select id="hasRest"><option value="0">Nie</option><option value="1">Tak</option></select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Podział klas</h2>
+    <div style="color:#6a9a6a;font-size:11px;margin-bottom:8px;line-height:1.5">
+      Całkowity popyt z ceny kl.2. Podział klas wg stosunku cen:<br>
+      kl.1/kl.2 = 1/E przy cenie kl.1 = 2× kl.2.<br>
+      E maleje o 1% na każde 100k pop. największego miasta.
+    </div>
+    <div class="row"><label>E bazowe</label>
+      <input type="range" id="eBase" min="1" max="20" value="8" step="0.5" oninput="document.getElementById('eBaseV').textContent=this.value;render()">
+      <span class="val-label" id="eBaseV">8</span>
+    </div>
+    <div id="class-split-info" style="color:#8aab8a;font-size:11px;margin-top:4px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Rozkład godzinowy (hourDemandMap)</h2>
+    <div class="row"><label>Preset</label>
+      <select id="demandPreset" onchange="applyPreset()">
+        <option value="commute">Dojazdy (poranki/wieczory)</option>
+        <option value="uniform">Równomierny</option>
+        <option value="leisure">Rekreacyjny (weekendy)</option>
+      </select>
+    </div>
+    <canvas id="demandMapChart" height="100"></canvas>
+  </div>
+
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+
+  <!-- Kursy -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2>Kursy (składy)</h2>
+      <button onclick="addKurs()">+ Dodaj kurs</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:4px;padding:0 8px">
+      <span class="muted">Godz. odjazdu</span>
+      <span class="muted">Cena kl.2 /100km</span>
+      <span class="muted">Cena kl.1 /100km</span>
+      <span></span>
+    </div>
+    <div id="kursy-list"></div>
+  </div>
+
+  <!-- Charts -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <h2>Alokacja popytu wg godziny</h2>
+      <canvas id="allocationChart" height="200"></canvas>
+    </div>
+    <div class="card">
+      <h2>Udział modal (mode split)</h2>
+      <canvas id="modeSplitChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Results table -->
+  <div class="card">
+    <h2>Wyniki — popyt na kursy (dziennie)</h2>
+    <div id="results-table"></div>
+  </div>
+
+  <!-- Hourly breakdown -->
+  <div class="card">
+    <h2>Tabela alokacji per godzina</h2>
+    <div id="hourly-table" style="overflow-x:auto"></div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ============================================================
+// DANE
+// ============================================================
+let citiesData = {}; // name -> city object
+let cityAObj = null, cityBObj = null;
+let routeDistKm = 55;   // haversine, aktualizowane przy zmianie miast
+let marketGravity = 0;  // popyt dzienny (grawitacja), aktualizowany przy zmianie miast
+
+const DEMAND_PRESETS = {
+  commute: [0.008,0.004,0.003,0.003,0.007,0.018,0.045,0.082,0.078,0.055,0.042,0.045,0.052,0.050,0.048,0.050,0.058,0.075,0.082,0.062,0.048,0.032,0.018,0.010],
+  uniform: Array(24).fill(1/24),
+  leisure:  [0.005,0.003,0.002,0.002,0.004,0.008,0.018,0.040,0.070,0.085,0.085,0.075,0.072,0.068,0.065,0.065,0.060,0.058,0.055,0.045,0.040,0.030,0.015,0.007],
+};
+let hourDemandMap = [...DEMAND_PRESETS.commute];
+
+let kursy = [
+  { id: 1, hour: 7,  p2: 40, p1: 60 },
+  { id: 2, hour: 12, p2: 40, p1: 60 },
+  { id: 3, hour: 17, p2: 40, p1: 60 },
+];
+let nextId = 4;
+
+// ============================================================
+// MODELE
+// ============================================================
+function haversine(lat1,lon1,lat2,lon2) {
+  const R=6371, dlat=Math.PI*(lat2-lat1)/180, dlon=Math.PI*(lon2-lon1)/180;
+  const a=Math.sin(dlat/2)**2+Math.cos(Math.PI*lat1/180)*Math.cos(Math.PI*lat2/180)*Math.sin(dlon/2)**2;
+  return R*2*Math.asin(Math.sqrt(a));
+}
+
+function computeGravity(a, b) {
+  /* Replika demand.js: effPop = pop + hinterland, mnożniki jak w getDemand() */
+  if (!a || !b) return 0;
+  const effA = a.population + Math.round(Math.pow(a.population, 2/3)*27);
+  const effB = b.population + Math.round(Math.pow(b.population, 2/3)*27);
+  const dist = haversine(a.lat, a.lon, b.lat, b.lon);
+  if (dist < 1) return 0;
+  let base = 5 * (effA/1000) * (effB/1000) / Math.pow(dist, 1.3);
+  const EU_COUNTRIES = new Set(['Polska','Niemcy','Czechy','Słowacja','Austria','Węgry','Francja','Belgia','Holandia','Luksemburg','Dania','Szwecja','Finlandia','Estonia','Łotwa','Litwa','Rumunia','Bułgaria','Chorwacja','Słowenia','Włochy','Hiszpania','Portugalia','Grecja','Cypr','Malta','Irlandia']);
+  const countryA = a.country ?? 'Polska', countryB = b.country ?? 'Polska';
+  if (countryA !== countryB) {
+    const bothEU = EU_COUNTRIES.has(countryA) && EU_COUNTRIES.has(countryB);
+    base *= bothEU ? 0.3 : 0.15;
+  } else {
+    if (a.isCapital) base *= 1.2;
+    if (b.isCapital) base *= 1.2;
+    const sameVoiv = a.voivodeship && b.voivodeship && a.voivodeship === b.voivodeship;
+    if (sameVoiv) {
+      if (a.tier === 1 && !a.isCapital) base *= 1.1;
+      if (b.tier === 1 && !b.isCapital) base *= 1.1;
+    } else {
+      base *= 0.9;
+    }
+  }
+  return Math.round(base);
+}
+
+function gravityDemand() { return marketGravity; }
+
+function calcPrice(distKm, p100) {
+  const multipliers=[1.0,0.9,0.8,0.7,0.65,0.6];
+  let total=0, rem=distKm;
+  for(const m of multipliers){
+    const chunk=Math.min(rem,100);
+    total+=(chunk/100)*p100*m;
+    rem-=chunk;
+    if(rem<=0) break;
+  }
+  if(rem>0) total+=(rem/100)*p100*multipliers[multipliers.length-1];
+  return total;
+}
+
+function getBetaPrice() {
+  /* Kalibracja β z elastyczności własnej w logit binarnym.
+     W punkcie referencyjnym share=0.5: ε = β × P × 0.5  →  β = 2|ε|/P
+     P_ref = średnia cena kl.2 wśród kursów dla bieżącej trasy. */
+  const elas = Math.abs(+document.getElementById('elasticity').value);
+  const pRef = kursy.length > 0
+    ? kursy.reduce((s, k) => s + calcPrice(routeDistKm, k.p2), 0) / kursy.length
+    : calcPrice(routeDistKm, 40);
+  return pRef > 0 ? (2 * elas) / pRef : 0.04;
+}
+
+function mktSteadyBonus(marketing, connectedPopK) {
+  /* bonus/mies. = LOG(⌈wydatki/pop_tys×100⌉; 2.2) / 100
+     retencja ×1/2/mies. → stan stabilny = bonus × 1/(1−0.5) = bonus × 2 */
+  const x = Math.ceil(marketing / connectedPopK * 100);
+  const monthlyBonus = x < 2 ? 0 : Math.log(x) / Math.log(2.2) / 100;
+  return Math.min(1, monthlyBonus * 2);
+}
+
+function getFinalRep() {
+  const baseRep = +document.getElementById('rep').value;
+  const marketing = Math.max(0, +document.getElementById('marketingBudget').value);
+  const connectedPopK = Math.max(1, +document.getElementById('connectedPop').value);
+  return Math.min(0.99, baseRep + mktSteadyBonus(marketing, connectedPopK));
+}
+
+function utilityPlayer(price, timeMin, rep, restaurant) {
+  const bP=getBetaPrice();
+  const bT=+document.getElementById('bTime').value;
+  const bR=+document.getElementById('bRep').value;
+  return -bP*price - bT*(timeMin/60) + bR*rep + 0.2*(restaurant?1:0);
+}
+
+function utilityPublic() {
+  const bP=getBetaPrice();
+  const bT=+document.getElementById('bTime').value;
+  const bR=+document.getElementById('bRep').value;
+  const p100=+document.getElementById('pubP2').value;
+  const timeMin=+document.getElementById('pubTravelTime').value;
+  const price=(routeDistKm/100)*p100;
+  return -bP*price - bT*(timeMin/60) + bR*0.3; // publiczny ma stałą reputację 0.3
+}
+
+function modeSplit(uPlayer, uPublic) {
+  const eP=Math.exp(Math.min(uPlayer,500));
+  const e0=Math.exp(Math.min(uPublic,500));
+  return eP/(eP+e0);
+}
+
+function classSplit(priceC1, priceC2, popMax) {
+  /* class1_frac = 1 / (1 + E^(r-1))  where r = priceC1/priceC2 */
+  const eBase = +document.getElementById('eBase').value;
+  const multiples = Math.floor(popMax / 100_000);
+  const E = eBase * Math.pow(0.98, multiples);
+  const r = priceC2 > 0 ? priceC1 / priceC2 : 1;
+  return 1 / (1 + Math.pow(E, Math.max(0, r - 1)));
+}
+
+function circDist(h1, h2) {
+  const d = Math.abs(h1 - h2);
+  return Math.min(d, 24-d);
+}
+
+function proximityWeight(d) {
+  if(d===0) return 1.0;
+  if(d===1) return 0.75;
+  if(d===2) return 0.50;
+  if(d===3) return 0.25;
+  return 0;
+}
+
+// Voronoi allocation: fraction of hour h going to each kurs
+function voronoiAlloc(hour) {
+  const dists = kursy.map(k => ({ id: k.id, d: circDist(hour, k.hour) }));
+  const minDist = Math.min(...dists.map(x=>x.d));
+  if(minDist > 3) return {};
+  const winners = dists.filter(x => x.d === minDist);
+  const baseW = proximityWeight(minDist);
+  const share = baseW / winners.length;
+  const result = {};
+  for(const w of winners) result[w.id] = share;
+  return result;
+}
+
+// ============================================================
+// CALCULATE
+// ============================================================
+function calculate() {
+  const rep=getFinalRep(); // baza + bonus marketingowy
+  const restaurant=+document.getElementById('hasRest').value===1;
+  const timeMin=+document.getElementById('travelTime').value;
+  const gravity=gravityDemand();
+
+  // Normalize hourDemandMap
+  const total=hourDemandMap.reduce((a,b)=>a+b,0);
+  const hdm=hourDemandMap.map(v=>v/total);
+
+  // Per-kurs: mode split (class 2 price only) + class split fraction
+  const kursMS={}, kursC1Frac={};
+  const popMax = Math.max(cityAObj?.population||100000, cityBObj?.population||100000);
+  const beta=getBetaPrice();
+  document.getElementById('beta-info').textContent = `β_cena = ${beta.toFixed(4)} (kalibracja przy share=0.5)`;
+
+  for(const k of kursy){
+    const p2=calcPrice(routeDistKm, k.p2);
+    const u2=utilityPlayer(p2,timeMin,rep,restaurant);
+    kursMS[k.id]=modeSplit(u2, utilityPublic());
+    const p1=calcPrice(routeDistKm, k.p1);
+    kursC1Frac[k.id]=classSplit(p1, p2, popMax);
+  }
+
+  // Update class split info panel
+  const eBase=+document.getElementById('eBase').value;
+  const multiples=Math.floor(popMax/100_000);
+  const E_eff=(eBase*Math.pow(0.98,multiples)).toFixed(2);
+  const p2ref=calcPrice(routeDistKm, kursy[0]?.p2||40), p1ref=calcPrice(routeDistKm, kursy[0]?.p1||60);
+  const exampleC1=(classSplit(p1ref, p2ref, popMax)*100).toFixed(1);
+  document.getElementById('class-split-info').textContent =
+    `Pop. max: ${(popMax/1000).toFixed(0)}k → E=${E_eff} → kl.1 udział: ${exampleC1}%`;
+
+  // Per-kurs total passengers
+  const kursC2={}, kursC1={};
+  const kursHourly={};
+  for(const k of kursy){ kursC2[k.id]=0; kursC1[k.id]=0; kursHourly[k.id]=Array(24).fill(0); }
+
+  for(let h=0; h<24; h++){
+    const alloc=voronoiAlloc(h);
+    const hourDemand=gravity*hdm[h];
+    for(const [kidStr, frac] of Object.entries(alloc)){
+      const kid=+kidStr;
+      const paxTotal=hourDemand*frac*kursMS[kid];
+      const c1f=kursC1Frac[kid];
+      const pax1=paxTotal*c1f;
+      const pax2=paxTotal*(1-c1f);
+      kursC1[kid]+=pax1;
+      kursC2[kid]+=pax2;
+      kursHourly[kid][h]=pax1+pax2;
+    }
+  }
+
+  return { gravity, hdm, kursC2, kursC1, kursHourly, kursMS, kursC1Frac };
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+let allocChart=null, splitChart=null, mapChart=null;
+const KURS_COLORS=['#40a840','#f0c040','#e07040','#6080e0','#e040a0','#40d0d0'];
+
+function render() {
+  const { gravity, hdm, kursC2, kursC1, kursHourly, kursMS, kursC1Frac } = calculate();
+  const dist=routeDistKm;
+  const cityA=document.getElementById('cityA').value;
+  const cityB=document.getElementById('cityB').value;
+
+  // ------ Demand map chart ------
+  if(mapChart) mapChart.destroy();
+  mapChart=new Chart(document.getElementById('demandMapChart'), {
+    type:'bar',
+    data:{
+      labels:Array.from({length:24},(_,i)=>i+':00'),
+      datasets:[{
+        label:'Popyt %',
+        data:hdm.map(v=>+(v*100).toFixed(2)),
+        backgroundColor:'rgba(64,168,64,0.4)',
+        borderColor:'#40a840',
+        borderWidth:1,
+      }]
+    },
+    options:{plugins:{legend:{display:false}},scales:{y:{ticks:{color:'#8aab8a'},grid:{color:'#1a331a'}},x:{ticks:{color:'#6a9a6a',maxRotation:0,font:{size:9}},grid:{color:'#0d1a0d'}}}}
+  });
+
+  // ------ Allocation chart ------
+  const allocDatasets=kursy.map((k,i)=>({
+    label:`Kurs ${k.hour}:00`,
+    data:kursHourly[k.id].map(v=>+v.toFixed(2)),
+    backgroundColor:KURS_COLORS[i%KURS_COLORS.length]+'99',
+    borderColor:KURS_COLORS[i%KURS_COLORS.length],
+    borderWidth:1,
+  }));
+  if(allocChart) allocChart.destroy();
+  allocChart=new Chart(document.getElementById('allocationChart'), {
+    type:'bar',
+    data:{labels:Array.from({length:24},(_,i)=>i+':00'),datasets:allocDatasets},
+    options:{
+      scales:{x:{stacked:true,ticks:{color:'#6a9a6a',font:{size:9},maxRotation:0},grid:{color:'#0d1a0d'}},y:{stacked:true,ticks:{color:'#8aab8a'},grid:{color:'#1a331a'}}},
+      plugins:{legend:{labels:{color:'#c0d0c0',font:{size:11}}}}
+    }
+  });
+
+  // ------ Mode split chart ------
+  if(splitChart) splitChart.destroy();
+  splitChart=new Chart(document.getElementById('modeSplitChart'), {
+    type:'bar',
+    data:{
+      labels:kursy.map(k=>`${k.hour}:00`),
+      datasets:[
+        {label:'mode split (kl.2 cena)',data:kursy.map(k=>+(kursMS[k.id]*100).toFixed(1)),backgroundColor:'#40a84080',borderColor:'#40a840',borderWidth:1},
+        {label:'udział kl.1 w popycie',data:kursy.map(k=>+(kursC1Frac[k.id]*100).toFixed(1)),backgroundColor:'#f0c04080',borderColor:'#f0c040',borderWidth:1},
+      ]
+    },
+    options:{
+      scales:{y:{max:100,ticks:{color:'#8aab8a',callback:v=>v+'%'},grid:{color:'#1a331a'}},x:{ticks:{color:'#c0d0c0'},grid:{color:'#0d1a0d'}}},
+      plugins:{legend:{labels:{color:'#c0d0c0',font:{size:11}}}}
+    }
+  });
+
+  // ------ Results table ------
+  let totalC1=0, totalC2=0;
+  let html=`<table class="result-table">
+    <tr><th>Kurs</th><th style="text-align:right">Kl.2 os.</th><th style="text-align:right">Kl.1 os.</th><th style="text-align:right">Łącznie</th><th style="text-align:right">Mode split kl.2</th><th style="text-align:right">Cena kl.2</th></tr>`;
+  for(let i=0;i<kursy.length;i++){
+    const k=kursy[i];
+    const c2=Math.round(kursC2[k.id]), c1=Math.round(kursC1[k.id]);
+    totalC1+=c1; totalC2+=c2;
+    const msP=(kursMS[k.id]*100).toFixed(0);
+    const c1P=(kursC1Frac[k.id]*100).toFixed(0);
+    const p2=calcPrice(dist,k.p2).toFixed(2);
+    const p1=calcPrice(dist,k.p1).toFixed(2);
+    html+=`<tr>
+      <td><span style="color:${KURS_COLORS[i%KURS_COLORS.length]};font-weight:bold">${k.hour}:00</span> ${cityA}→${cityB}</td>
+      <td class="num">${c2.toLocaleString('pl-PL')}</td>
+      <td class="num">${c1.toLocaleString('pl-PL')}</td>
+      <td class="num highlight">${(c1+c2).toLocaleString('pl-PL')}</td>
+      <td class="num">${msP}% / ${c1P}% kl.1</td>
+      <td class="num">${p2} / ${p1} PLN</td>
+    </tr>`;
+  }
+  const tot=totalC1+totalC2;
+  html+=`<tr class="total-row"><td>SUMA / DOBĘ</td><td class="num">${totalC2.toLocaleString('pl-PL')}</td><td class="num">${totalC1.toLocaleString('pl-PL')}</td><td class="num">${tot.toLocaleString('pl-PL')}</td><td colspan="2" class="muted">Popyt grawit.: ${gravity.toFixed(0)} os./dobę</td></tr>`;
+  html+=`</table>`;
+  document.getElementById('results-table').innerHTML=html;
+
+  // ------ Hourly table ------
+  const totalMarket = gravity;
+  let htm=`<table class="result-table" style="min-width:700px">
+    <tr>
+      <th>Godz.</th>
+      <th style="text-align:right;color:#c0d0c0" title="Całkowity popyt — niezależny od przewoźnika">Rynek os./h</th>`;
+  for(const k of kursy) htm+=`<th style="text-align:right">${k.hour}:00<br><span class="muted" style="font-weight:normal">ms=${(kursMS[k.id]*100).toFixed(0)}%</span></th>`;
+  htm+=`<th style="text-align:right;color:#888">Publiczny</th></tr>
+  <tr style="font-size:10px;color:#4a7a4a">
+    <td></td>
+    <td style="text-align:right">Σ = ${Math.round(totalMarket)} os./dobę</td>
+    ${kursy.map(()=>'<td></td>').join('')}<td></td>
+  </tr>`;
+
+  for(let h=0;h<24;h++){
+    const hourD=gravity*hdm[h];
+    const alloc=voronoiAlloc(h);
+
+    let capturedByPlayer=0;
+    for(const k of kursy){
+      capturedByPlayer+=hourD*(alloc[k.id]||0)*kursMS[k.id];
+    }
+    const toPub=hourD-capturedByPlayer;
+
+    htm+=`<tr><td style="color:#8aab8a">${h}:00</td><td class="num" style="color:#c0d0c0;font-weight:bold">${Math.round(hourD)}</td>`;
+    for(const k of kursy){
+      const frac=alloc[k.id]||0;
+      const captured=hourD*frac*kursMS[k.id];
+      const captureRate=frac*kursMS[k.id];
+      const bg=frac>0?'background:'+KURS_COLORS[kursy.indexOf(k)%KURS_COLORS.length]+'22':'';
+      htm+=`<td class="num" style="${bg}">${frac>0?captured.toFixed(1)+'<span class="muted"> ('+Math.round(captureRate*100)+'%)</span>':'-'}</td>`;
+    }
+    htm+=`<td class="num" style="color:#888">${toPub.toFixed(1)}</td></tr>`;
+  }
+  htm+=`</table>`;
+  document.getElementById('hourly-table').innerHTML=htm;
+}
+
+// ============================================================
+// KURSY UI
+// ============================================================
+function renderKursy() {
+  const list=document.getElementById('kursy-list');
+  list.innerHTML='';
+  for(let i=0;i<kursy.length;i++){
+    const k=kursy[i];
+    const div=document.createElement('div');
+    div.className='kurs-item';
+    div.innerHTML=`
+      <div><span class="kurs-hour" style="color:${KURS_COLORS[i%KURS_COLORS.length]}">${String(k.hour).padStart(2,'0')}:00</span>
+        <input type="range" min="0" max="23" value="${k.hour}" data-id="${k.id}" data-field="hour"
+          oninput="updateKurs(${k.id},'hour',this.value);this.previousElementSibling.textContent=String(this.value).padStart(2,'0')+':00'">
+      </div>
+      <div><input type="number" value="${k.p2}" min="1" max="200" step="1" data-id="${k.id}" oninput="updateKurs(${k.id},'p2',this.value)"></div>
+      <div><input type="number" value="${k.p1}" min="1" max="300" step="1" data-id="${k.id}" oninput="updateKurs(${k.id},'p1',this.value)"></div>
+      <button class="btn-danger" onclick="removeKurs(${k.id})">✕</button>`;
+    list.appendChild(div);
+  }
+}
+
+function enforceP1Min(k) {
+  const minP1 = Math.ceil(k.p2 * 1.1);
+  if (k.p1 < minP1) k.p1 = minP1;
+}
+
+function addKurs() {
+  const lastHour=kursy.length>0?kursy[kursy.length-1].hour:8;
+  const k={id:nextId++,hour:Math.min(23,lastHour+4),p2:40,p1:0};
+  enforceP1Min(k);
+  kursy.push(k);
+  renderKursy(); render();
+}
+
+function removeKurs(id) {
+  if(kursy.length<=1) return;
+  kursy=kursy.filter(k=>k.id!==id);
+  renderKursy(); render();
+}
+
+function updateKurs(id,field,val) {
+  const k=kursy.find(k=>k.id===id);
+  if(!k) return;
+  k[field]=+val;
+  enforceP1Min(k);
+  renderKursy(); render();
+}
+
+// ============================================================
+// MARKETING → REPUTACJA
+// ============================================================
+function computeRep() {
+  const marketing = Math.max(0, +document.getElementById('marketingBudget').value);
+  const connectedPopK = Math.max(1, +document.getElementById('connectedPop').value);
+  const retention = 1/2;
+
+  const x = Math.ceil(marketing / connectedPopK * 100);
+  const monthlyBonus = x < 2 ? 0 : Math.log(x) / Math.log(2.2) / 100;
+  const steadyBonus = Math.min(1, monthlyBonus * 2);
+
+  const baseRep = +document.getElementById('rep').value;
+  const finalRep = Math.min(0.99, baseRep + steadyBonus);
+
+  document.getElementById('repV').textContent = baseRep.toFixed(2);
+  document.getElementById('finalRepV').textContent = finalRep.toFixed(3);
+
+  const months4 = (Math.pow(retention, 4) * 100).toFixed(1);
+  const rawVal = (marketing / connectedPopK * 100).toFixed(2);
+  document.getElementById('rep-computed').innerHTML =
+    `x = ⌈${rawVal}⌉ = ${x} &nbsp;·&nbsp; bonus/mies.: <b style="color:#c0d8c0">+${monthlyBonus.toFixed(4)}</b><br>` +
+    `Bonus stabilny: <b style="color:#c0d8c0">+${steadyBonus.toFixed(3)}</b> (= ${monthlyBonus.toFixed(4)} × 2)<br>` +
+    `Rep. finalna: <b style="color:#f0c040">${finalRep.toFixed(3)}</b> (baza ${baseRep.toFixed(2)} + ${steadyBonus.toFixed(3)})<br>` +
+    `<span style="color:#4a7a4a">po 4 mies. bez wydatków: ${months4}% bonusu</span>`;
+
+  render();
+}
+
+// ============================================================
+// PRESETS + INIT
+// ============================================================
+function applyPreset() {
+  const p=document.getElementById('demandPreset').value;
+  hourDemandMap=[...DEMAND_PRESETS[p]];
+  render();
+}
+
+// Auto-recalculate on all input changes
+document.addEventListener('input', e => {
+  if(e.target.closest('#kursy-list')) return; // handled separately
+  // marketing inputs already call computeRep() via oninput; for all others just render
+  const mktIds = new Set(['marketingBudget','connectedPop','rep']);
+  if(!mktIds.has(e.target.id)) render();
+});
+
+// ============================================================
+// CITY AUTOCOMPLETE
+// ============================================================
+function onCityChange(which) {
+  const name = document.getElementById(which === 'A' ? 'cityA' : 'cityB').value.trim();
+  const city = citiesData[name];
+  if (!city) return;
+  if (which === 'A') cityAObj = city;
+  else cityBObj = city;
+
+  if (cityAObj && cityBObj) {
+    routeDistKm = Math.round(haversine(cityAObj.lat, cityAObj.lon, cityBObj.lat, cityBObj.lon));
+    marketGravity = computeGravity(cityAObj, cityBObj);
+
+    // Proponowany czas przejazdu: odległość / 120 km/h
+    const suggestedTime = Math.round(routeDistKm / 120 * 60);
+    document.getElementById('travelTime').value = suggestedTime;
+
+    // Obsługiwana populacja: suma A+B (minimum dla symulatora jednej trasy)
+    document.getElementById('connectedPop').value = Math.round((cityAObj.population + cityBObj.population) / 1000);
+
+    // Proponowany czas przejazdu publicznego: odległość / prędkość z suwaka
+    const pubSpeed = +document.getElementById('pubSpeed').value;
+    document.getElementById('pubTravelTime').value = Math.round(routeDistKm / pubSpeed * 60);
+
+    // Info o trasie
+    const sameVoiv = cityAObj.voivodeship && cityBObj.voivodeship && cityAObj.voivodeship === cityBObj.voivodeship;
+    const voivInfo = sameVoiv
+      ? `<span style="color:#60c060">${cityAObj.voivodeship}</span>`
+      : `${cityAObj.voivodeship||'?'} / ${cityBObj.voivodeship||'?'}`;
+    document.getElementById('route-info').innerHTML =
+      `<b style="color:#f0c040">${cityAObj.name} → ${cityBObj.name}</b><br>` +
+      `Odległość: ${routeDistKm} km &nbsp;·&nbsp; ${voivInfo}<br>` +
+      `Rynek: <b style="color:#60c060">${marketGravity.toLocaleString('pl-PL')} os./dobę</b>`;
+  }
+  computeRep(); // aktualizuje finalRepV i wywołuje render()
+}
+
+// ============================================================
+// FIREBASE INIT
+// ============================================================
+firebase.initializeApp({
+  apiKey: 'AIzaSyAVxE0qJEV2hPdCkOdjyBV0_Jpfv7wve-Q',
+  authDomain: 'trainmanager-6f395.firebaseapp.com',
+  projectId: 'trainmanager-6f395',
+});
+firebase.firestore().collection('cities').get().then(snap => {
+  snap.forEach(doc => {
+    const d = doc.data();
+    if (d.name) citiesData[d.name] = { ...d, id: doc.id };
+  });
+  const dl = document.getElementById('cities-datalist');
+  Object.keys(citiesData).sort().forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    dl.appendChild(opt);
+  });
+  document.getElementById('cities-status').textContent = `${Object.keys(citiesData).length} miast`;
+  onCityChange('A');
+  onCityChange('B');
+}).catch(err => {
+  document.getElementById('cities-status').textContent = 'błąd połączenia';
+  console.error('Firebase:', err);
+});
+
+// Init
+renderKursy();
+computeRep();
+</script>
+</body>
+</html>
