@@ -2,30 +2,33 @@
 
 Architecture:
   1. rebuild_schedule_table() — builds a flat `rozkłady` collection once per
-     day (or on demand).  Each document = one stop for one kurs, containing
-     pre-resolved city IDs and forward_ids so the boarding tick never has to
-     scan the full trainSet rozklad.
+     day (or on demand).  Each document = one kurs for one trainSet:
+       {player_id, ts_id, kurs_id, departure_times, arrival_times, stops[]}
+     departure_times / arrival_times enable array_contains queries so the
+     boarding tick never has to scan all trainSet documents.
 
   2. run_boarding_tick() — runs every minute.  Queries `rozkłady` twice:
-       • odjazd  == now_str  →  ALIGHT + BOARD  (train departs this stop)
-       • przyjazd == now_str  AND przyjazd != odjazd  →  ALIGHT only
-         (train arrives; passengers disembark before dwell time ends)
-     Then groups matching records by (player_id, ts_id), loads only those
+       • departure_times array_contains now_str  →  ALIGHT + BOARD
+       • arrival_times   array_contains now_str  →  ALIGHT only (arrival ≠ departure)
+     Then groups matching docs by (player_id, ts_id), loads only those
      trainSet documents, mutates dailyDemand / dailyTransfer / currentTransfer
      in memory, and writes them back in a single batch.
 
 rozkłady document schema
 ─────────────────────────
-  player_id:   str        player document ID
-  ts_id:       str        trainSet document ID
-  kurs_id:     str        kurs identifier (stringified)
-  stop_index:  int        position in sorted stop list for this kurs
-  city_id:     str        resolved city ID
-  odjazd:      str|None   "HH:MM" departure from this stop (None = last stop)
-  przyjazd:    str|None   "HH:MM" arrival at this stop   (None = first stop)
-  is_first:    bool
-  is_last:     bool
-  forward_ids: list[str]  city IDs of all stops after this one
+  player_id:        str          player document ID
+  ts_id:            str          trainSet document ID
+  kurs_id:          str          kurs identifier (stringified)
+  departure_times:  list[str]    all "HH:MM" departure times in this kurs
+  arrival_times:    list[str]    all "HH:MM" arrival times in this kurs
+  stops:            list[dict]   ordered stop list:
+    stop_index:  int
+    city_id:     str
+    odjazd:      str|None
+    przyjazd:    str|None
+    is_first:    bool
+    is_last:     bool
+    forward_ids: list[str]
 """
 
 from datetime import datetime
@@ -41,10 +44,11 @@ def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
     """Rebuild rozkłady records for a single trainSet.
 
     Called by the Firestore trigger on_trainset_written.
-    Deletes all existing records for (pid, ts_id) and writes new ones.
+    Deletes all existing records for (pid, ts_id) using deterministic IDs
+    and writes new ones — one document per kurs.
     If ts_data is None (document deleted), only the deletion happens.
 
-    Returns number of records written.
+    Returns number of kurs documents written.
     """
     cities = {d.id: d.to_dict() for d in db.collection('cities').stream()}
 
@@ -54,8 +58,8 @@ def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
 
     sched_ref = db.collection('rozkłady')
 
-    # Delete existing records for this (pid, ts_id).
-    # Uses compound query — requires a composite index on (player_id, ts_id).
+    # Delete existing kurs docs for this (pid, ts_id) via deterministic IDs.
+    # We can't know which kurs_ids existed, so fall back to a query.
     existing = list(
         sched_ref
         .where('player_id', '==', pid)
@@ -79,11 +83,15 @@ def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
     batch   = db.batch()
     written = 0
 
-    for kurs_id, stops in by_kurs.items():
-        resolved = [resolve(s.get('miasto', '')) for s in stops]
-        n = len(stops)
+    for kurs_id, raw_stops in by_kurs.items():
+        resolved = [resolve(s.get('miasto', '')) for s in raw_stops]
+        n = len(raw_stops)
 
-        for i, (stop, city_id) in enumerate(zip(stops, resolved)):
+        stops = []
+        departure_times = []
+        arrival_times   = []
+
+        for i, (stop, city_id) in enumerate(zip(raw_stops, resolved)):
             odjazd   = stop.get('odjazd') or None
             przyjazd = stop.get('przyjazd') or None
             is_last  = (i == n - 1)
@@ -92,11 +100,12 @@ def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
             if is_last and not odjazd and przyjazd:
                 odjazd = przyjazd   # terminal stop: use arrival as event time
 
-            doc_id = f'{pid}__{ts_id}__{kurs_id}__{i:03d}'
-            batch.set(sched_ref.document(doc_id), {
-                'player_id':   pid,
-                'ts_id':       ts_id,
-                'kurs_id':     kurs_id,
+            if odjazd:
+                departure_times.append(odjazd)
+            if przyjazd and przyjazd != odjazd:
+                arrival_times.append(przyjazd)
+
+            stops.append({
                 'stop_index':  i,
                 'city_id':     city_id,
                 'odjazd':      odjazd,
@@ -105,14 +114,24 @@ def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
                 'is_last':     is_last,
                 'forward_ids': resolved[i + 1:],
             })
-            written += 1
 
-            if written % 499 == 0:
-                batch.commit()
-                batch = db.batch()
+        doc_id = f'{pid}__{ts_id}__{kurs_id}'
+        batch.set(sched_ref.document(doc_id), {
+            'player_id':       pid,
+            'ts_id':           ts_id,
+            'kurs_id':         kurs_id,
+            'departure_times': departure_times,
+            'arrival_times':   arrival_times,
+            'stops':           stops,
+        })
+        written += 1
+
+        if written % 499 == 0:
+            batch.commit()
+            batch = db.batch()
 
     batch.commit()
-    print(f'Schedule rebuilt for {pid}/{ts_id}: {written} records.')
+    print(f'Schedule rebuilt for {pid}/{ts_id}: {written} kurs doc(s).')
     return written
 
 
@@ -131,7 +150,7 @@ def rebuild_schedule_table(db):
         for ts_doc in db.collection(f'players/{pid}/trainSet').stream():
             total += rebuild_schedule_for_trainset(db, pid, ts_doc.id, ts_doc.to_dict())
 
-    print(f'Full schedule table rebuild: {total} records total.')
+    print(f'Full schedule table rebuild: {total} kurs doc(s) total.')
     return total
 
 
@@ -151,40 +170,49 @@ def run_boarding_tick(db, now_str=None):
     if now_str is None:
         now_str = datetime.now().strftime('%H:%M')
 
-    sched_ref  = db.collection('rozkłady')
+    sched_ref   = db.collection('rozkłady')
     base_trains = {d.id: d.to_dict() for d in db.collection('trains').stream()}
 
     # ------------------------------------------------------------------
-    # 1. Query: stops where train departs now (primary event: alight + board)
+    # 1. Query kurs docs that have a departure or arrival at now_str
     # ------------------------------------------------------------------
-    dep_events  = list(sched_ref.where('odjazd', '==', now_str).stream())
+    dep_docs = list(sched_ref.where('departure_times', 'array_contains', now_str).stream())
+    arr_docs = list(sched_ref.where('arrival_times',   'array_contains', now_str).stream())
 
-    # Query: stops where train arrives now AND arrival ≠ departure
-    #        (secondary event: alight only, before dwell ends)
-    arr_events  = list(sched_ref.where('przyjazd', '==', now_str).stream())
-    arr_only    = [e for e in arr_events
-                   if e.to_dict().get('odjazd') != now_str]
+    # Build a unified event list: (kurs_doc_data, stop_dict, event_type)
+    all_events = []
+    seen_dep = set()
 
-    all_events  = [(e, 'depart') for e in dep_events] + \
-                  [(e, 'arrive') for e in arr_only]
+    for doc in dep_docs:
+        data = doc.to_dict()
+        seen_dep.add(doc.id)
+        for stop in data.get('stops', []):
+            if stop.get('odjazd') == now_str:
+                all_events.append((data, stop, 'depart'))
+
+    for doc in arr_docs:
+        data = doc.to_dict()
+        for stop in data.get('stops', []):
+            przyjazd = stop.get('przyjazd')
+            if przyjazd == now_str and stop.get('odjazd') != now_str:
+                all_events.append((data, stop, 'arrive'))
 
     if not all_events:
         print(f'Boarding tick {now_str}: no events.')
         return 0
 
     # ------------------------------------------------------------------
-    # 2. Group events by (player_id, ts_id) to minimise Firestore reads
+    # 2. Group by (player_id, ts_id) to minimise Firestore reads
     # ------------------------------------------------------------------
-    groups = {}   # (pid, ts_id) → list of (event_doc, event_type)
-    for ev_doc, ev_type in all_events:
-        ev = ev_doc.to_dict()
-        key = (ev['player_id'], ev['ts_id'])
-        groups.setdefault(key, []).append((ev, ev_type))
+    groups = {}   # (pid, ts_id) → list of (kurs_data, stop, ev_type)
+    for kurs_data, stop, ev_type in all_events:
+        key = (kurs_data['player_id'], kurs_data['ts_id'])
+        groups.setdefault(key, []).append((kurs_data, stop, ev_type))
 
     # ------------------------------------------------------------------
-    # 3. Load only the needed trainSet documents
+    # 3. Load only the needed trainSet documents and process
     # ------------------------------------------------------------------
-    processed = 0
+    processed   = 0
     write_batch = db.batch()
 
     for (pid, ts_id), events in groups.items():
@@ -198,28 +226,27 @@ def run_boarding_tick(db, now_str=None):
         if not ts_snap.exists:
             continue
 
-        ts           = ts_snap.to_dict()
-        total_seats  = _calc_total_seats(ts, player_trains, base_trains)
+        ts          = ts_snap.to_dict()
+        total_seats = _calc_total_seats(ts, player_trains, base_trains)
 
-        # Deep-copy mutable state
         daily_demand     = _deep_copy_demand(ts.get('dailyDemand') or {})
         daily_transfer   = _deep_copy_demand(ts.get('dailyTransfer') or {})
         current_transfer = _deep_copy_current(ts.get('currentTransfer') or {})
 
-        # Sort events by stop_index so multi-stop same-minute cases are ordered
-        events.sort(key=lambda x: x[0].get('stop_index', 0))
+        # Sort by stop_index so multi-stop same-minute cases are ordered
+        events.sort(key=lambda x: x[1].get('stop_index', 0))
 
-        for ev, ev_type in events:
-            kurs_id     = ev['kurs_id']
-            city_id     = ev['city_id']
-            forward_ids = set(ev.get('forward_ids') or [])
-            is_last     = ev.get('is_last', False)
+        for kurs_data, stop, ev_type in events:
+            kurs_id     = kurs_data['kurs_id']
+            city_id     = stop['city_id']
+            forward_ids = set(stop.get('forward_ids') or [])
+            is_last     = stop.get('is_last', False)
+            next_city   = next(iter(forward_ids), None)
 
             _process_stop_event(
                 ev_type, kurs_id, city_id, forward_ids, is_last,
                 total_seats, daily_demand, daily_transfer, current_transfer,
-                now_str,
-                next_city_id=forward_ids.__iter__().__next__() if forward_ids else None,
+                now_str, next_city_id=next_city,
             )
             processed += 1
 
@@ -254,7 +281,6 @@ def _process_stop_event(
     on_board    = kc['onBoard']
 
     # ---- ALIGHT ----
-    # Always alight passengers whose destination is this city
     for key in list(on_board.keys()):
         dest_id = key.split(':')[1] if ':' in key else ''
         if dest_id == city_id:

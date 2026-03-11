@@ -147,7 +147,7 @@ function MapOverlay() {
             const reversed = route.from !== fromCity.id
             const routeFromCity = reversed ? toCity : fromCity
             const routeToCity = reversed ? fromCity : toCity
-            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, kursStops, routeFromCity, routeToCity, progress, reversed, routeId: route.id })
+            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, kursId: String(fromStop.kurs), kursStops, routeFromCity, routeToCity, progress, reversed, routeId: route.id })
           } else {
             // Fallback: linia prosta
             const fp = getPos(fromCity.lat, fromCity.lon)
@@ -155,7 +155,7 @@ function MapOverlay() {
             const lat = fromCity.lat + (toCity.lat - fromCity.lat) * progress
             const lon = fromCity.lon + (toCity.lon - fromCity.lon) * progress
             const angle = Math.atan2(tp.y - fp.y, tp.x - fp.x) * 180 / Math.PI
-            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, kursStops, lat, lon, angle, linear: true })
+            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, kursId: String(fromStop.kurs), kursStops, lat, lon, angle, linear: true })
           }
           break
         }
@@ -326,7 +326,7 @@ function MapOverlay() {
               transform={`translate(${pos.x}, ${pos.y})`}
               style={{ pointerEvents: 'all', cursor: 'pointer' }}
               onClick={e => { e.stopPropagation(); selectTrainSet(p.ts) }}
-              onMouseEnter={() => setHoveredTrain({ ts: p.ts, kursStops: p.kursStops, x: pos.x, y: pos.y })}
+              onMouseEnter={() => setHoveredTrain({ ts: p.ts, kursId: p.kursId, kursStops: p.kursStops, x: pos.x, y: pos.y })}
               onMouseLeave={() => setHoveredTrain(null)}
             >
               <circle r={8} fill="transparent" />
@@ -387,7 +387,7 @@ function MapOverlay() {
 
       {/* Tooltip najechanego pociągu */}
       {hoveredTrain && (() => {
-        const { ts, kursStops, x, y } = hoveredTrain
+        const { ts, kursId, kursStops, x, y } = hoveredTrain
         const pricing = ts.pricing ?? defaultPricing ?? {}
         return (
           <div
@@ -395,31 +395,58 @@ function MapOverlay() {
             style={{ left: Math.min(x + 14, size.x - 210), top: Math.max(y - 10, 4), bottom: 'auto' }}
           >
             <strong>{ts.name}</strong>
-            {kursStops?.length > 0 && (
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {kursStops.map((stop, idx) => {
-                  const isFirst = idx === 0
-                  const isLast  = idx === kursStops.length - 1
-                  const cityName = cities.find(c => c.id === stop.miasto || c.name === stop.miasto)?.name ?? stop.miasto
-                  const time = isLast ? (stop.przyjazd || stop.odjazd) : stop.odjazd
-                  return (
-                    <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ color: '#f0c040', fontFamily: 'Share Tech Mono, monospace', fontSize: 11, minWidth: 38, flexShrink: 0 }}>
-                        {time || '—'}
+            {kursStops?.length > 0 && (() => {
+              const ct = ts.currentTransfer?.[kursId] ?? {}
+              const dt = ts.dailyTransfer?.[kursId] ?? {}
+              const onBoard = ct.onBoard ?? {}
+              const alighted = dt.od ?? {}
+              const totalOnBoard = ct.totalOnBoard ?? 0
+              const totalSeats = ts.totalSeats ?? '—'
+              return (
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {kursStops.map((stop, idx) => {
+                    const isFirst = idx === 0
+                    const isLast  = idx === kursStops.length - 1
+                    const cityId  = cities.find(c => c.id === stop.miasto || c.name === stop.miasto)?.id ?? stop.miasto
+                    const cityName = cities.find(c => c.id === cityId)?.name ?? stop.miasto
+                    const time = isLast ? (stop.przyjazd || stop.odjazd) : stop.odjazd
+                    // Pasażerowie jadący DO tej stacji
+                    const obEntry = Object.entries(onBoard).find(([k]) => k.split(':')[1] === cityId)
+                    const alEntry = Object.entries(alighted).find(([k]) => k.split(':')[1] === cityId)
+                    const onBoardCount = obEntry ? obEntry[1].class1 + obEntry[1].class2 : 0
+                    const alightedCount = alEntry ? alEntry[1].class1 + alEntry[1].class2 : 0
+                    const hasAlighted = alightedCount > 0 && onBoardCount === 0
+                    const hasOnBoard  = onBoardCount > 0
+                    return (
+                      <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: '#f0c040', fontFamily: 'Share Tech Mono, monospace', fontSize: 11, minWidth: 38, flexShrink: 0 }}>
+                          {time || '—'}
+                        </span>
+                        <span style={{ color: isFirst || isLast ? '#fff' : '#8aab8a', fontWeight: isFirst || isLast ? 600 : 400, fontSize: isFirst || isLast ? '1em' : '0.92em', flex: 1 }}>
+                          {cityName}
+                        </span>
+                        {hasOnBoard && (
+                          <span style={{ color: '#f0c040', fontFamily: 'Share Tech Mono, monospace', fontSize: 10, flexShrink: 0 }}>
+                            {onBoardCount}
+                          </span>
+                        )}
+                        {hasAlighted && (
+                          <span style={{ color: '#4a6a4a', fontFamily: 'Share Tech Mono, monospace', fontSize: 10, flexShrink: 0 }}>
+                            {alightedCount}
+                          </span>
+                        )}
                       </span>
-                      <span style={{ color: isFirst || isLast ? '#fff' : '#8aab8a', fontWeight: isFirst || isLast ? 600 : 400, fontSize: isFirst || isLast ? '1em' : '0.92em' }}>
-                        {cityName}
-                      </span>
+                    )
+                  })}
+                  {(totalOnBoard > 0 || ts.totalSeats) && (
+                    <span style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, borderTop: '1px solid #2a4a2a', paddingTop: 3, marginTop: 1 }}>
+                      <span style={{ color: '#f0c040', fontFamily: 'Share Tech Mono, monospace', fontSize: 11 }}>{totalOnBoard}</span>
+                      <span style={{ color: '#4a6a4a', fontSize: 10 }}>/ {totalSeats} miejsc</span>
                     </span>
-                  )
-                })}
-              </span>
-            )}
-            <span style={{ display: 'flex', gap: 10 }}>
-              <span>{ts.totalSeats} miejsc</span>
-              <span style={{ color: '#8aab8a' }}>·</span>
-              <span>pasażerowie: <span style={{ color: '#f0c040' }}>— (brak danych)</span></span>
-            </span>
+                  )}
+                </span>
+              )
+            })()}
             {pricing.class1Per100km != null && (
               <span style={{ color: '#8aab8a', fontSize: '0.9em' }}>
                 Kl.1: <span style={{ color: '#c0d0c0' }}>{pricing.class1Per100km} PLN</span>

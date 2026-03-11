@@ -1,29 +1,32 @@
 import { useState, useMemo } from 'react'
 import { useGame } from '../../context/GameContext'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import styles from './TrainComposer.module.css'
 
-export default function TrainComposer({ onCancel }) {
+export default function TrainComposer({ onCancel, editTrainSet = null }) {
     const { trains, trainsSets } = useGame()
 
-    const [trainName, setTrainName] = useState('Nowy Skład')
-    const [composition, setComposition] = useState([])
+    const [trainName, setTrainName] = useState(editTrainSet?.name ?? 'Nowy Skład')
+    const [composition, setComposition] = useState(() => {
+        if (!editTrainSet?.trainIds) return []
+        return editTrainSet.trainIds.map(id => trains.find(t => t.id === id)).filter(Boolean)
+    })
     const [saving, setSaving] = useState(false)
 
-    // Obliczamy logikę dostępnych zasobów (Tylko te, które nie są jeszcze w żadnym gotowym trainSet)
+    const isEditing = !!editTrainSet
+
+    // Dostępne wagony: wolne + te już w edytowanym składzie
     const availableParts = useMemo(() => {
-        // Zbieramy wszystkie id maszyn przypisanych do wszystkich składów
+        const editingIds = new Set(editTrainSet?.trainIds ?? [])
         const assignedIds = new Set()
         trainsSets.forEach(ts => {
-            if (ts.trainIds) {
+            if (ts.trainIds && ts.id !== editTrainSet?.id) {
                 ts.trainIds.forEach(id => assignedIds.add(id))
             }
         })
-
-        // Z inwentarza filtrujemy to co wolne
-        return trains.filter(t => !assignedIds.has(t.id))
-    }, [trains, trainsSets])
+        return trains.filter(t => !assignedIds.has(t.id) || editingIds.has(t.id))
+    }, [trains, trainsSets, editTrainSet])
 
     const unassignedParts = availableParts.filter(p => !composition.find(c => c.id === p.id))
 
@@ -92,21 +95,30 @@ export default function TrainComposer({ onCancel }) {
         if (composition.length === 0) return alert('Wklej najpierw chociaż jedną maszynę na planszę!')
 
         setSaving(true)
-        const setId = `trainset-${Date.now()}`
-
-        const setObj = {
-            id: setId,
-            name: trainName,
-            type: composition[0]?.type || 'Zwykły',
-            trainIds: composition.map(c => c.id),
-            maxSpeed: currentMaxSpeed === 100000 ? 0 : currentMaxSpeed,
-            totalSeats,
-            totalCostPerKm: maxCostPerKm
-        }
 
         try {
-            await setDoc(doc(db, 'players/player1/trainSet', setId), setObj)
-            onCancel() // Powrót
+            if (isEditing) {
+                await updateDoc(doc(db, 'players/player1/trainSet', editTrainSet.id), {
+                    name: trainName,
+                    type: composition[0]?.type || 'Zwykły',
+                    trainIds: composition.map(c => c.id),
+                    maxSpeed: currentMaxSpeed === 100000 ? 0 : currentMaxSpeed,
+                    totalSeats,
+                    totalCostPerKm: maxCostPerKm,
+                })
+            } else {
+                const setId = `trainset-${Date.now()}`
+                await setDoc(doc(db, 'players/player1/trainSet', setId), {
+                    id: setId,
+                    name: trainName,
+                    type: composition[0]?.type || 'Zwykły',
+                    trainIds: composition.map(c => c.id),
+                    maxSpeed: currentMaxSpeed === 100000 ? 0 : currentMaxSpeed,
+                    totalSeats,
+                    totalCostPerKm: maxCostPerKm,
+                })
+            }
+            onCancel()
         } catch (e) {
             console.error(e)
             alert('Wystąpił błąd podczas zapisywania składu!')
@@ -118,7 +130,7 @@ export default function TrainComposer({ onCancel }) {
         <div className={styles.composerWrapper}>
             <div className={styles.composerHeader}>
                 <div className={styles.headerTitle}>
-                    <h3>Kreator Składu</h3>
+                    <h3>{isEditing ? 'Edytuj Skład' : 'Kreator Składu'}</h3>
                     <input
                         type="text"
                         value={trainName}
@@ -129,7 +141,7 @@ export default function TrainComposer({ onCancel }) {
                 </div>
                 <div className={styles.headerActions}>
                     <button className={styles.cancelBtn} onClick={onCancel} disabled={saving}>Anuluj</button>
-                    <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>Zapisz Skład</button>
+                    <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>{isEditing ? 'Zapisz Zmiany' : 'Zapisz Skład'}</button>
                 </div>
             </div>
 

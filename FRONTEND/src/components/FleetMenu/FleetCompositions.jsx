@@ -10,12 +10,17 @@ export default function FleetCompositions() {
     // Pobieramy całą flotę (trains), wygenerowane składy (trainsSets) i opublikowane trasy (routes)
     const { trainsSets, trains, routes, cities, defaultPricing, updateTicketPrice, updateDefaultPricing, updateCitySchedules } = useGame()
     const [isComposing, setIsComposing] = useState(false)
+    const [editingTrainSet, setEditingTrainSet] = useState(null)
     const [pricingOpenFor, setPricingOpenFor] = useState(null) // id składu z otwartym cennikiem
     const [routingOpenFor, setRoutingOpenFor] = useState(null) // skład dla RoutePlanner
     const [schedulingOpenFor, setSchedulingOpenFor] = useState(null) // skład dla SchedulePlanner
 
     if (isComposing) {
         return <TrainComposer onCancel={() => setIsComposing(false)} />
+    }
+
+    if (editingTrainSet) {
+        return <TrainComposer onCancel={() => setEditingTrainSet(null)} editTrainSet={editingTrainSet} />
     }
 
     return (
@@ -218,6 +223,14 @@ export default function FleetCompositions() {
                                                         Wyślij w Trasę
                                                     </button>
                                                 )
+                                            )}
+                                            {!isPublished && (
+                                                <button
+                                                    className={styles.pricingBtn}
+                                                    onClick={() => setEditingTrainSet(trainSet)}
+                                                >
+                                                    Edytuj Skład
+                                                </button>
                                             )}
                                             <button className={styles.compActionBtn}>Rozwiąż</button>
                                         </div>

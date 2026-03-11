@@ -63,6 +63,14 @@ def rebuild_schedule(req: https_fn.Request) -> https_fn.Response:
 
 
 @https_fn.on_request()
+def calc_demand_manual(req: https_fn.Request) -> https_fn.Response:
+    """HTTP trigger: manually run daily demand calculation (for testing / bootstrap)."""
+    db = firestore.client()
+    updated = calc_demand_for_train_sets(db)
+    return https_fn.Response(f'Demand calculated: {updated} trainSet(s) updated.\n', status=200)
+
+
+@https_fn.on_request()
 def boarding_tick_manual(req: https_fn.Request) -> https_fn.Response:
     """HTTP trigger for manual boarding tick (testing / backfill).
 
