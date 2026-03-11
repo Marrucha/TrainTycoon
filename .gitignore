@@ -1,3 +1,9 @@
 node_modules/
 .claude/
 .vite/
+functions/__pycache__/
+functions/venv/
+functions/venvfunctions/
+*.pyc
+firebase-debug.log
+firebase-debug.*.log
