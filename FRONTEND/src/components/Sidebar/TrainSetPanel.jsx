@@ -43,6 +43,34 @@ export default function TrainSetPanel() {
       })
   }
 
+  // Popyt dzienny z backendu
+  const dailyDemand = ts.dailyDemand || null
+  const totalDailyPassengers = dailyDemand
+    ? Object.values(dailyDemand).reduce((sum, d) => sum + (d.total || 0), 0)
+    : null
+  const totalDailyClass1 = dailyDemand
+    ? Object.values(dailyDemand).reduce((sum, d) => sum + (d.class1 || 0), 0)
+    : null
+  const totalDailyClass2 = dailyDemand
+    ? Object.values(dailyDemand).reduce((sum, d) => sum + (d.class2 || 0), 0)
+    : null
+  const totalSeats = wagons.reduce((sum, w) => sum + (w.seats || 0), 0)
+  const avgOccupancy = (totalDailyPassengers !== null && totalSeats > 0 && coursesCount > 0)
+    ? Math.round((totalDailyPassengers / (totalSeats * coursesCount)) * 100)
+    : null
+
+  // Zbiorcza macierz OD ze wszystkich kursów
+  const mergedOD = dailyDemand
+    ? Object.values(dailyDemand).reduce((acc, d) => {
+        Object.entries(d.od || {}).forEach(([key, val]) => {
+          if (!acc[key]) acc[key] = { class1: 0, class2: 0 }
+          acc[key].class1 += val.class1 || 0
+          acc[key].class2 += val.class2 || 0
+        })
+        return acc
+      }, {})
+    : null
+
   return (
     <div className={styles.panel}>
       {/* Nagłówek */}
@@ -103,11 +131,27 @@ export default function TrainSetPanel() {
           <div className={styles.stats}>
             <div className={styles.statRow}>
               <span className={styles.statLabel}>Pasażerowie / dobę</span>
-              <span className={styles.statValue}>— (brak danych)</span>
+              <span className={styles.statValue}>
+                {totalDailyPassengers !== null ? `${totalDailyPassengers.toLocaleString('pl-PL')} os.` : '— (brak danych)'}
+              </span>
             </div>
+            {totalDailyPassengers !== null && (
+              <>
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>— kl. 1</span>
+                  <span className={styles.statValue}>{totalDailyClass1?.toLocaleString('pl-PL')} os.</span>
+                </div>
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>— kl. 2</span>
+                  <span className={styles.statValue}>{totalDailyClass2?.toLocaleString('pl-PL')} os.</span>
+                </div>
+              </>
+            )}
             <div className={styles.statRow}>
               <span className={styles.statLabel}>Średnie obłożenie</span>
-              <span className={styles.statValue}>— (brak danych)</span>
+              <span className={styles.statValue}>
+                {avgOccupancy !== null ? `${avgOccupancy}%` : '— (brak danych)'}
+              </span>
             </div>
             <div className={styles.statRow}>
               <span className={styles.statLabel}>Gapowicze</span>
@@ -123,6 +167,32 @@ export default function TrainSetPanel() {
             </div>
           </div>
         </section>
+
+        {/* Macierz popytu OD */}
+        {mergedOD && Object.keys(mergedOD).length > 0 && (
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>POPYT OD (pary miast / dobę)</div>
+            <div className={styles.stats}>
+              <div className={styles.statRow} style={{ borderBottom: '1px solid #1a331a', paddingBottom: 4, marginBottom: 4 }}>
+                <span className={styles.statLabel} style={{ flex: 1 }}>Relacja</span>
+                <span className={styles.statValue} style={{ minWidth: 55, textAlign: 'right', fontSize: 10, color: '#6a9a6a' }}>kl.1</span>
+                <span className={styles.statValue} style={{ minWidth: 55, textAlign: 'right', fontSize: 10, color: '#6a9a6a' }}>kl.2</span>
+              </div>
+              {Object.entries(mergedOD)
+                .sort((a, b) => (b[1].class1 + b[1].class2) - (a[1].class1 + a[1].class2))
+                .map(([key, val]) => {
+                  const [a, b] = key.split(':')
+                  return (
+                    <div key={key} className={styles.statRow}>
+                      <span className={styles.statLabel} style={{ flex: 1 }}>{a} → {b}</span>
+                      <span className={styles.statValue} style={{ minWidth: 55, textAlign: 'right' }}>{val.class1}</span>
+                      <span className={styles.statValue} style={{ minWidth: 55, textAlign: 'right' }}>{val.class2}</span>
+                    </div>
+                  )
+                })}
+            </div>
+          </section>
+        )}
 
         {/* Przychody i koszty */}
         <section className={styles.section}>
@@ -151,12 +221,20 @@ export default function TrainSetPanel() {
           </div>
           {firstStops.length > 0 ? (
             <div className={styles.stats}>
-              {firstStops.map((s) => (
-                <div key={s.kurs} style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '3px 0' }}>
-                  <span className={styles.depTime} style={{ fontSize: 11, flexShrink: 0 }}>{s.odjazd}</span>
-                  <span className={styles.statLabel}>{s.miasto} → {s.kierunek || '—'}</span>
-                </div>
-              ))}
+              {firstStops.map((s) => {
+                const kursPassengers = dailyDemand?.[s.kurs]?.total ?? null
+                return (
+                  <div key={s.kurs} style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '3px 0' }}>
+                    <span className={styles.depTime} style={{ fontSize: 11, flexShrink: 0 }}>{s.odjazd}</span>
+                    <span className={styles.statLabel} style={{ flex: 1 }}>{s.miasto} → {s.kierunek || '—'}</span>
+                    {kursPassengers !== null && (
+                      <span className={styles.depTime} style={{ fontSize: 11, flexShrink: 0, color: '#8aab8a' }}>
+                        {kursPassengers} os.
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <div className={styles.emptySchedule}>Brak rozkładu jazdy</div>

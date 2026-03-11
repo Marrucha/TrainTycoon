@@ -70,6 +70,7 @@ export function GameProvider({ children }) {
   )
 
   const companyName = playerDoc.companyName ?? ''
+  const reputation = playerDoc.reputation ?? 0.5
 
   const trains = useMemo(() => {
     return playerTrains.map(pt => {
@@ -337,6 +338,7 @@ export function GameProvider({ children }) {
         updateTicketPrice,
         updateDefaultPricing,
         companyName,
+        reputation,
         updateCitySchedules,
         rebuildAllCitySchedules,
         saveTrainRoute,

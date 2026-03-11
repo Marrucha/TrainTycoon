@@ -11,7 +11,8 @@
   body { background: #060f06; color: #c0d0c0; font-family: 'Segoe UI', monospace; font-size: 13px; }
   h1 { color: #f0c040; font-size: 18px; padding: 16px 20px; border-bottom: 1px solid #1a331a; }
   h2 { color: #80c080; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-  .layout { display: grid; grid-template-columns: 340px 1fr; gap: 0; height: calc(100vh - 53px); }
+  .layout { display: grid; grid-template-columns: 340px 1fr; gap: 0; height: calc(100vh - 53px); max-width: 1600px; margin: 0 auto; }
+  .chart-wrap { position: relative; }
   .sidebar { background: #0a150a; border-right: 1px solid #1a331a; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
   .main { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
   .card { background: #0d1a0d; border: 1px solid #2a4a2a; border-radius: 8px; padding: 14px; }
@@ -86,6 +87,43 @@
       <input type="range" id="pubP2" min="1" max="80" value="50" step="1" oninput="document.getElementById('pubP2V').textContent=this.value">
       <span class="val-label" id="pubP2V">50</span>
     </div>
+    <div class="row"><label>Degresja /100km</label>
+      <input type="range" id="priceDropRate" min="0" max="0.5" value="0.1" step="0.01"
+        oninput="document.getElementById('priceDropRateV').textContent=Math.round(this.value*100)+'%';render()">
+      <span class="val-label" id="priceDropRateV">10%</span>
+    </div>
+    <div style="color:#4a7a4a;font-size:10px;margin:-4px 0 6px 130px">dotyczy gracza, konkurenta i publicznego</div>
+    <div class="row"><label>Reputacja</label>
+      <input type="range" id="pubRep" min="0" max="1" value="0.3" step="0.05" oninput="document.getElementById('pubRepV').textContent=(+this.value).toFixed(2)">
+      <span class="val-label" id="pubRepV">0.30</span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button onclick="saveToGameConfig('public')" style="font-size:11px">Zapisz do gameConfig</button>
+      <span id="public-save-status" style="font-size:11px;margin-left:8px"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Konkurent (gracz 3)</h2>
+    <div style="color:#6a9a6a;font-size:11px;margin-bottom:6px">1 kurs — 13:00 — tylko kl.2</div>
+    <div class="row"><label>Prędkość (km/h)</label>
+      <input type="range" id="compSpeed" min="40" max="200" value="100" step="5"
+        oninput="document.getElementById('compSpeedV').textContent=this.value;render()">
+      <span class="val-label" id="compSpeedV">100</span>
+    </div>
+    <div class="row"><label>Czas przejazdu (min)</label>
+      <span id="compTravelTimeV" style="color:#f0c040;font-size:12px">—</span>
+    </div>
+    <div class="row"><label>Cena kl.2 /100km</label>
+      <input type="range" id="compP2" min="1" max="80" value="45" step="1"
+        oninput="document.getElementById('compP2V').textContent=this.value;render()">
+      <span class="val-label" id="compP2V">45</span>
+    </div>
+    <div class="row"><label>Reputacja</label>
+      <input type="range" id="compRep" min="0" max="1" value="0.4" step="0.05"
+        oninput="document.getElementById('compRepV').textContent=(+this.value).toFixed(2);render()">
+      <span class="val-label" id="compRepV">0.40</span>
+    </div>
   </div>
 
   <div class="card">
@@ -129,6 +167,10 @@
     <div class="row"><label>Wagon rest./bar</label>
       <select id="hasRest"><option value="0">Nie</option><option value="1">Tak</option></select>
     </div>
+    <div class="row" style="margin-top:10px">
+      <button onclick="saveToGameConfig('modeSplit')" style="font-size:11px">Zapisz do gameConfig</button>
+      <span id="modeSplit-save-status" style="font-size:11px;margin-left:8px"></span>
+    </div>
   </div>
 
   <div class="card">
@@ -143,6 +185,10 @@
       <span class="val-label" id="eBaseV">8</span>
     </div>
     <div id="class-split-info" style="color:#8aab8a;font-size:11px;margin-top:4px"></div>
+    <div class="row" style="margin-top:10px">
+      <button onclick="saveToGameConfig('classSplit')" style="font-size:11px">Zapisz do gameConfig</button>
+      <span id="classSplit-save-status" style="font-size:11px;margin-left:8px"></span>
+    </div>
   </div>
 
   <div class="card">
@@ -154,7 +200,7 @@
         <option value="leisure">Rekreacyjny (weekendy)</option>
       </select>
     </div>
-    <canvas id="demandMapChart" height="100"></canvas>
+    <div class="chart-wrap" style="height:90px"><canvas id="demandMapChart"></canvas></div>
   </div>
 
 </div>
@@ -181,11 +227,11 @@
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
       <h2>Alokacja popytu wg godziny</h2>
-      <canvas id="allocationChart" height="200"></canvas>
+      <div class="chart-wrap" style="height:220px"><canvas id="allocationChart"></canvas></div>
     </div>
     <div class="card">
       <h2>Udział modal (mode split)</h2>
-      <canvas id="modeSplitChart" height="200"></canvas>
+      <div class="chart-wrap" style="height:220px"><canvas id="modeSplitChart"></canvas></div>
     </div>
   </div>
 
@@ -226,6 +272,9 @@ let kursy = [
   { id: 3, hour: 17, p2: 40, p1: 60 },
 ];
 let nextId = 4;
+const COMP_ID = -1;
+const COMP_HOUR = 13;
+const COMP_COLOR = '#c060d0';
 
 // ============================================================
 // MODELE
@@ -266,15 +315,15 @@ function computeGravity(a, b) {
 function gravityDemand() { return marketGravity; }
 
 function calcPrice(distKm, p100) {
-  const multipliers=[1.0,0.9,0.8,0.7,0.65,0.6];
-  let total=0, rem=distKm;
-  for(const m of multipliers){
-    const chunk=Math.min(rem,100);
-    total+=(chunk/100)*p100*m;
-    rem-=chunk;
-    if(rem<=0) break;
+  // Degresja geometryczna: każde kolejne 100km × (1 − dropRate)
+  const drop = +document.getElementById('priceDropRate').value;
+  let total = 0, rem = distKm, seg = 0;
+  while (rem > 0) {
+    const chunk = Math.min(rem, 100);
+    total += (chunk / 100) * p100 * Math.pow(1 - drop, seg);
+    rem -= chunk;
+    seg++;
   }
-  if(rem>0) total+=(rem/100)*p100*multipliers[multipliers.length-1];
   return total;
 }
 
@@ -317,8 +366,20 @@ function utilityPublic() {
   const bR=+document.getElementById('bRep').value;
   const p100=+document.getElementById('pubP2').value;
   const timeMin=+document.getElementById('pubTravelTime').value;
-  const price=(routeDistKm/100)*p100;
-  return -bP*price - bT*(timeMin/60) + bR*0.3; // publiczny ma stałą reputację 0.3
+  const price=calcPrice(routeDistKm, p100);
+  const rep=+document.getElementById('pubRep').value;
+  return -bP*price - bT*(timeMin/60) + bR*rep;
+}
+
+function utilityComp() {
+  const bP=getBetaPrice();
+  const bT=+document.getElementById('bTime').value;
+  const bR=+document.getElementById('bRep').value;
+  const p100=+document.getElementById('compP2').value;
+  const timeMin=Math.round(routeDistKm / +document.getElementById('compSpeed').value * 60);
+  const price=calcPrice(routeDistKm, p100);
+  const rep=+document.getElementById('compRep').value;
+  return -bP*price - bT*(timeMin/60) + bR*rep;
 }
 
 function modeSplit(uPlayer, uPublic) {
@@ -349,17 +410,14 @@ function proximityWeight(d) {
   return 0;
 }
 
-// Voronoi allocation: fraction of hour h going to each kurs
+// Voronoi allocation: zwraca {ids, baseW} — nearest courses (player + competitor)
 function voronoiAlloc(hour) {
-  const dists = kursy.map(k => ({ id: k.id, d: circDist(hour, k.hour) }));
+  const allCourses = [...kursy, { id: COMP_ID, hour: COMP_HOUR }];
+  const dists = allCourses.map(k => ({ id: k.id, d: circDist(hour, k.hour) }));
   const minDist = Math.min(...dists.map(x=>x.d));
-  if(minDist > 3) return {};
+  if(minDist > 3) return { ids: [], baseW: 0 };
   const winners = dists.filter(x => x.d === minDist);
-  const baseW = proximityWeight(minDist);
-  const share = baseW / winners.length;
-  const result = {};
-  for(const w of winners) result[w.id] = share;
-  return result;
+  return { ids: winners.map(w => w.id), baseW: proximityWeight(minDist) };
 }
 
 // ============================================================
@@ -375,19 +433,24 @@ function calculate() {
   const total=hourDemandMap.reduce((a,b)=>a+b,0);
   const hdm=hourDemandMap.map(v=>v/total);
 
-  // Per-kurs: mode split (class 2 price only) + class split fraction
-  const kursMS={}, kursC1Frac={};
+  const kursC1Frac={};
   const popMax = Math.max(cityAObj?.population||100000, cityBObj?.population||100000);
   const beta=getBetaPrice();
   document.getElementById('beta-info').textContent = `β_cena = ${beta.toFixed(4)} (kalibracja przy share=0.5)`;
 
+  // Pre-compute utilities (stałe w czasie) i kursC1Frac
+  const uPub=utilityPublic();
+  const uComp=utilityComp();
+  const playerUtils={}, playerExps={};
   for(const k of kursy){
     const p2=calcPrice(routeDistKm, k.p2);
-    const u2=utilityPlayer(p2,timeMin,rep,restaurant);
-    kursMS[k.id]=modeSplit(u2, utilityPublic());
     const p1=calcPrice(routeDistKm, k.p1);
-    kursC1Frac[k.id]=classSplit(p1, p2, popMax);
+    playerUtils[k.id]=utilityPlayer(p2,timeMin,rep,restaurant);
+    playerExps[k.id]=Math.exp(Math.min(playerUtils[k.id],500));
+    kursC1Frac[k.id]=classSplit(p1,p2,popMax);
   }
+  const expPub=Math.exp(Math.min(uPub,500));
+  const expComp=Math.exp(Math.min(uComp,500));
 
   // Update class split info panel
   const eBase=+document.getElementById('eBase').value;
@@ -398,27 +461,51 @@ function calculate() {
   document.getElementById('class-split-info').textContent =
     `Pop. max: ${(popMax/1000).toFixed(0)}k → E=${E_eff} → kl.1 udział: ${exampleC1}%`;
 
-  // Per-kurs total passengers
-  const kursC2={}, kursC1={};
-  const kursHourly={};
+  // Multinomial logit — gracz/konkurent/publiczny w jednej puli Voronoi
+  const kursC2={}, kursC1={}, kursHourly={};
   for(const k of kursy){ kursC2[k.id]=0; kursC1[k.id]=0; kursHourly[k.id]=Array(24).fill(0); }
+  const compHourly=Array(24).fill(0);
+  let compPaxTotal=0;
+  const kursAccessible={};
+  for(const k of kursy) kursAccessible[k.id]=0;
+  let compAccessible=0;
 
   for(let h=0; h<24; h++){
-    const alloc=voronoiAlloc(h);
+    const {ids, baseW}=voronoiAlloc(h);
+    if(!ids.length || baseW===0) continue;
     const hourDemand=gravity*hdm[h];
-    for(const [kidStr, frac] of Object.entries(alloc)){
-      const kid=+kidStr;
-      const paxTotal=hourDemand*frac*kursMS[kid];
-      const c1f=kursC1Frac[kid];
-      const pax1=paxTotal*c1f;
-      const pax2=paxTotal*(1-c1f);
-      kursC1[kid]+=pax1;
-      kursC2[kid]+=pax2;
-      kursHourly[kid][h]=pax1+pax2;
+    const accessible=hourDemand*baseW;
+
+    // Suma exp dla wszystkich zwycięzców Voronoi + publiczny
+    let expSum=expPub;
+    for(const id of ids) expSum += id===COMP_ID ? expComp : playerExps[id];
+
+    for(const id of ids){
+      const e=id===COMP_ID ? expComp : playerExps[id];
+      const pax=accessible*(e/expSum);
+      if(id===COMP_ID){
+        compHourly[h]=pax;
+        compPaxTotal+=pax;
+        compAccessible+=accessible;
+      } else {
+        const c1f=kursC1Frac[id];
+        kursC1[id]+=pax*c1f;
+        kursC2[id]+=pax*(1-c1f);
+        kursHourly[id][h]=pax;
+        kursAccessible[id]+=accessible;
+      }
     }
   }
 
-  return { gravity, hdm, kursC2, kursC1, kursHourly, kursMS, kursC1Frac };
+  // Efektywny mode split (dla wykresów/tabel) — rzeczywisty udział w dostępnym popycie
+  const kursMS={};
+  for(const k of kursy){
+    const tot=kursC1[k.id]+kursC2[k.id];
+    kursMS[k.id]=kursAccessible[k.id]>0 ? tot/kursAccessible[k.id] : 0;
+  }
+  const compMS=compAccessible>0 ? compPaxTotal/compAccessible : 0;
+
+  return { gravity, hdm, kursC2, kursC1, kursHourly, kursMS, kursC1Frac, compMS, compHourly, compPaxTotal };
 }
 
 // ============================================================
@@ -428,7 +515,10 @@ let allocChart=null, splitChart=null, mapChart=null;
 const KURS_COLORS=['#40a840','#f0c040','#e07040','#6080e0','#e040a0','#40d0d0'];
 
 function render() {
-  const { gravity, hdm, kursC2, kursC1, kursHourly, kursMS, kursC1Frac } = calculate();
+  const { gravity, hdm, kursC2, kursC1, kursHourly, kursMS, kursC1Frac, compMS, compHourly, compPaxTotal } = calculate();
+  // update competitor travel time display
+  document.getElementById('compTravelTimeV').textContent =
+    Math.round(routeDistKm / +document.getElementById('compSpeed').value * 60) + ' min';
   const dist=routeDistKm;
   const cityA=document.getElementById('cityA').value;
   const cityB=document.getElementById('cityB').value;
@@ -447,22 +537,32 @@ function render() {
         borderWidth:1,
       }]
     },
-    options:{plugins:{legend:{display:false}},scales:{y:{ticks:{color:'#8aab8a'},grid:{color:'#1a331a'}},x:{ticks:{color:'#6a9a6a',maxRotation:0,font:{size:9}},grid:{color:'#0d1a0d'}}}}
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{color:'#8aab8a'},grid:{color:'#1a331a'}},x:{ticks:{color:'#6a9a6a',maxRotation:0,font:{size:9}},grid:{color:'#0d1a0d'}}}}
   });
 
   // ------ Allocation chart ------
-  const allocDatasets=kursy.map((k,i)=>({
-    label:`Kurs ${k.hour}:00`,
-    data:kursHourly[k.id].map(v=>+v.toFixed(2)),
-    backgroundColor:KURS_COLORS[i%KURS_COLORS.length]+'99',
-    borderColor:KURS_COLORS[i%KURS_COLORS.length],
-    borderWidth:1,
-  }));
+  const allocDatasets=[
+    ...kursy.map((k,i)=>({
+      label:`Kurs ${k.hour}:00`,
+      data:kursHourly[k.id].map(v=>+v.toFixed(2)),
+      backgroundColor:KURS_COLORS[i%KURS_COLORS.length]+'99',
+      borderColor:KURS_COLORS[i%KURS_COLORS.length],
+      borderWidth:1,
+    })),
+    {
+      label:'Konk. 13:00',
+      data:compHourly.map(v=>+v.toFixed(2)),
+      backgroundColor:COMP_COLOR+'99',
+      borderColor:COMP_COLOR,
+      borderWidth:1,
+    },
+  ];
   if(allocChart) allocChart.destroy();
   allocChart=new Chart(document.getElementById('allocationChart'), {
     type:'bar',
     data:{labels:Array.from({length:24},(_,i)=>i+':00'),datasets:allocDatasets},
     options:{
+      maintainAspectRatio:false,
       scales:{x:{stacked:true,ticks:{color:'#6a9a6a',font:{size:9},maxRotation:0},grid:{color:'#0d1a0d'}},y:{stacked:true,ticks:{color:'#8aab8a'},grid:{color:'#1a331a'}}},
       plugins:{legend:{labels:{color:'#c0d0c0',font:{size:11}}}}
     }
@@ -473,13 +573,14 @@ function render() {
   splitChart=new Chart(document.getElementById('modeSplitChart'), {
     type:'bar',
     data:{
-      labels:kursy.map(k=>`${k.hour}:00`),
+      labels:[...kursy.map(k=>`${k.hour}:00`), 'Konk. 13:00'],
       datasets:[
-        {label:'mode split (kl.2 cena)',data:kursy.map(k=>+(kursMS[k.id]*100).toFixed(1)),backgroundColor:'#40a84080',borderColor:'#40a840',borderWidth:1},
-        {label:'udział kl.1 w popycie',data:kursy.map(k=>+(kursC1Frac[k.id]*100).toFixed(1)),backgroundColor:'#f0c04080',borderColor:'#f0c040',borderWidth:1},
+        {label:'mode split (kl.2 cena)',data:[...kursy.map(k=>+(kursMS[k.id]*100).toFixed(1)), +(compMS*100).toFixed(1)],backgroundColor:'#40a84080',borderColor:'#40a840',borderWidth:1},
+        {label:'udział kl.1 w popycie',data:[...kursy.map(k=>+(kursC1Frac[k.id]*100).toFixed(1)), null],backgroundColor:'#f0c04080',borderColor:'#f0c040',borderWidth:1},
       ]
     },
     options:{
+      maintainAspectRatio:false,
       scales:{y:{max:100,ticks:{color:'#8aab8a',callback:v=>v+'%'},grid:{color:'#1a331a'}},x:{ticks:{color:'#c0d0c0'},grid:{color:'#0d1a0d'}}},
       plugins:{legend:{labels:{color:'#c0d0c0',font:{size:11}}}}
     }
@@ -506,6 +607,15 @@ function render() {
       <td class="num">${p2} / ${p1} PLN</td>
     </tr>`;
   }
+  const compP2price=calcPrice(dist,+document.getElementById('compP2').value).toFixed(2);
+  html+=`<tr>
+    <td><span style="color:${COMP_COLOR};font-weight:bold">Konk. 13:00</span> ${cityA}→${cityB}</td>
+    <td class="num">${Math.round(compPaxTotal).toLocaleString('pl-PL')}</td>
+    <td class="num muted">—</td>
+    <td class="num highlight">${Math.round(compPaxTotal).toLocaleString('pl-PL')}</td>
+    <td class="num">${(compMS*100).toFixed(0)}%</td>
+    <td class="num">${compP2price} PLN</td>
+  </tr>`;
   const tot=totalC1+totalC2;
   html+=`<tr class="total-row"><td>SUMA / DOBĘ</td><td class="num">${totalC2.toLocaleString('pl-PL')}</td><td class="num">${totalC1.toLocaleString('pl-PL')}</td><td class="num">${tot.toLocaleString('pl-PL')}</td><td colspan="2" class="muted">Popyt grawit.: ${gravity.toFixed(0)} os./dobę</td></tr>`;
   html+=`</table>`;
@@ -518,32 +628,35 @@ function render() {
       <th>Godz.</th>
       <th style="text-align:right;color:#c0d0c0" title="Całkowity popyt — niezależny od przewoźnika">Rynek os./h</th>`;
   for(const k of kursy) htm+=`<th style="text-align:right">${k.hour}:00<br><span class="muted" style="font-weight:normal">ms=${(kursMS[k.id]*100).toFixed(0)}%</span></th>`;
+  htm+=`<th style="text-align:right;color:${COMP_COLOR}">Konk. 13:00<br><span class="muted" style="font-weight:normal">ms=${(compMS*100).toFixed(0)}%</span></th>`;
   htm+=`<th style="text-align:right;color:#888">Publiczny</th></tr>
   <tr style="font-size:10px;color:#4a7a4a">
     <td></td>
     <td style="text-align:right">Σ = ${Math.round(totalMarket)} os./dobę</td>
-    ${kursy.map(()=>'<td></td>').join('')}<td></td>
+    ${kursy.map(()=>'<td></td>').join('')}<td></td><td></td>
   </tr>`;
 
   for(let h=0;h<24;h++){
     const hourD=gravity*hdm[h];
-    const alloc=voronoiAlloc(h);
+    const {ids}=voronoiAlloc(h);
 
-    let capturedByPlayer=0;
-    for(const k of kursy){
-      capturedByPlayer+=hourD*(alloc[k.id]||0)*kursMS[k.id];
-    }
-    const toPub=hourD-capturedByPlayer;
-
+    let capturedAll=0;
     htm+=`<tr><td style="color:#8aab8a">${h}:00</td><td class="num" style="color:#c0d0c0;font-weight:bold">${Math.round(hourD)}</td>`;
     for(const k of kursy){
-      const frac=alloc[k.id]||0;
-      const captured=hourD*frac*kursMS[k.id];
-      const captureRate=frac*kursMS[k.id];
-      const bg=frac>0?'background:'+KURS_COLORS[kursy.indexOf(k)%KURS_COLORS.length]+'22':'';
-      htm+=`<td class="num" style="${bg}">${frac>0?captured.toFixed(1)+'<span class="muted"> ('+Math.round(captureRate*100)+'%)</span>':'-'}</td>`;
+      const active=ids.includes(k.id);
+      const pax=kursHourly[k.id][h];
+      capturedAll+=pax;
+      const captureRate=hourD>0?pax/hourD:0;
+      const bg=active?'background:'+KURS_COLORS[kursy.indexOf(k)%KURS_COLORS.length]+'22':'';
+      htm+=`<td class="num" style="${bg}">${active?pax.toFixed(1)+'<span class="muted"> ('+Math.round(captureRate*100)+'%)</span>':'-'}</td>`;
     }
-    htm+=`<td class="num" style="color:#888">${toPub.toFixed(1)}</td></tr>`;
+    const compActive=ids.includes(COMP_ID);
+    const compPax=compHourly[h];
+    capturedAll+=compPax;
+    const compCaptureRate=hourD>0?compPax/hourD:0;
+    const compBg=compActive?`background:${COMP_COLOR}22`:'';
+    htm+=`<td class="num" style="${compBg}">${compActive?compPax.toFixed(1)+'<span class="muted"> ('+Math.round(compCaptureRate*100)+'%)</span>':'-'}</td>`;
+    htm+=`<td class="num" style="color:#888">${Math.max(0,hourD-capturedAll).toFixed(1)}</td></tr>`;
   }
   htm+=`</table>`;
   document.getElementById('hourly-table').innerHTML=htm;
@@ -625,6 +738,41 @@ function computeRep() {
     `<span style="color:#4a7a4a">po 4 mies. bez wydatków: ${months4}% bonusu</span>`;
 
   render();
+}
+
+// ============================================================
+// GAME CONFIG → FIRESTORE
+// ============================================================
+function saveToGameConfig(section) {
+  const statusEl = document.getElementById(section + '-save-status');
+  statusEl.textContent = '...';
+  statusEl.style.color = '#8aab8a';
+
+  const data = section === 'modeSplit' ? {
+    elasticity:      +document.getElementById('elasticity').value,
+    betaTime:        +document.getElementById('bTime').value,
+    betaRep:         +document.getElementById('bRep').value,
+  } : section === 'classSplit' ? {
+    eBase:           +document.getElementById('eBase').value,
+  } : /* public */ {
+    publicSpeed:     +document.getElementById('pubSpeed').value,
+    publicPrice100:  +document.getElementById('pubP2').value,
+    publicRep:       +document.getElementById('pubRep').value,
+    priceDropRate:   +document.getElementById('priceDropRate').value,
+  };
+
+  firebase.firestore().collection('gameConfig').doc('params')
+    .set(data, { merge: true })
+    .then(() => {
+      statusEl.textContent = '✓ Zapisano';
+      statusEl.style.color = '#60c060';
+      setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    })
+    .catch(err => {
+      statusEl.textContent = '✗ Błąd';
+      statusEl.style.color = '#e04040';
+      console.error('gameConfig save:', err);
+    });
 }
 
 // ============================================================

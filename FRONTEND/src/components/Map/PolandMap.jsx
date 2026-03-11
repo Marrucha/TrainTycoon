@@ -147,7 +147,7 @@ function MapOverlay() {
             const reversed = route.from !== fromCity.id
             const routeFromCity = reversed ? toCity : fromCity
             const routeToCity = reversed ? fromCity : toCity
-            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, routeFromCity, routeToCity, progress, reversed, routeId: route.id })
+            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, kursStops, routeFromCity, routeToCity, progress, reversed, routeId: route.id })
           } else {
             // Fallback: linia prosta
             const fp = getPos(fromCity.lat, fromCity.lon)
@@ -155,7 +155,7 @@ function MapOverlay() {
             const lat = fromCity.lat + (toCity.lat - fromCity.lat) * progress
             const lon = fromCity.lon + (toCity.lon - fromCity.lon) * progress
             const angle = Math.atan2(tp.y - fp.y, tp.x - fp.x) * 180 / Math.PI
-            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, lat, lon, angle, linear: true })
+            trainPositions.push({ id: `${ts.id}-${fromStop.kurs}-${i}`, ts, kursStops, lat, lon, angle, linear: true })
           }
           break
         }
@@ -317,6 +317,7 @@ function MapOverlay() {
             const t = p.reversed ? 1 - p.progress : p.progress
             pos = quadBezierPoint(fp.x, fp.y, cpx, cpy, tp.x, tp.y, t)
             angle = quadBezierAngle(fp.x, fp.y, cpx, cpy, tp.x, tp.y, t)
+            if (p.reversed) angle += 180
           }
           const isSelected = selectedTrainSet?.id === p.ts.id
           return (
@@ -325,7 +326,7 @@ function MapOverlay() {
               transform={`translate(${pos.x}, ${pos.y})`}
               style={{ pointerEvents: 'all', cursor: 'pointer' }}
               onClick={e => { e.stopPropagation(); selectTrainSet(p.ts) }}
-              onMouseEnter={() => setHoveredTrain({ ts: p.ts, x: pos.x, y: pos.y })}
+              onMouseEnter={() => setHoveredTrain({ ts: p.ts, kursStops: p.kursStops, x: pos.x, y: pos.y })}
               onMouseLeave={() => setHoveredTrain(null)}
             >
               <circle r={8} fill="transparent" />
@@ -386,26 +387,32 @@ function MapOverlay() {
 
       {/* Tooltip najechanego pociągu */}
       {hoveredTrain && (() => {
-        const { ts, x, y } = hoveredTrain
+        const { ts, kursStops, x, y } = hoveredTrain
         const pricing = ts.pricing ?? defaultPricing ?? {}
-        const stops = ts.routeStops || []
-        const firstCity = getCityById(stops[0])?.name
-        const lastCity = getCityById(stops[stops.length - 1])?.name
-        const viaNames = stops.slice(1, -1).map(id => getCityById(id)?.name).filter(Boolean)
         return (
           <div
             className={styles.tooltip}
             style={{ left: Math.min(x + 14, size.x - 210), top: Math.max(y - 10, 4), bottom: 'auto' }}
           >
             <strong>{ts.name}</strong>
-            {firstCity && lastCity && (
-              <span>
-                <span style={{ color: '#fff', fontWeight: 'bold' }}>{firstCity}</span>
-                {viaNames.length > 0 && (
-                  <span style={{ color: '#8aab8a', fontSize: '0.9em' }}> › {viaNames.join(' › ')} › </span>
-                )}
-                {viaNames.length === 0 && <span style={{ color: '#8aab8a' }}> ↔ </span>}
-                <span style={{ color: '#fff', fontWeight: 'bold' }}>{lastCity}</span>
+            {kursStops?.length > 0 && (
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {kursStops.map((stop, idx) => {
+                  const isFirst = idx === 0
+                  const isLast  = idx === kursStops.length - 1
+                  const cityName = cities.find(c => c.id === stop.miasto || c.name === stop.miasto)?.name ?? stop.miasto
+                  const time = isLast ? (stop.przyjazd || stop.odjazd) : stop.odjazd
+                  return (
+                    <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ color: '#f0c040', fontFamily: 'Share Tech Mono, monospace', fontSize: 11, minWidth: 38, flexShrink: 0 }}>
+                        {time || '—'}
+                      </span>
+                      <span style={{ color: isFirst || isLast ? '#fff' : '#8aab8a', fontWeight: isFirst || isLast ? 600 : 400, fontSize: isFirst || isLast ? '1em' : '0.92em' }}>
+                        {cityName}
+                      </span>
+                    </span>
+                  )
+                })}
               </span>
             )}
             <span style={{ display: 'flex', gap: 10 }}>
