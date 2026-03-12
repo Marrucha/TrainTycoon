@@ -237,11 +237,12 @@ def run_boarding_tick(db, now_str=None):
         events.sort(key=lambda x: x[1].get('stop_index', 0))
 
         for kurs_data, stop, ev_type in events:
-            kurs_id     = kurs_data['kurs_id']
-            city_id     = stop['city_id']
-            forward_ids = set(stop.get('forward_ids') or [])
-            is_last     = stop.get('is_last', False)
-            next_city   = next(iter(forward_ids), None)
+            kurs_id       = str(kurs_data['kurs_id'])   # demand keys are always str
+            city_id       = stop['city_id']
+            raw_fwd       = stop.get('forward_ids') or []
+            forward_ids   = set(raw_fwd)
+            is_last       = stop.get('is_last', False)
+            next_city     = raw_fwd[0] if raw_fwd else None
 
             _process_stop_event(
                 ev_type, kurs_id, city_id, forward_ids, is_last,
