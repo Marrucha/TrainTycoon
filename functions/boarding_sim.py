@@ -302,12 +302,19 @@ def _process_stop_event(
         total_waiting = sum(v.get('class1', 0) + v.get('class2', 0) for v in fwd.values())
 
         if total_waiting > 0 and capacity > 0:
-            ratio = min(1.0, capacity / total_waiting)
+            ratio       = min(1.0, capacity / total_waiting)
+            rem         = capacity  # track remaining seats to never overboard
             for key, val in fwd.items():
+                if rem <= 0:
+                    break
                 c1  = val.get('class1', 0)
                 c2  = val.get('class2', 0)
-                b1  = round(c1 * ratio)
-                b2  = round(c2 * ratio)
+                b1  = int(c1 * ratio)
+                b2  = int(c2 * ratio)
+                # cap to remaining capacity
+                if b1 + b2 > rem:
+                    b1 = min(b1, rem)
+                    b2 = min(b2, rem - b1)
                 if b1 + b2 == 0:
                     continue
                 entry = on_board.setdefault(key, {'class1': 0, 'class2': 0})
@@ -317,6 +324,7 @@ def _process_stop_event(
                     'class1': max(0, c1 - b1),
                     'class2': max(0, c2 - b2),
                 }
+                rem -= (b1 + b2)
 
     # ---- UPDATE currentTransfer ----
     total_on_new = sum(v.get('class1', 0) + v.get('class2', 0) for v in on_board.values())

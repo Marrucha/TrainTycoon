@@ -44,7 +44,9 @@ export default function TrainSetPanel() {
   }
 
   // Popyt dzienny z backendu
-  const dailyDemand = ts.dailyDemand || null
+  const dailyDemand   = ts.dailyDemand   || null
+  const dailyTransfer = ts.dailyTransfer || null
+
   const totalDailyPassengers = dailyDemand
     ? Object.values(dailyDemand).reduce((sum, d) => sum + (d.total || 0), 0)
     : null
@@ -54,9 +56,20 @@ export default function TrainSetPanel() {
   const totalDailyClass2 = dailyDemand
     ? Object.values(dailyDemand).reduce((sum, d) => sum + (d.class2 || 0), 0)
     : null
+
+  const totalTransferred = dailyTransfer
+    ? Object.values(dailyTransfer).reduce((sum, d) => sum + (d.total || 0), 0)
+    : null
+  const totalTransferredC1 = dailyTransfer
+    ? Object.values(dailyTransfer).reduce((sum, d) => sum + (d.class1 || 0), 0)
+    : null
+  const totalTransferredC2 = dailyTransfer
+    ? Object.values(dailyTransfer).reduce((sum, d) => sum + (d.class2 || 0), 0)
+    : null
+
   const totalSeats = wagons.reduce((sum, w) => sum + (w.seats || 0), 0)
-  const avgOccupancy = (totalDailyPassengers !== null && totalSeats > 0 && coursesCount > 0)
-    ? Math.round((totalDailyPassengers / (totalSeats * coursesCount)) * 100)
+  const avgOccupancy = (totalTransferred !== null && totalTransferred > 0 && totalSeats > 0 && coursesCount > 0)
+    ? Math.round((totalTransferred / (totalSeats * coursesCount)) * 100)
     : null
 
   // Zbiorcza macierz OD ze wszystkich kursów
@@ -130,7 +143,7 @@ export default function TrainSetPanel() {
           <div className={styles.sectionLabel}>STATYSTYKI RUCHU</div>
           <div className={styles.stats}>
             <div className={styles.statRow}>
-              <span className={styles.statLabel}>Pasażerowie / dobę</span>
+              <span className={styles.statLabel}>Popyt / dobę</span>
               <span className={styles.statValue}>
                 {totalDailyPassengers !== null ? `${totalDailyPassengers.toLocaleString('pl-PL')} os.` : '— (brak danych)'}
               </span>
@@ -144,6 +157,24 @@ export default function TrainSetPanel() {
                 <div className={styles.statRow}>
                   <span className={styles.statLabel}>— kl. 2</span>
                   <span className={styles.statValue}>{totalDailyClass2?.toLocaleString('pl-PL')} os.</span>
+                </div>
+              </>
+            )}
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>Przewiezieni / dobę</span>
+              <span className={styles.statValue}>
+                {totalTransferred !== null ? `${totalTransferred.toLocaleString('pl-PL')} os.` : '— (brak danych)'}
+              </span>
+            </div>
+            {totalTransferred !== null && totalTransferred > 0 && (
+              <>
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>— kl. 1</span>
+                  <span className={styles.statValue}>{totalTransferredC1?.toLocaleString('pl-PL')} os.</span>
+                </div>
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>— kl. 2</span>
+                  <span className={styles.statValue}>{totalTransferredC2?.toLocaleString('pl-PL')} os.</span>
                 </div>
               </>
             )}
