@@ -148,12 +148,11 @@ def calc_demand_for_train_sets(db):
             for kurs_id, stops in by_kurs.items():
                 if not stops:
                     continue
-                dep_hour = int(
-                    (stops[0].get('odjazd', '00:00') or '00:00').split(':')[0]
-                )
-
                 # Every ordered pair of stops is an O-D segment
                 for i in range(len(stops) - 1):
+                    seg_dep_str = stops[i].get('odjazd', '00:00') or '00:00'
+                    dep_hour = int(seg_dep_str.split(':')[0])
+                    
                     for j in range(i + 1, len(stops)):
                         city_a, id_a = _find_city(cities, stops[i].get('miasto'))
                         city_b, id_b = _find_city(cities, stops[j].get('miasto'))
