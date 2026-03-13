@@ -227,7 +227,7 @@ def run_boarding_tick(db, now_str=None):
             continue
 
         ts          = ts_snap.to_dict()
-        total_seats = _calc_total_seats(ts, player_trains, base_trains)
+        seat_caps   = _calc_total_seats(ts, player_trains, base_trains)
 
         daily_demand     = _deep_copy_demand(ts.get('dailyDemand') or {})
         daily_transfer   = _deep_copy_demand(ts.get('dailyTransfer') or {})
@@ -246,7 +246,7 @@ def run_boarding_tick(db, now_str=None):
 
             _process_stop_event(
                 ev_type, kurs_id, city_id, forward_ids, is_last,
-                total_seats, daily_demand, daily_transfer, current_transfer,
+                seat_caps, daily_demand, daily_transfer, current_transfer,
                 now_str, next_city_id=next_city,
             )
             processed += 1
@@ -269,7 +269,7 @@ def run_boarding_tick(db, now_str=None):
 
 def _process_stop_event(
     ev_type, kurs_id, city_id, forward_ids, is_last,
-    total_seats, daily_demand, daily_transfer, current_transfer,
+    seat_caps, daily_demand, daily_transfer, current_transfer,
     now_str, next_city_id,
 ):
     """Mutates daily_demand, daily_transfer, current_transfer in-place."""
@@ -292,32 +292,45 @@ def _process_stop_event(
 
     # ---- BOARD (only on departure events) ----
     if ev_type == 'depart' and not is_last and forward_ids:
-        total_on = sum(v.get('class1', 0) + v.get('class2', 0) for v in on_board.values())
-        capacity = max(0, total_seats - total_on)
+        total_on_c1 = sum(v.get('class1', 0) for v in on_board.values())
+        total_on_c2 = sum(v.get('class2', 0) for v in on_board.values())
+        
+        cap_c1 = max(0, seat_caps['class1'] - total_on_c1)
+        cap_c2 = max(0, seat_caps['class2'] - total_on_c2)
 
         fwd = {
             k: v for k, v in od_demand.items()
             if k.startswith(city_id + ':')
             and (k.split(':')[1] if ':' in k else '') in forward_ids
         }
-        total_waiting = sum(v.get('class1', 0) + v.get('class2', 0) for v in fwd.values())
+        
+        waiting_c1 = sum(v.get('class1', 0) for v in fwd.values())
+        waiting_c2 = sum(v.get('class2', 0) for v in fwd.values())
 
-        if total_waiting > 0 and capacity > 0:
-            ratio       = min(1.0, capacity / total_waiting)
-            rem         = capacity  # track remaining seats to never overboard
+        if (waiting_c1 > 0 and cap_c1 > 0) or (waiting_c2 > 0 and cap_c2 > 0):
+            ratio_c1 = min(1.0, cap_c1 / waiting_c1) if waiting_c1 > 0 else 0
+            ratio_c2 = min(1.0, cap_c2 / waiting_c2) if waiting_c2 > 0 else 0
+            
+            rem_c1 = cap_c1
+            rem_c2 = cap_c2
+            
             for key, val in fwd.items():
-                if rem <= 0:
+                if rem_c1 <= 0 and rem_c2 <= 0:
                     break
+                    
                 c1  = val.get('class1', 0)
                 c2  = val.get('class2', 0)
-                b1  = int(c1 * ratio)
-                b2  = int(c2 * ratio)
-                # cap to remaining capacity
-                if b1 + b2 > rem:
-                    b1 = min(b1, rem)
-                    b2 = min(b2, rem - b1)
+                
+                b1 = int(c1 * ratio_c1) if rem_c1 > 0 else 0
+                b2 = int(c2 * ratio_c2) if rem_c2 > 0 else 0
+                
+                # strict capping just in case logic rounding acts up
+                b1 = min(b1, rem_c1)
+                b2 = min(b2, rem_c2)
+                
                 if b1 + b2 == 0:
                     continue
+                    
                 entry = on_board.setdefault(key, {'class1': 0, 'class2': 0})
                 entry['class1'] += b1
                 entry['class2'] += b2
@@ -325,11 +338,18 @@ def _process_stop_event(
                     'class1': max(0, c1 - b1),
                     'class2': max(0, c2 - b2),
                 }
-                rem -= (b1 + b2)
+                rem_c1 -= b1
+                rem_c2 -= b2
 
     # ---- UPDATE currentTransfer ----
     total_on_new = sum(v.get('class1', 0) + v.get('class2', 0) for v in on_board.values())
-    status       = 'finished' if (is_last or ev_type == 'arrive') else 'en_route'
+    
+    if is_last:
+        status = 'finished'
+    elif ev_type == 'arrive':
+        status = 'at_station'
+    else:
+        status = 'en_route'
 
     current_transfer[kurs_id] = {
         'onBoard':      {} if status == 'finished' else dict(on_board),
@@ -356,25 +376,41 @@ def _process_stop_event(
 # ---------------------------------------------------------------------------
 
 def _group_by_kurs_raw(rozklad):
-    """Group raw rozklad stops by kurs, sorted by odjazd/przyjazd time."""
+    """Group raw rozklad stops by kurs, maintaining their original order."""
     by_kurs = {}
     for stop in rozklad:
         k = stop.get('kurs')
         if k is None:
             continue
         by_kurs.setdefault(str(k), []).append(stop)
-    for k in by_kurs:
-        by_kurs[k].sort(key=lambda s: s.get('odjazd') or s.get('przyjazd') or '')
+    # Removed time-string sorting because it completely destroys the sequence
+    # of overnight trains (e.g. 23:38 gets pushed to the very end past 02:00).
     return by_kurs
 
 
 def _calc_total_seats(ts, player_trains, base_trains):
-    total = 0
+    caps = {'class1': 0, 'class2': 0}
     for wagon_id in (ts.get('trainIds') or []):
         pw     = player_trains.get(wagon_id, {})
         bw     = base_trains.get(pw.get('parent_id', ''), {})
-        total += bw.get('seats', 0)
-    return total if total > 0 else 200
+        
+        cls_val = bw.get('class')
+        if not cls_val:
+            cls_val = pw.get('class', 2)
+            
+        cls_int = int(cls_val) if cls_val else 2
+        seats = bw.get('seats', 0)
+        
+        if cls_int == 1:
+            caps['class1'] += seats
+        else:
+            caps['class2'] += seats
+            
+    # Fallback to generic capacity if zero
+    if caps['class1'] == 0 and caps['class2'] == 0:
+        caps['class2'] = 200
+        
+    return caps
 
 
 def _deep_copy_demand(m):
