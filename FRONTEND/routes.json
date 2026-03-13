@@ -1862,20 +1862,6 @@
     "ticketPrice": 45
   },
   {
-    "id": "siedlce-lukow",
-    "ticketPrice": 13,
-    "dailyRevenue": 0,
-    "trainId": null,
-    "to": "lukow",
-    "routeTier": 2,
-    "departures": [],
-    "from": "siedlce",
-    "travelTime": 22,
-    "distance": 30,
-    "avgOccupancy": 0,
-    "subsidy": 0
-  },
-  {
     "id": "siedlce-warszawa",
     "travelTime": 60,
     "from": "siedlce",
