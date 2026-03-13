@@ -46,7 +46,7 @@ export default function TrainSetPanel() {
   }
 
   // Popyt dzienny z backendu
-  const dailyDemand   = ts.dailyDemand   || null
+  const dailyDemand = ts.dailyDemand || null
   const dailyTransfer = ts.dailyTransfer || null
 
   const totalDailyPassengers = dailyDemand
@@ -59,9 +59,15 @@ export default function TrainSetPanel() {
     ? Object.values(dailyDemand).reduce((sum, d) => sum + (d.class2 || 0), 0)
     : null
 
-  const totalTransferred = dailyTransfer
+  const currentTransfer = ts.currentTransfer || null
+  const totalOnBoard = currentTransfer
+    ? Object.values(currentTransfer).reduce((sum, d) => sum + (d.totalOnBoard || 0), 0)
+    : 0
+
+  const sumTransferred = dailyTransfer
     ? Object.values(dailyTransfer).reduce((sum, d) => sum + (d.total || 0), 0)
-    : null
+    : 0
+  const totalTransferred = (sumTransferred > 0 || totalOnBoard > 0) ? sumTransferred + totalOnBoard : null
   const totalTransferredC1 = dailyTransfer
     ? Object.values(dailyTransfer).reduce((sum, d) => sum + (d.class1 || 0), 0)
     : null
@@ -77,13 +83,13 @@ export default function TrainSetPanel() {
   // Zbiorcza macierz OD ze wszystkich kursów
   const mergedOD = dailyDemand
     ? Object.values(dailyDemand).reduce((acc, d) => {
-        Object.entries(d.od || {}).forEach(([key, val]) => {
-          if (!acc[key]) acc[key] = { class1: 0, class2: 0 }
-          acc[key].class1 += val.class1 || 0
-          acc[key].class2 += val.class2 || 0
-        })
-        return acc
-      }, {})
+      Object.entries(d.od || {}).forEach(([key, val]) => {
+        if (!acc[key]) acc[key] = { class1: 0, class2: 0 }
+        acc[key].class1 += val.class1 || 0
+        acc[key].class2 += val.class2 || 0
+      })
+      return acc
+    }, {})
     : null
 
   return (
@@ -225,25 +231,43 @@ export default function TrainSetPanel() {
           {firstStops.length > 0 ? (
             <div className={styles.stats}>
               {firstStops.map((s) => {
-                const kursDemand   = dailyDemand?.[s.kurs]?.total ?? null
-                const kursTransfer = dailyTransfer?.[s.kurs]?.total ?? null
-                const kursDisplay  = kursTransfer != null && kursTransfer > 0
-                  ? { value: kursTransfer, transferred: true }
-                  : kursDemand != null
-                    ? { value: Math.min(kursDemand, totalSeats), transferred: false }
-                    : null
+                const kursDemandTotal = dailyDemand?.[s.kurs]?.total ?? null
+                const currentKursObj = ts.currentTransfer?.[s.kurs]
+                const isStarted = !!currentKursObj
+
+                let displayVal = 0
+                let isActual = false
+
+                if (isStarted) {
+                  const transferred = dailyTransfer?.[s.kurs]?.total || 0
+                  const onBoard = currentKursObj?.totalOnBoard || 0
+                  displayVal = transferred + onBoard
+                  isActual = true
+                } else if (kursDemandTotal != null) {
+                  displayVal = Math.min(kursDemandTotal, totalSeats)
+                  isActual = false
+                }
+
+                const kursDisplay = kursDemandTotal != null || isStarted
+                  ? { value: displayVal, transferred: isActual }
+                  : null
+
                 const isOpen = openKurs === s.kurs
 
-                // OD breakdown dla tooltipa
-                const odDemand   = dailyDemand?.[s.kurs]?.od   ?? {}
+                // OD breakdown dla listy
+                const odDemand = dailyDemand?.[s.kurs]?.od ?? {}
                 const odTransfer = dailyTransfer?.[s.kurs]?.od ?? {}
-                const odKeys     = [...new Set([...Object.keys(odDemand), ...Object.keys(odTransfer)])]
+                const odOnBoard = currentKursObj?.onBoard ?? {}
+
+                const odKeys = [...new Set([...Object.keys(odDemand), ...Object.keys(odTransfer), ...Object.keys(odOnBoard)])]
                   .sort((a, b) => {
                     const ta = (odTransfer[a]?.class1 ?? 0) + (odTransfer[a]?.class2 ?? 0)
                     const tb = (odTransfer[b]?.class1 ?? 0) + (odTransfer[b]?.class2 ?? 0)
+                    const oa = (odOnBoard[a]?.class1 ?? 0) + (odOnBoard[a]?.class2 ?? 0)
+                    const ob = (odOnBoard[b]?.class1 ?? 0) + (odOnBoard[b]?.class2 ?? 0)
                     const da = (odDemand[a]?.class1 ?? 0) + (odDemand[a]?.class2 ?? 0)
                     const db = (odDemand[b]?.class1 ?? 0) + (odDemand[b]?.class2 ?? 0)
-                    return (tb + db) - (ta + da)
+                    return (tb + ob + db) - (ta + oa + da)
                   })
 
                 return (
@@ -259,9 +283,9 @@ export default function TrainSetPanel() {
                           <span className={styles.depTime} style={{ fontSize: 11, color: kursDisplay.transferred ? '#f0c040' : '#8aab8a' }}>
                             {kursDisplay.value.toLocaleString('pl-PL')}
                           </span>
-                          {kursDemand != null && (
+                          {kursDemandTotal != null && (
                             <span style={{ fontSize: 10, color: '#4a6a4a' }}>
-                              / {kursDemand.toLocaleString('pl-PL')} os.
+                              / {kursDemandTotal.toLocaleString('pl-PL')} os.
                             </span>
                           )}
                         </span>
@@ -272,13 +296,15 @@ export default function TrainSetPanel() {
                         {odKeys.map((key) => {
                           const [fromId, toId] = key.split(':')
                           const fromName = cities?.find(c => c.id === fromId)?.name ?? fromId
-                          const toName   = cities?.find(c => c.id === toId)?.name   ?? toId
+                          const toName = cities?.find(c => c.id === toId)?.name ?? toId
                           const tr = (odTransfer[key]?.class1 ?? 0) + (odTransfer[key]?.class2 ?? 0)
-                          const dm = (odDemand[key]?.class1   ?? 0) + (odDemand[key]?.class2   ?? 0)
+                          const ob = (odOnBoard[key]?.class1 ?? 0) + (odOnBoard[key]?.class2 ?? 0)
+                          const handled = tr + ob
+                          const dm = (odDemand[key]?.class1 ?? 0) + (odDemand[key]?.class2 ?? 0)
                           return (
                             <div key={key} style={{ display: 'flex', gap: 6, padding: '2px 0', borderBottom: '1px solid #1a2a1a' }}>
                               <span style={{ flex: 1, color: '#6a9a6a' }}>{fromName} → {toName}</span>
-                              {tr > 0 && <span style={{ color: '#f0c040', minWidth: 30, textAlign: 'right' }}>{tr}</span>}
+                              {handled > 0 && <span style={{ color: '#f0c040', minWidth: 30, textAlign: 'right' }}>{handled}</span>}
                               <span style={{ color: '#4a6a4a', minWidth: 30, textAlign: 'right' }}>/ {dm}</span>
                             </div>
                           )
