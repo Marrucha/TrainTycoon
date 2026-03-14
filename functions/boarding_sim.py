@@ -303,7 +303,10 @@ def _process_stop_event(
             if k.startswith(city_id + ':')
             and (k.split(':')[1] if ':' in k else '') in forward_ids
         }
-        
+
+        print(f'[DEBUG] BOARD city={city_id} kurs={kurs_id} fwd_ids={sorted(forward_ids)} '
+              f'demand_keys={sorted(od_demand.keys())} matched_fwd={sorted(fwd.keys())}')
+
         waiting_c1 = sum(v.get('class1', 0) for v in fwd.values())
         waiting_c2 = sum(v.get('class2', 0) for v in fwd.values())
 

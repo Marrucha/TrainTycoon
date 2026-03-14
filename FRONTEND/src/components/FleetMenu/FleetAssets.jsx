@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useGame } from '../../context/GameContext'
+import TrainStore from './TrainStore'
 import styles from './FleetMenu.module.css'
 
 export default function FleetAssets() {
     const { trains } = useGame()
+    const [isStoreOpen, setIsStoreOpen] = useState(false)
 
     // Grupowanie taboru po nazwie
     const groupedTrains = Object.values(trains.reduce((acc, train) => {
@@ -64,12 +67,15 @@ export default function FleetAssets() {
                 </div>
             ))}
 
-            <div className={styles.cardEmpty}>
-                <div className={styles.emptyIcon}>+</div>
-                <h3>Kup i sprowadź element na Dworzec</h3>
-                <p>Zaopatrz się w mocniejsze lokomotywy lub wagony do dołączania.</p>
-                <button className={styles.actionBtn}>Przeglądaj Fabrykę</button>
-            </div>
+            <button
+                className={styles.fabBtn}
+                onClick={() => setIsStoreOpen(true)}
+                title="Otwórz Fabrykę Pociągów"
+            >
+                +
+            </button>
+
+            {isStoreOpen && <TrainStore onClose={() => setIsStoreOpen(false)} />}
         </div>
     )
 }

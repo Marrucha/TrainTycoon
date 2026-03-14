@@ -84,3 +84,51 @@ def boarding_tick_manual(req: https_fn.Request) -> https_fn.Response:
         f'Boarding tick processed {count} stop event(s) at {now_str or "now"}.\n',
         status=200,
     )
+
+
+@https_fn.on_request()
+def debug_demand(req: https_fn.Request) -> https_fn.Response:
+    """HTTP trigger: returns raw schedule + dailyDemand for the given time.
+
+    Query params:
+      ?time=HH:MM   - check which kurs docs match this time
+    """
+    import json
+    now_str = req.args.get('time') or '00:06'
+    db = firestore.client()
+
+    sched_ref = db.collection('rozkłady')
+    dep_docs  = list(sched_ref.where('departure_times', 'array_contains', now_str).stream())
+
+    result = []
+    for doc in dep_docs:
+        data = doc.to_dict()
+        ts_id = data.get('ts_id')
+        pid   = data.get('player_id')
+
+        ts_snap = db.collection(f'players/{pid}/trainSet').document(ts_id).get()
+        ts      = ts_snap.to_dict() if ts_snap.exists else {}
+
+        daily_demand = ts.get('dailyDemand', {})
+        kurs_id = str(data.get('kurs_id'))
+
+        for stop in data.get('stops', []):
+            odjazd = stop.get('odjazd')
+            if odjazd == now_str:
+                result.append({
+                    'ts_id':        ts_id,
+                    'kurs_id':      kurs_id,
+                    'city_id':      stop['city_id'],
+                    'forward_ids':  stop.get('forward_ids', []),
+                    'is_last':      stop.get('is_last'),
+                    'demand_at_city': {
+                        k: v for k, v in daily_demand.get(kurs_id, {}).get('od', {}).items()
+                        if k.startswith(stop['city_id'] + ':')
+                        and (k.split(':')[1] if ':' in k else '') in set(stop.get('forward_ids', []))
+                    },
+                    'demand_keys':  list(daily_demand.get(kurs_id, {}).get('od', {}).keys()),
+                })
+
+    return https_fn.Response(json.dumps(result, ensure_ascii=False, indent=2), status=200,
+                             headers={'Content-Type': 'application/json'})
+

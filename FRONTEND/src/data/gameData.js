@@ -1,4 +1,4 @@
-export const INITIAL_BUDGET = 2_500_000
+export const INITIAL_BUDGET = 250_000_000
 
 export const TRAINS = [
   { id: 't1', name: 'IC 1001', type: 'InterCity', speed: 160, seats: 300, costPerKm: 12 },

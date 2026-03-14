@@ -13,7 +13,6 @@ export const DEFAULT_PRICE_CONFIG = {
 }
 
 export function GameProvider({ children }) {
-  const [budget] = useState(INITIAL_BUDGET)
   const [baseTrains, setBaseTrains] = useState([])
   const [playerTrains, setPlayerTrains] = useState([])
   const [trainsSets, setTrainsSets] = useState([])
@@ -71,6 +70,48 @@ export function GameProvider({ children }) {
 
   const companyName = playerDoc.companyName ?? ''
   const reputation = playerDoc.reputation ?? 0.5
+  const budget = playerDoc.finance?.balance ?? INITIAL_BUDGET
+
+  async function buyTrain(baseTrainId) {
+    const baseTrain = baseTrains.find((t) => t.id === baseTrainId)
+    if (!baseTrain) return false
+
+    // Fallback price if DB doesn't have it defined
+    const vehiclePrice = baseTrain.price || ((baseTrain.speed || 100) * (baseTrain.seats || 50) * 100)
+
+    if (budget < vehiclePrice) {
+      alert('Niewystarczające środki na koncie!')
+      return false
+    }
+
+    try {
+      const batch = writeBatch(db)
+
+      const generateId = () => `pt_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`
+      const newTrainId = generateId()
+      const playerTrainRef = doc(db, `players/player1/trains/${newTrainId}`)
+
+      batch.set(playerTrainRef, {
+        id: newTrainId,
+        parent_id: baseTrain.id,
+        name: `${baseTrain.name} #${Math.floor(Math.random() * 900) + 100}`,
+        purchasedAt: new Date().toISOString()
+      })
+
+      batch.set(
+        doc(db, 'players', 'player1'),
+        { finance: { balance: budget - vehiclePrice } },
+        { merge: true }
+      )
+
+      await batch.commit()
+      alert(`Zakupiono pociąg! Kwota ${vehiclePrice.toLocaleString()} PLN pomyślnie pobrana z konta.`)
+      return true
+    } catch (e) {
+      console.error('Błąd podczas zakupu pociągu:', e)
+      return false
+    }
+  }
 
   const trains = useMemo(() => {
     return playerTrains.map(pt => {
@@ -342,6 +383,8 @@ export function GameProvider({ children }) {
         updateCitySchedules,
         rebuildAllCitySchedules,
         saveTrainRoute,
+        buyTrain,
+        baseTrains,
       }}
     >
       {children}
