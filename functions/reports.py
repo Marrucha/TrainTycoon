@@ -1,0 +1,312 @@
+"""Daily report generator.
+
+Saves aggregated per-kurs statistics to players/{pid}/Raporty/{date}
+BEFORE the daily reset. Called from calc_daily_demand at 02:59 (before reset).
+
+Document structure in Raporty:
+  date:       str               "YYYY-MM-DD"  (the day being reported)
+  timestamp:  str               ISO timestamp of report generation
+  trainSets:  dict[ts_id -> {
+    name:     str
+    kursy:    dict[kurs_id -> {
+      odjazd:       str           "HH:MM"
+      from:         str           city name
+      to:           str           city name
+      transferred:  {class1, class2, total}    (completed trips only)
+      demand:       {class1, class2, total}    (remaining demand not served)
+      totalDemand:  {class1, class2, total}    (transferred + demand; onBoard counted next day)
+      realizacja:   float          0..1        (transferred / totalDemand)
+      realizacjaC1: float
+      realizacjaC2: float
+      przychod:     int            PLN
+      km:           int            km przejechane przez ten kurs
+      koszt:        int            PLN (km * costPerKm)
+      netto:        int            PLN (przychod - koszt)
+    }]
+    daily: {
+      transferred: {class1, class2, total}
+      demand:      {class1, class2, total}
+      totalDemand: {class1, class2, total}
+      realizacja:  float
+      przychod:    int
+      km:          int
+      koszt:       int
+      netto:       int
+    }
+  }]
+"""
+
+import math
+from datetime import datetime, timezone, timedelta
+
+
+# ---------------------------------------------------------------------------
+# Geometry
+# ---------------------------------------------------------------------------
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+# ---------------------------------------------------------------------------
+# Pricing
+# ---------------------------------------------------------------------------
+
+def _calc_ticket_price(dist_km, base_per_100km, multipliers):
+    """Mirror of JS calcDistancePrice."""
+    if not multipliers:
+        multipliers = [1.0]
+    cumulative = 0.0
+    remaining = dist_km
+    for i, mult in enumerate(multipliers):
+        segment = min(remaining, 100.0)
+        cumulative += (segment / 100.0) * base_per_100km * mult
+        remaining -= segment
+        if remaining <= 0:
+            break
+    if remaining > 0:
+        # beyond last bracket — use last multiplier
+        cumulative += (remaining / 100.0) * base_per_100km * (multipliers[-1] if multipliers else 1.0)
+    return round(cumulative, 2)
+
+
+def _ticket_price_for_pair(from_id, to_id, pricing, cities_map, cls):
+    """Look up ticket price for a city pair and class (1 or 2)."""
+    # 1. Matrix override
+    mo = pricing.get('matrixOverrides', {})
+    key_ab = f'{from_id}--{to_id}'
+    key_ba = f'{to_id}--{from_id}'
+    ov_key = key_ab if key_ab in mo else (key_ba if key_ba in mo else None)
+    if ov_key:
+        ov = mo[ov_key].get('class1' if cls == 1 else 'class2')
+        if ov is not None:
+            return float(ov)
+
+    # 2. Distance-based
+    city_a = cities_map.get(from_id) or cities_map.get(from_id.lower())
+    city_b = cities_map.get(to_id) or cities_map.get(to_id.lower())
+    if not city_a or not city_b:
+        return 0.0
+
+    lat_a, lon_a = city_a.get('lat', 0), city_a.get('lon', 0)
+    lat_b, lon_b = city_b.get('lat', 0), city_b.get('lon', 0)
+    dist = _haversine_km(lat_a, lon_a, lat_b, lon_b)
+
+    base = pricing.get('class1Per100km', 10) if cls == 1 else pricing.get('class2Per100km', 6)
+    mults = pricing.get('multipliers', [1.0, 0.9, 0.8, 0.7, 0.65, 0.6])
+    return _ticket_price_for_pair_dist(dist, base, mults)
+
+
+def _ticket_price_for_pair_dist(dist_km, base_per_100km, multipliers):
+    return _calc_ticket_price(dist_km, base_per_100km, multipliers)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+DEFAULT_PRICING = {
+    'class1Per100km': 10,
+    'class2Per100km': 6,
+    'multipliers': [1.0, 0.9, 0.8, 0.7, 0.65, 0.6],
+}
+
+
+def save_daily_report(db):
+    """Snapshot dailyDemand / dailyTransfer / currentTransfer for all
+    trainSets and write aggregated kurs-level stats to
+    players/{pid}/Raporty/{date}.
+
+    Uses Warsaw local date (02:59 call → still the same calendar day).
+    """
+    import zoneinfo
+    now_waw = datetime.now(zoneinfo.ZoneInfo('Europe/Warsaw'))
+    date_str = now_waw.strftime('%Y-%m-%d')
+    ts_str   = now_waw.isoformat()
+
+    cities_col = db.collection('cities').stream()
+    cities_map = {}
+    for c in cities_col:
+        d = c.to_dict()
+        cities_map[c.id] = d
+        # also index by name for fallback
+        if d.get('name'):
+            cities_map[d['name']] = d
+
+    player_default_pricing = {}  # pid -> defaultPricing
+
+    batch = db.batch()
+    written = 0
+
+    for p_doc in db.collection('players').stream():
+        pid = p_doc.id
+        if pid == 'samorządowy':
+            continue
+
+        p_data = p_doc.to_dict() or {}
+        default_pricing = p_data.get('defaultPricing', DEFAULT_PRICING)
+        player_default_pricing[pid] = default_pricing
+
+        ts_agg = {}  # ts_id -> report dict
+
+        for ts_doc in db.collection(f'players/{pid}/trainSet').stream():
+            ts_id   = ts_doc.id
+            ts      = ts_doc.to_dict() or {}
+            pricing = ts.get('pricing') or default_pricing
+
+            daily_demand   = ts.get('dailyDemand') or {}
+            daily_transfer = ts.get('dailyTransfer') or {}
+            current_tf     = ts.get('currentTransfer') or {}
+            rozklad        = ts.get('rozklad') or []
+
+            # Build name lookup: kurs_id -> first-stop info
+            by_kurs = {}
+            for stop in rozklad:
+                k = str(stop.get('kurs', ''))
+                if k not in by_kurs:
+                    by_kurs[k] = []
+                by_kurs[k].append(stop)
+
+            # Daily km calculation
+            daily_km = 0
+            for k_stops in by_kurs.values():
+                for i in range(len(k_stops) - 1):
+                    ca = cities_map.get(k_stops[i].get('miasto', ''))
+                    cb = cities_map.get(k_stops[i + 1].get('miasto', ''))
+                    if ca and cb:
+                        daily_km += _haversine_km(
+                            ca.get('lat', 0), ca.get('lon', 0),
+                            cb.get('lat', 0), cb.get('lon', 0),
+                        )
+            daily_km = round(daily_km)
+
+            # Per-kurs aggregation
+            all_kurs_ids = set(list(daily_demand.keys()) + list(daily_transfer.keys()) + list(current_tf.keys()))
+            kursy_report = {}
+
+            day_ob_c1 = day_ob_c2 = 0
+            day_tr_c1 = day_tr_c2 = 0
+            day_dm_c1 = day_dm_c2 = 0
+            day_rev = 0
+
+            for kurs_id in all_kurs_ids:
+                kd = daily_demand.get(kurs_id, {})
+                kt = daily_transfer.get(kurs_id, {})
+                kc = current_tf.get(kurs_id, {})
+
+                od_demand   = kd.get('od', {})
+                od_transfer = kt.get('od', {})
+                on_board    = kc.get('onBoard', {})
+
+                # Only transferred counts for realizacja — onBoard will appear next day
+                tr_c1 = kt.get('class1', 0)
+                tr_c2 = kt.get('class2', 0)
+                dm_c1 = kd.get('class1', 0)
+                dm_c2 = kd.get('class2', 0)
+
+                orig_c1 = tr_c1 + dm_c1
+                orig_c2 = tr_c2 + dm_c2
+                orig    = orig_c1 + orig_c2
+
+                real     = round(tr_c1 + tr_c2) / orig     if orig > 0 else 0.0
+                real_c1  = round(tr_c1 / orig_c1, 4)       if orig_c1 > 0 else 0.0
+                real_c2  = round(tr_c2 / orig_c2, 4)       if orig_c2 > 0 else 0.0
+
+                # Revenue from transferred OD pairs
+                revenue = 0
+                all_od_keys = set(list(od_demand.keys()) + list(od_transfer.keys()) + list(on_board.keys()))
+                for od_key in all_od_keys:
+                    parts = od_key.split(':')
+                    if len(parts) != 2:
+                        continue
+                    from_id, to_id = parts
+                    val_tr = od_transfer.get(od_key, {})
+                    p1 = _ticket_price_for_pair(from_id, to_id, pricing, cities_map, 1)
+                    p2 = _ticket_price_for_pair(from_id, to_id, pricing, cities_map, 2)
+                    revenue += val_tr.get('class1', 0) * p1 + val_tr.get('class2', 0) * p2
+
+                revenue = round(revenue)
+
+                # First-stop info for this kurs
+                k_stops   = by_kurs.get(kurs_id, [])
+                odjazd    = k_stops[0].get('odjazd', '')   if k_stops else ''
+                from_c    = k_stops[0].get('miasto', '')   if k_stops else ''
+                to_c      = k_stops[-1].get('kierunek', k_stops[-1].get('miasto', '')) if k_stops else ''
+                from_name = cities_map.get(from_c, {}).get('name', from_c)
+                to_name   = cities_map.get(to_c,   {}).get('name', to_c)
+
+                # Per-kurs km
+                kurs_km = 0
+                for i in range(len(k_stops) - 1):
+                    ca = cities_map.get(k_stops[i].get('miasto', ''))
+                    cb = cities_map.get(k_stops[i + 1].get('miasto', ''))
+                    if ca and cb:
+                        kurs_km += _haversine_km(
+                            ca.get('lat', 0), ca.get('lon', 0),
+                            cb.get('lat', 0), cb.get('lon', 0),
+                        )
+                kurs_km = round(kurs_km)
+                cost_per_km = ts.get('totalCostPerKm', 0) or 0
+                kurs_koszt = round(cost_per_km * kurs_km)
+                kurs_netto = revenue - kurs_koszt
+
+                kursy_report[kurs_id] = {
+                    'odjazd': odjazd,
+                    'from':   from_name,
+                    'to':     to_name,
+                    'transferred': {'class1': tr_c1, 'class2': tr_c2, 'total': tr_c1 + tr_c2},
+                    'demand':      {'class1': dm_c1, 'class2': dm_c2, 'total': dm_c1 + dm_c2},
+                    'totalDemand': {'class1': orig_c1, 'class2': orig_c2, 'total': orig},
+                    'realizacja':   round(real, 4),
+                    'realizacjaC1': real_c1,
+                    'realizacjaC2': real_c2,
+                    'przychod': revenue,
+                    'km':      kurs_km,
+                    'koszt':   kurs_koszt,
+                    'netto':   kurs_netto,
+                }
+
+                day_tr_c1 += tr_c1; day_tr_c2 += tr_c2
+                day_dm_c1 += dm_c1; day_dm_c2 += dm_c2
+                day_rev += revenue
+
+            day_orig_c1 = day_tr_c1 + day_dm_c1
+            day_orig_c2 = day_tr_c2 + day_dm_c2
+            day_orig    = day_orig_c1 + day_orig_c2
+
+            cost_per_km = ts.get('totalCostPerKm', 0) or 0
+            daily_cost  = round(cost_per_km * daily_km)
+            netto        = round(day_rev) - daily_cost
+
+            ts_agg[ts_id] = {
+                'name':   ts.get('name', ts_id),
+                'kursy':  kursy_report,
+                'daily': {
+                    'transferred': {'class1': day_tr_c1, 'class2': day_tr_c2, 'total': day_tr_c1 + day_tr_c2},
+                    'demand':      {'class1': day_dm_c1, 'class2': day_dm_c2, 'total': day_dm_c1 + day_dm_c2},
+                    'totalDemand': {'class1': day_orig_c1, 'class2': day_orig_c2, 'total': day_orig},
+                    'realizacja':  round((day_tr_c1 + day_tr_c2) / day_orig, 4) if day_orig > 0 else 0.0,
+                    'przychod':    round(day_rev),
+                    'km':          daily_km,
+                    'koszt':       daily_cost,
+                    'netto':       netto,
+                },
+            }
+
+        if ts_agg:
+            ref = db.collection(f'players/{pid}/Raporty').document(date_str)
+            batch.set(ref, {
+                'date':      date_str,
+                'timestamp': ts_str,
+                'trainSets': ts_agg,
+            })
+            written += 1
+
+    batch.commit()
+    print(f'Daily report saved: {date_str} — {written} player(s).')
+    return written

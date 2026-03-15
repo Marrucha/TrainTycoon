@@ -25,7 +25,9 @@
   letter-spacing: 1px;
 }
 
-.backBtn:hover { color: #8aab8a; }
+.backBtn:hover {
+  color: #8aab8a;
+}
 
 .routeTitle {
   display: flex;
@@ -59,11 +61,15 @@
 }
 
 .sectionLabel {
+  display: inline-block;
   font-family: 'Share Tech Mono', monospace;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 2px;
-  color: #4a6a4a;
-  margin-bottom: 8px;
+  color: #a0c060;
+  margin-bottom: 10px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #a0c060;
+  font-weight: bold;
 }
 
 .sectionLabelRow {

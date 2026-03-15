@@ -3,6 +3,7 @@ from firebase_admin import initialize_app, firestore
 
 from demand_calc import calc_demand_for_train_sets
 from boarding_sim import run_boarding_tick, rebuild_schedule_table, rebuild_schedule_for_trainset
+from reports import save_daily_report
 
 initialize_app()
 
@@ -15,6 +16,7 @@ def calc_daily_demand(event: scheduler_fn.ScheduledEvent) -> None:
     and resets dailyTransfer / currentTransfer for the new day.
     """
     db = firestore.client()
+    save_daily_report(db)       # snapshot stats BEFORE reset
     calc_demand_for_train_sets(db)
 
 

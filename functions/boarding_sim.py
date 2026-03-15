@@ -32,6 +32,7 @@ rozkłady document schema
 """
 
 from datetime import datetime
+import zoneinfo
 
 from utils import _find_city
 
@@ -168,7 +169,7 @@ def run_boarding_tick(db, now_str=None):
         Number of stop events processed.
     """
     if now_str is None:
-        now_str = datetime.now().strftime('%H:%M')
+        now_str = datetime.now(zoneinfo.ZoneInfo('Europe/Warsaw')).strftime('%H:%M')
 
     sched_ref   = db.collection('rozkłady')
     base_trains = {d.id: d.to_dict() for d in db.collection('trains').stream()}
@@ -324,8 +325,8 @@ def _process_stop_event(
                 c1  = val.get('class1', 0)
                 c2  = val.get('class2', 0)
                 
-                b1 = int(c1 * ratio_c1) if rem_c1 > 0 else 0
-                b2 = int(c2 * ratio_c2) if rem_c2 > 0 else 0
+                b1 = round(c1 * ratio_c1) if rem_c1 > 0 else 0
+                b2 = round(c2 * ratio_c2) if rem_c2 > 0 else 0
                 
                 # strict capping just in case logic rounding acts up
                 b1 = min(b1, rem_c1)

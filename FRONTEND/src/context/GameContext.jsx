@@ -224,6 +224,7 @@ export function GameProvider({ children }) {
       .sort((a, b) => a.departure.localeCompare(b.departure))
       .map((entry, i) => ({
         id: `${entry.trainSetId}-${entry.kurs}-${entry.departure}`,
+        trainSetId: entry.trainSetId,
         destination: entry.destination,
         departure: entry.departure,
         platform: (i % 6) + 1,

@@ -21,7 +21,7 @@ function FlipCell({ value }) {
 }
 
 export default function DepartureBoard() {
-  const { selectedCity, getDeparturesForCity, selectCity, cities, companyName, trainsSets, getCityById } = useGame()
+  const { selectedCity, getDeparturesForCity, selectCity, selectTrainSet, cities, companyName, trainsSets, getCityById } = useGame()
   const [demandTab, setDemandTab] = useState(0)
 
   const departures = selectedCity ? getDeparturesForCity(selectedCity.id) : []
@@ -111,39 +111,48 @@ export default function DepartureBoard() {
       <div className={styles.departureList}>
         {departures.length > 0 ? (
           <AnimatePresence>
-            {departures.map((dep) => (
-              <motion.div
-                key={dep.id}
-                className={`${styles.rowWrapper} ${dep.status === 'BOARDING' ? styles.boardingRow : ''}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className={styles.row}>
-                  <span className={styles.time}>
-                    <FlipCell value={dep.departure} />
-                  </span>
-                  <span className={styles.destination}>{dep.destination}</span>
-                  <span className={styles.trainNo}>
-                    {dep.trainNo != null ? `${dep.trainNo}/${dep.kurs}` : '—'}
-                  </span>
-                  <span className={styles.platform}>{dep.platform}</span>
-                  <div className={styles.trainCell}>
-                    <span className={styles.trainId}>{dep.trainId}</span>
-                    {companyName && <span className={styles.carrier}>{companyName}</span>}
+            {departures.map((dep) => {
+              const rowTrainSet = trainsSets?.find(ts => ts.id === dep.trainSetId) || null
+              return (
+                <motion.div
+                  key={dep.id}
+                  className={`${styles.rowWrapper} ${dep.status === 'BOARDING' ? styles.boardingRow : ''}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div 
+                    className={styles.row} 
+                    style={{ cursor: rowTrainSet ? 'pointer' : 'default' }}
+                    onClick={() => {
+                      if (rowTrainSet) selectTrainSet(rowTrainSet)
+                    }}
+                  >
+                    <span className={styles.time}>
+                      <FlipCell value={dep.departure} />
+                    </span>
+                    <span className={styles.destination}>{dep.destination}</span>
+                    <span className={styles.trainNo}>
+                      {dep.trainNo != null ? `${dep.trainNo}/${dep.kurs}` : '—'}
+                    </span>
+                    <span className={styles.platform}>{dep.platform}</span>
+                    <div className={styles.trainCell}>
+                      <span className={styles.trainId}>{dep.trainId}</span>
+                      {companyName && <span className={styles.carrier}>{companyName}</span>}
+                    </div>
+                    <span className={`${styles.status} ${dep.status === 'BOARDING' ? styles.boarding : styles.onTime}`}>
+                      {dep.status}
+                    </span>
                   </div>
-                  <span className={`${styles.status} ${dep.status === 'BOARDING' ? styles.boarding : styles.onTime}`}>
-                    {dep.status}
-                  </span>
-                </div>
-                {dep.via?.length > 0 && (
-                  <div className={styles.viaLine}>
-                    przez: {dep.via.join(' · ')}
-                  </div>
-                )}
-              </motion.div>
-            ))}
+                  {dep.via?.length > 0 && (
+                    <div className={styles.viaLine}>
+                      przez: {dep.via.join(' · ')}
+                    </div>
+                  )}
+                </motion.div>
+              )
+            })}
           </AnimatePresence>
         ) : (
           <div className={styles.empty}>
