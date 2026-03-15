@@ -48,6 +48,11 @@ export default function TrainSetPanel() {
       byKurs[s.kurs].push(s)
     })
   }
+  // Kolejność przystanków — bezpośrednio z trasy składu (ts.routeStops)
+  const stopOrder = {}
+  ;(ts.routeStops || []).forEach((cityId, idx) => {
+    stopOrder[cityId] = idx
+  })
 
   const firstStops = []
   if (ts.rozklad?.length) {
@@ -419,22 +424,35 @@ export default function TrainSetPanel() {
                   const odTransfer = dailyTransfer?.[s.kurs]?.od ?? {}
                   const odOnBoard = currentKursObj?.onBoard ?? {}
 
-                  const odKeys = [...new Set([...Object.keys(odDemand), ...Object.keys(odTransfer), ...Object.keys(odOnBoard)])]
+                  // Detect kurs direction — is the first stop at the start or end of routeStops?
+                  const kursStops = byKurs[s.kurs] || []
+                  const firstStopName = kursStops[0]?.miasto
+                  const routeArr = ts.routeStops || []
+                  const firstCityObj = cities?.find(c => c.name === firstStopName || c.id === firstStopName)
+                  const firstCityId = firstCityObj?.id
+                  // If the kurs starts from the LAST routeStop, it's a reverse direction kurs
+                  const isReverseKurs = routeArr.length > 0 && firstCityId === routeArr[routeArr.length - 1]
+
+                  const allOdKeys = [...new Set([...Object.keys(odDemand), ...Object.keys(odTransfer), ...Object.keys(odOnBoard)])]
+                  const odKeys = allOdKeys
                     .sort((a, b) => {
-                      const ta = (odTransfer[a]?.class1 ?? 0) + (odTransfer[a]?.class2 ?? 0)
-                      const tb = (odTransfer[b]?.class1 ?? 0) + (odTransfer[b]?.class2 ?? 0)
-                      const oa = (odOnBoard[a]?.class1 ?? 0) + (odOnBoard[a]?.class2 ?? 0)
-                      const ob = (odOnBoard[b]?.class1 ?? 0) + (odOnBoard[b]?.class2 ?? 0)
-                      const da = (odDemand[a]?.class1 ?? 0) + (odDemand[a]?.class2 ?? 0)
-                      const db = (odDemand[b]?.class1 ?? 0) + (odDemand[b]?.class2 ?? 0)
-                      return (tb + ob + db) - (ta + oa + da)
+                      const [af, at_] = a.split(':')
+                      const [bf, bt] = b.split(':')
+                      const afi = stopOrder[af] ?? 999
+                      const ati = stopOrder[at_] ?? 999
+                      const bfi = stopOrder[bf] ?? 999
+                      const bti = stopOrder[bt] ?? 999
+                      // Primary: fromIdx — ascending for forward, descending for reverse
+                      if (afi !== bfi) return isReverseKurs ? (bfi - afi) : (afi - bfi)
+                      // Secondary: nearest destination first
+                      return Math.abs(ati - afi) - Math.abs(bti - bfi)
                     })
 
                   let kursObC1 = 0, kursObC2 = 0;
                   let kursTrC1 = 0, kursTrC2 = 0;
                   let kursDmC1 = 0, kursDmC2 = 0;
 
-                  odKeys.forEach(key => {
+                  allOdKeys.forEach(key => {
                     const trC1 = odTransfer[key]?.class1 ?? 0;
                     const trC2 = odTransfer[key]?.class2 ?? 0;
                     const obC1 = odOnBoard[key]?.class1 ?? 0;
@@ -752,9 +770,14 @@ export default function TrainSetPanel() {
             <div className={styles.stats}>
               {Object.entries(mergedOD)
                 .sort((a, b) => {
-                  const bTotal = b[1].dmC1 + b[1].dmC2 + b[1].trC1 + b[1].trC2 + b[1].obC1 + b[1].obC2;
-                  const aTotal = a[1].dmC1 + a[1].dmC2 + a[1].trC1 + a[1].trC2 + a[1].obC1 + a[1].obC2;
-                  return bTotal - aTotal;
+                  const [af, at_] = a[0].split(':')
+                  const [bf, bt] = b[0].split(':')
+                  const afi = stopOrder[af] ?? 999
+                  const ati = stopOrder[at_] ?? 999
+                  const bfi = stopOrder[bf] ?? 999
+                  const bti = stopOrder[bt] ?? 999
+                  if (afi !== bfi) return afi - bfi
+                  return Math.abs(ati - afi) - Math.abs(bti - bfi)
                 })
                 .map(([key, val]) => {
                   const [fromId, toId] = key.split(':')
