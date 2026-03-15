@@ -97,11 +97,14 @@ export function GameProvider({ children }) {
       const newTrainId = generateId()
       const playerTrainRef = doc(db, `players/player1/trains/${newTrainId}`)
 
+      const purchasedAt = new Date().toISOString()
       batch.set(playerTrainRef, {
         id: newTrainId,
         parent_id: baseTrain.id,
         name: `${baseTrain.name} #${Math.floor(Math.random() * 900) + 100}`,
-        purchasedAt: new Date().toISOString()
+        purchasedAt,
+        lastMaintenance: purchasedAt,
+        lastOverhaul: purchasedAt
       })
 
       batch.set(
@@ -115,6 +118,19 @@ export function GameProvider({ children }) {
       return true
     } catch (e) {
       console.error('Błąd podczas zakupu pociągu:', e)
+      return false
+    }
+  }
+
+  async function performMaintenance(trainId) {
+    try {
+      const now = new Date().toISOString()
+      await updateDoc(doc(db, `players/player1/trains/${trainId}`), {
+        lastMaintenance: now
+      })
+      return true
+    } catch (e) {
+      console.error('Błąd podczas ręcznej konserwacji:', e)
       return false
     }
   }
@@ -389,8 +405,9 @@ export function GameProvider({ children }) {
         reputation,
         updateCitySchedules,
         rebuildAllCitySchedules,
-        saveTrainRoute,
+         saveTrainRoute,
         buyTrain,
+        performMaintenance,
         baseTrains,
         gameSettings,
       }}

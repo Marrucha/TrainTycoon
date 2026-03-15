@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar/Sidebar'
 import ResourceBar from './components/ResourceBar/ResourceBar'
 import FleetMenu from './components/FleetMenu/FleetMenu'
 import ReportsMenu from './components/Reports/ReportsMenu'
+import CompanyMenu from './components/CompanyMenu/CompanyMenu'
 import styles from './App.module.css'
 
 function Clock() {
@@ -28,7 +29,7 @@ function Clock() {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('map')
+  const [activeTab, setActiveTab] = useState('company')
 
   return (
     <GameProvider>
@@ -40,6 +41,12 @@ export default function App() {
           </div>
 
           <nav className={styles.nav}>
+            <button
+              className={`${styles.navBtn} ${activeTab === 'company' ? styles.active : ''}`}
+              onClick={() => setActiveTab('company')}
+            >
+              Zarządzanie
+            </button>
             <button
               className={`${styles.navBtn} ${activeTab === 'map' ? styles.active : ''}`}
               onClick={() => setActiveTab('map')}
@@ -66,6 +73,7 @@ export default function App() {
         </header>
 
         <main className={styles.main}>
+          {activeTab === 'company' && <CompanyMenu />}
           {activeTab === 'map' && (
             <>
               <section className={styles.mapSection}>
