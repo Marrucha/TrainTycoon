@@ -23,6 +23,7 @@ export function GameProvider({ children }) {
   const [selectedRoute, setSelectedRoute] = useState(null)
   const [selectedTrainSet, setSelectedTrainSet] = useState(null)
   const [playerDoc, setPlayerDoc] = useState({})
+  const [gameSettings, setGameSettings] = useState({})
 
   useEffect(() => {
     const unsubCities = onSnapshot(collection(db, 'cities'), (snapshot) => {
@@ -50,6 +51,10 @@ export function GameProvider({ children }) {
       setPlayerDoc(snap.exists() ? snap.data() : {})
     })
 
+    const unsubSettings = onSnapshot(doc(db, 'gameSettings', 'config'), (snap) => {
+      setGameSettings(snap.exists() ? snap.data() : {})
+    })
+
     setTimeout(() => setLoading(false), 1000)
 
     return () => {
@@ -59,6 +64,7 @@ export function GameProvider({ children }) {
       unsubTrainsSets()
       unsubRoutes()
       unsubPlayer()
+      unsubSettings()
     }
   }, [])
 
@@ -386,6 +392,7 @@ export function GameProvider({ children }) {
         saveTrainRoute,
         buyTrain,
         baseTrains,
+        gameSettings,
       }}
     >
       {children}

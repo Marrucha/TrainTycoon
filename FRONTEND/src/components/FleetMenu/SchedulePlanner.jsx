@@ -18,7 +18,7 @@ function minsToTime(m) {
 }
 
 export default function SchedulePlanner({ trainSet, onClose }) {
-    const { routes, cities, getCityById, saveTrainRoute } = useGame()
+    const { routes, cities, getCityById, saveTrainRoute, trainsSets, gameSettings } = useGame()
 
     // Lista kursów. Każdy kurs ma id, direction ('forward' | 'backward'), stops
     const [courses, setCourses] = useState([])
@@ -281,6 +281,91 @@ export default function SchedulePlanner({ trainSet, onClose }) {
         // eslint-disable-next-line
     }, [courses]);
 
+    const getDetailedItinerary = (courseStops) => {
+        const itin = [];
+        for (let i = 0; i < courseStops.length - 1; i++) {
+            const startCityId = courseStops[i].cityId;
+            const endCityId = courseStops[i + 1].cityId;
+            const depTime = courseStops[i].depMins;
+
+            const segment = findShortestPath(routes, startCityId, endCityId, 'fastest');
+            if (!segment) continue;
+
+            let currentTime = depTime;
+            for (let j = 0; j < segment.edges.length; j++) {
+                const edge = segment.edges[j];
+                const entry = currentTime;
+                const exit = currentTime + edge.travelTime;
+                const fId = segment.path[j];
+                const tId = segment.path[j + 1];
+
+                itin.push({
+                    edgeId: edge.id || `${edge.from}-${edge.to}`,
+                    fromId: fId,
+                    toId: tId,
+                    entry,
+                    exit,
+                    tier: edge.routeTier || 2
+                });
+                currentTime = exit;
+            }
+        }
+        return itin;
+    };
+
+    const getItineraryFromRozklad = (rozklad) => {
+        const byKurs = {};
+        rozklad.forEach(r => {
+            if (!byKurs[r.kurs]) byKurs[r.kurs] = [];
+            byKurs[r.kurs].push(r);
+        });
+
+        const itin = [];
+        Object.values(byKurs).forEach(stops => {
+            const stopsWithId = stops.map(s => ({
+                cityId: cities.find(c => c.name === s.miasto)?.id,
+                depMins: s.odjazd ? timeToMins(s.odjazd) : null,
+            })).filter(s => s.cityId);
+            
+            if (stopsWithId.length < 2) return;
+            let currentAbs = stopsWithId[0].depMins;
+            for (let i = 0; i < stopsWithId.length - 1; i++) {
+                const s1 = stopsWithId[i];
+                const s2 = stopsWithId[i + 1];
+                const segmentInfo = findShortestPath(routes, s1.cityId, s2.cityId, 'fastest');
+                if (!segmentInfo) continue;
+                
+                let segmentEntryTime = currentAbs;
+                for (let j = 0; j < segmentInfo.edges.length; j++) {
+                    const edge = segmentInfo.edges[j];
+                    const entry = segmentEntryTime;
+                    const exit = segmentEntryTime + edge.travelTime;
+                    itin.push({
+                        edgeId: edge.id || `${edge.from}-${edge.to}`,
+                        fromId: segmentInfo.path[j],
+                        toId: segmentInfo.path[j+1],
+                        entry,
+                        exit,
+                        tier: edge.routeTier || 2
+                    });
+                    segmentEntryTime = exit;
+                }
+                if (s2.depMins !== null) {
+                    let nextDep = s2.depMins;
+                    while (nextDep < segmentEntryTime) nextDep += 24 * 60;
+                    currentAbs = nextDep;
+                }
+            }
+        });
+        return itin;
+    };
+
+    const isColliding = (entryA, entryB, buffer) => {
+        const diff = Math.abs((entryA % 1440) - (entryB % 1440));
+        const wrappedDiff = Math.min(diff, 1440 - diff);
+        return wrappedDiff < buffer;
+    };
+
     // Walidacja obostrzeń uruchamiana dopiero przy próbie zapisu/publikacji
     const validate = () => {
         if (courses.length === 0) return null;
@@ -307,6 +392,40 @@ export default function SchedulePlanner({ trainSet, onClose }) {
 
         if (firstCityId !== lastCityId) {
             return `Skład musi zamknąć cykl dobowy w punkcie startowym (${getCityById(firstCityId)?.name}). Dodaj kurs powrotny.`;
+        }
+
+        // --- DETEKCJA KOLIZJI ---
+        const myItin = [];
+        courses.forEach(c => myItin.push(...getDetailedItinerary(c.stops)));
+
+        // 1. Kolizja z pociągami samorządowymi (każde X:30 z każdego miasta)
+        for (const seg of myItin) {
+            const buffer = seg.tier === 1 ? (gameSettings?.bufferTier1 ?? 3) : (gameSettings?.bufferTier2 ?? 6);
+            
+            for (let h = 0; h < 24; h++) {
+                const govStart = h * 60 + 30;
+                if (isColliding(seg.entry, govStart, buffer)) {
+                    return `Kolizja z pociągiem samorządowym na odcinku ${getCityById(seg.fromId)?.name} -> ${getCityById(seg.toId)?.name} (X:30).`;
+                }
+            }
+        }
+
+        // 2. Kolizja z innymi składami graczy
+        for (const otherTS of trainsSets) {
+            if (otherTS.id === trainSet.id) continue;
+            if (!otherTS.rozklad) continue;
+
+            const otherItin = getItineraryFromRozklad(otherTS.rozklad);
+            for (const seg of myItin) {
+                for (const oSeg of otherItin) {
+                    if (seg.edgeId === oSeg.edgeId && seg.fromId === oSeg.fromId) {
+                        const buffer = seg.tier === 1 ? (gameSettings?.bufferTier1 ?? 3) : (gameSettings?.bufferTier2 ?? 6);
+                        if (isColliding(seg.entry, oSeg.entry, buffer)) {
+                            return `Kolizja ze składem ${otherTS.name} na odcinku ${getCityById(seg.fromId)?.name} -> ${getCityById(seg.toId)?.name} ok. godziny ${minsToTime(oSeg.entry)}.`;
+                        }
+                    }
+                }
+            }
         }
 
         return null;
