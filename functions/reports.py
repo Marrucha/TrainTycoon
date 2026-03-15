@@ -192,7 +192,7 @@ def save_daily_report(db):
             day_ob_c1 = day_ob_c2 = 0
             day_tr_c1 = day_tr_c2 = 0
             day_dm_c1 = day_dm_c2 = 0
-            day_rev = 0
+            day_rev = day_rev_c1 = day_rev_c2 = 0
 
             for kurs_id in all_kurs_ids:
                 kd = daily_demand.get(kurs_id, {})
@@ -219,6 +219,8 @@ def save_daily_report(db):
 
                 # Revenue from transferred OD pairs
                 revenue = 0
+                revenue_c1 = 0
+                revenue_c2 = 0
                 all_od_keys = set(list(od_demand.keys()) + list(od_transfer.keys()) + list(on_board.keys()))
                 for od_key in all_od_keys:
                     parts = od_key.split(':')
@@ -228,9 +230,17 @@ def save_daily_report(db):
                     val_tr = od_transfer.get(od_key, {})
                     p1 = _ticket_price_for_pair(from_id, to_id, pricing, cities_map, 1)
                     p2 = _ticket_price_for_pair(from_id, to_id, pricing, cities_map, 2)
-                    revenue += val_tr.get('class1', 0) * p1 + val_tr.get('class2', 0) * p2
+                    
+                    c1_qty = val_tr.get('class1', 0)
+                    c2_qty = val_tr.get('class2', 0)
+                    
+                    revenue_c1 += c1_qty * p1
+                    revenue_c2 += c2_qty * p2
+                    revenue += c1_qty * p1 + c2_qty * p2
 
                 revenue = round(revenue)
+                revenue_c1 = round(revenue_c1)
+                revenue_c2 = round(revenue_c2)
 
                 # First-stop info for this kurs
                 k_stops   = by_kurs.get(kurs_id, [])
@@ -265,7 +275,9 @@ def save_daily_report(db):
                     'realizacja':   round(real, 4),
                     'realizacjaC1': real_c1,
                     'realizacjaC2': real_c2,
-                    'przychod': revenue,
+                    'przychod':   revenue,
+                    'przychodC1': revenue_c1,
+                    'przychodC2': revenue_c2,
                     'km':      kurs_km,
                     'koszt':   kurs_koszt,
                     'netto':   kurs_netto,
@@ -274,6 +286,8 @@ def save_daily_report(db):
                 day_tr_c1 += tr_c1; day_tr_c2 += tr_c2
                 day_dm_c1 += dm_c1; day_dm_c2 += dm_c2
                 day_rev += revenue
+                day_rev_c1 += revenue_c1
+                day_rev_c2 += revenue_c2
 
             day_orig_c1 = day_tr_c1 + day_dm_c1
             day_orig_c2 = day_tr_c2 + day_dm_c2
@@ -292,6 +306,8 @@ def save_daily_report(db):
                     'totalDemand': {'class1': day_orig_c1, 'class2': day_orig_c2, 'total': day_orig},
                     'realizacja':  round((day_tr_c1 + day_tr_c2) / day_orig, 4) if day_orig > 0 else 0.0,
                     'przychod':    round(day_rev),
+                    'przychodC1':  round(day_rev_c1),
+                    'przychodC2':  round(day_rev_c2),
                     'km':          daily_km,
                     'koszt':       daily_cost,
                     'netto':       netto,

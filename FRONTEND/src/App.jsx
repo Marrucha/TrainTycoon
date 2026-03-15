@@ -4,6 +4,7 @@ import PolandMap from './components/Map/PolandMap'
 import Sidebar from './components/Sidebar/Sidebar'
 import ResourceBar from './components/ResourceBar/ResourceBar'
 import FleetMenu from './components/FleetMenu/FleetMenu'
+import ReportsMenu from './components/Reports/ReportsMenu'
 import styles from './App.module.css'
 
 function Clock() {
@@ -51,6 +52,12 @@ export default function App() {
             >
               Flota Pociągów
             </button>
+            <button
+              className={`${styles.navBtn} ${activeTab === 'reports' ? styles.active : ''}`}
+              onClick={() => setActiveTab('reports')}
+            >
+              Raporty
+            </button>
           </nav>
 
           <ResourceBar />
@@ -59,16 +66,16 @@ export default function App() {
         </header>
 
         <main className={styles.main}>
-          {activeTab === 'map' ? (
+          {activeTab === 'map' && (
             <>
               <section className={styles.mapSection}>
                 <PolandMap />
               </section>
               <Sidebar />
             </>
-          ) : (
-            <FleetMenu />
           )}
+          {activeTab === 'fleet' && <FleetMenu />}
+          {activeTab === 'reports' && <ReportsMenu />}
         </main>
       </div>
     </GameProvider>
