@@ -3,7 +3,7 @@
   width: min(98vw, 98vh);
   height: min(98vw, 98vh);
   aspect-ratio: 1 / 1;
-  margin: auto;
+  margin: 0 auto;
   background: #060f06;
   border: 1px solid #2a4a2a;
   border-radius: 8px;
