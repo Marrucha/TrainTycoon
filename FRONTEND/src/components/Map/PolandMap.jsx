@@ -43,6 +43,7 @@ function MapOverlay() {
   const [hoveredTrain, setHoveredTrain] = useState(null) // { ts, x, y }
   const [, setTick] = useState(0)
   const [now, setNow] = useState(() => new Date())
+  const currentMin = now.getHours() * 60 + now.getMinutes()
 
   useMapEvents({
     move: () => setTick(t => t + 1),
@@ -162,7 +163,6 @@ function MapOverlay() {
   }
 
   // Pozycje pociągów z rozkładu (czas rzeczywisty)
-  const currentMin = now.getHours() * 60 + now.getMinutes()
   const trainPositions = []
   if (trainsSets) {
     trainsSets.forEach(ts => {
