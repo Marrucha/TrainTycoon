@@ -11,13 +11,34 @@ export default function CompanyMenu() {
     trainsSets,
     defaultPricing,
     performMaintenance,
-    gameSettings
+    pictures
   } = useGame();
 
   const [activeSection, setActiveSection] = useState('fleet');
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
   const [groupBy, setGroupBy] = useState('set'); // 'set' or 'type'
   const [expandedGroups, setExpandedGroups] = useState({}); // Tracking expanded state
+
+  const lokomotywowniaUrl = useMemo(() => {
+    if (!pictures) return null;
+
+    const findInArray = (arr) => {
+      if (!Array.isArray(arr)) return null;
+      const found = arr.find(v => v.name === 'Lokomotywownia' || v.id === 'Lokomotywownia');
+      return found?.url || null;
+    };
+
+    // 1. Sprawdź tablicę 'picture' (zidentyfikowaną przez subagenta)
+    let url = findInArray(pictures.picture);
+
+    // 2. Sprawdź tablicę 'views' (używaną w TrainStore)
+    if (!url) url = findInArray(pictures.views);
+
+    // 3. Sprawdź pola bezpośrednio
+    if (!url) url = pictures.Lokomotywownia?.url || (typeof pictures.Lokomotywownia === 'string' ? pictures.Lokomotywownia : null);
+
+    return url;
+  }, [pictures]);
 
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev => ({
@@ -418,11 +439,12 @@ export default function CompanyMenu() {
 
       <main
         className={styles.content}
-        style={activeSection === 'fleet' && gameSettings?.pictures?.Lokomotywownia ? {
-          backgroundImage: `linear-gradient(rgba(6, 15, 6, 0.85), rgba(6, 15, 6, 0.85)), url(${gameSettings.pictures.Lokomotywownia})`,
+        style={activeSection === 'fleet' && lokomotywowniaUrl ? {
+          backgroundImage: `linear-gradient(rgba(6, 15, 6, 0.75), rgba(6, 15, 6, 0.75)), url("${lokomotywowniaUrl}")`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          backgroundAttachment: 'local'
+          backgroundAttachment: 'fixed',
+          backgroundColor: '#060f06'
         } : {}}
       >
         {activeSection === 'policy' && renderPolicy()}
