@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
 import styles from './CompanyMenu.module.css';
 
@@ -18,27 +18,42 @@ export default function CompanyMenu() {
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
   const [groupBy, setGroupBy] = useState('set'); // 'set' or 'type'
   const [expandedGroups, setExpandedGroups] = useState({}); // Tracking expanded state
+  const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
 
-  const lokomotywowniaUrl = useMemo(() => {
+  useEffect(() => {
+    const handleResize = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const getBackgroundUrl = (imageName) => {
     if (!pictures) return null;
 
-    const findInArray = (arr) => {
-      if (!Array.isArray(arr)) return null;
-      const found = arr.find(v => v.name === 'Lokomotywownia' || v.id === 'Lokomotywownia');
-      return found?.url || null;
+    const searchInData = (data) => {
+      if (!data) return null;
+      const items = Array.isArray(data) ? data : Object.values(data);
+      const found = items.find(v => v && (v.name === imageName || v.id === imageName));
+      if (!found) return null;
+      const rawUrl = isLandscape ? (found.url2 || found.url) : found.url;
+      return typeof rawUrl === 'string' ? rawUrl.trim() : rawUrl;
     };
 
-    // 1. Sprawdź tablicę 'picture' (zidentyfikowaną przez subagenta)
-    let url = findInArray(pictures.picture);
-
-    // 2. Sprawdź tablicę 'views' (używaną w TrainStore)
-    if (!url) url = findInArray(pictures.views);
-
-    // 3. Sprawdź pola bezpośrednio
-    if (!url) url = pictures.Lokomotywownia?.url || (typeof pictures.Lokomotywownia === 'string' ? pictures.Lokomotywownia : null);
-
+    let url = searchInData(pictures);
+    if (!url) url = searchInData(pictures.picture);
+    if (!url) url = searchInData(pictures.views);
+    if (!url) {
+      const obj = pictures[imageName];
+      if (typeof obj === 'object' && obj !== null) {
+        url = isLandscape ? (obj.url2 || obj.url) : obj.url;
+      } else if (typeof obj === 'string') {
+        url = obj;
+      }
+    }
     return url;
-  }, [pictures]);
+  };
+
+  const lokomotywowniaUrl = useMemo(() => getBackgroundUrl('Lokomotywownia'), [pictures, isLandscape]);
+  const bankUrl = useMemo(() => getBackgroundUrl('Bank'), [pictures, isLandscape]);
 
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev => ({
@@ -166,59 +181,6 @@ export default function CompanyMenu() {
           </div>
         </section>
       </div>
-
-      <div className={styles.sectionHeader} style={{ marginTop: '30px' }}>
-        <h2>Giełda Papierów Wartościowych</h2>
-        <p>Zarządzaj kapitałem własnym i przejmuj dominację na rynku.</p>
-      </div>
-      <div className={styles.grid}>
-        <section className={styles.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-            <h3>Moje Akcje</h3>
-            <span style={{ fontSize: '20px', fontWeight: '800', color: '#2ecc71' }}>142.50 PLN <span style={{ fontSize: '10px', color: '#666' }}>+2.4%</span></span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
-              <span style={{ fontSize: '11px', color: '#777' }}>Udziały Zarządu:</span>
-              <span style={{ fontSize: '11px', fontWeight: '700', color: '#fff' }}>51.0% (Pakiet Kontrolny)</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
-              <span style={{ fontSize: '11px', color: '#777' }}>Kapitalizacja:</span>
-              <span style={{ fontSize: '11px', fontWeight: '700', color: '#fff' }}>1.425.000.000 PLN</span>
-            </div>
-            <button
-              className={styles.saveBtn}
-              style={{ background: '#27ae60', margin: '5px 0 0 0', width: '100%', fontWeight: '700' }}
-            >
-              Emituj Nowe Akcje
-            </button>
-          </div>
-        </section>
-
-        <section className={styles.card}>
-          <h3>Rynek Konkurencji</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '5px' }}>
-            {[
-              { name: 'RailWay Star', price: '89.20', trend: '-1.2%', color: '#e74c3c' },
-              { name: 'EcoTrain Ltd', price: '210.45', trend: '+0.8%', color: '#2ecc71' },
-              { name: 'North Express', price: '45.10', trend: '+5.6%', color: '#2ecc71' }
-            ].map(comp => (
-              <div key={comp.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#0d1a0d', borderRadius: '6px', border: '1px solid #2a4a2a' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#ddd' }}>{comp.name}</span>
-                  <span style={{ fontSize: '10px', color: comp.color }}>{comp.price} PLN ({comp.trend})</span>
-                </div>
-                <button
-                  className={styles.saveBtn}
-                  style={{ padding: '5px 12px', fontSize: '10px', background: 'transparent', border: '1px solid #f0c040', color: '#f0c040', margin: 0 }}
-                >
-                  Kup Akcje
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
     </>
   );
 
@@ -276,6 +238,100 @@ export default function CompanyMenu() {
             <span className={styles.statValue} style={{ color: '#f1c40f' }}>
               {(reputation * 100).toFixed(1)}%
             </span>
+          </div>
+        </section>
+      </div>
+
+      <div className={styles.sectionHeader} style={{ marginTop: '30px' }}>
+        <h2>Sektor Bankowy</h2>
+        <p>Zarządzaj kredytami, lokatami i akcjami swojej firmy.</p>
+      </div>
+
+      <div className={styles.grid}>
+        {/* Kredyty i Linie Kredytowe */}
+        <section className={styles.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h3>Instrumenty Dłużne</h3>
+            <span style={{ fontSize: '12px', color: '#666' }}>Zdolność: 5.000.000 PLN</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(42, 74, 42, 0.3)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600' }}>Linia Kredytowa</span>
+                <span style={{ fontSize: '13px', color: '#888' }}>Oprocentowanie: 5.5%</span>
+              </div>
+              <button className={styles.saveBtn} style={{ width: '100%', padding: '8px', fontSize: '11px', margin: '5px 0 0 0' }}>Otwórz Linię</button>
+            </div>
+            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(42, 74, 42, 0.3)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600' }}>Kredyt Inwestycyjny</span>
+                <span style={{ fontSize: '13px', color: '#888' }}>Max: 10 mln PLN</span>
+              </div>
+              <button className={styles.saveBtn} style={{ width: '100%', padding: '8px', fontSize: '11px', margin: '5px 0 0 0', background: '#e67e22' }}>Weź Kredyt</button>
+            </div>
+          </div>
+        </section>
+
+        {/* Lokaty i Depozyty */}
+        <section className={styles.card}>
+          <h3>Depozyty i Lokaty</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '5px' }}>
+            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(42, 74, 42, 0.3)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600' }}>Lokata Terminowa (30 dni)</span>
+                <span style={{ fontSize: '13px', color: '#2ecc71' }}>Zysk: +2.5%</span>
+              </div>
+              <button className={styles.saveBtn} style={{ width: '100%', padding: '8px', fontSize: '11px', margin: '5px 0 0 0', background: '#27ae60' }}>Załóż Lokatę</button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+              <span style={{ fontSize: '11px', color: '#666' }}>ŚRODKI ZABLOKOWANE:</span>
+              <span style={{ fontSize: '14px', fontWeight: '700' }}>0 PLN</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Zarządzanie Akcjami (GPW) */}
+        <section className={styles.card} style={{ gridColumn: 'span 2' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Giełda Papierów Wartościowych</h3>
+              <p style={{ margin: '5px 0 0', fontSize: '11px', color: '#666' }}>Zarządzaj kapitałem własnym i przejmuj dominację na rynku.</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '24px', fontWeight: '800', color: '#2ecc71' }}>142.50 PLN</div>
+              <div style={{ fontSize: '11px', color: '#666' }}>KURS TWOICH AKCJI (+2.4%)</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <h4>Twoje Udziały</h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                <span style={{ fontSize: '12px', color: '#777' }}>Pakiet Kontrolny:</span>
+                <span style={{ fontSize: '12px', fontWeight: '700' }}>51.0%</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                <span style={{ fontSize: '12px', color: '#777' }}>Kapitalizacja:</span>
+                <span style={{ fontSize: '12px', fontWeight: '700' }}>1.425.000.000 PLN</span>
+              </div>
+              <button className={styles.saveBtn} style={{ background: '#27ae60', margin: '10px 0 0 0', fontWeight: '700' }}>Emituj Nowe Akcje</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <h4>Rynek Konkurencji</h4>
+              {[
+                { name: 'RailWay Star', price: '89.20', trend: '-1.2%', color: '#e74c3c' },
+                { name: 'EcoTrain Ltd', price: '210.45', trend: '+0.8%', color: '#2ecc71' }
+              ].map(comp => (
+                <div key={comp.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: 'rgba(0,0,0,0.1)', borderRadius: '6px', border: '1px solid rgba(42, 74, 42, 0.3)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '700' }}>{comp.name}</span>
+                    <span style={{ fontSize: '10px', color: comp.color }}>{comp.price} PLN ({comp.trend})</span>
+                  </div>
+                  <button className={styles.saveBtn} style={{ padding: '5px 12px', fontSize: '10px', background: 'transparent', border: '1px solid #f0c040', color: '#f0c040', margin: 0 }}>Kup</button>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </div>
@@ -366,15 +422,42 @@ export default function CompanyMenu() {
                     {group.status === 'READY' && <span className={`${styles.badge} ${styles.badgeReady}`}>Operacyjny</span>}
                     {group.status === 'MAINTENANCE' && <span className={`${styles.badge} ${styles.badgeService}`}>Serwis</span>}
                     {group.status === 'OVERHAUL' && <span className={`${styles.badge} ${styles.badgeRepair}`}>Remont</span>}
+                    {group.isGroup && group.members.length > 0 && (
+                      <button
+                        className={styles.saveBtn}
+                        style={{
+                          padding: '6px 14px',
+                          fontSize: '10px',
+                          background: 'transparent',
+                          border: '1px solid #f0c040',
+                          color: '#f0c040',
+                          margin: 0,
+                          textTransform: 'uppercase',
+                          fontWeight: 700,
+                          marginLeft: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Czy na pewno przeprowadzić konserwację wszystkich elementów składu ${group.name}?`)) {
+                            group.members.forEach(m => performMaintenance(m.id));
+                          }
+                        }}
+                      >
+                        <span style={{ fontSize: '14px' }}>🛠</span> Konserwacja Składu
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Elements list directly below, collapsible */}
               {isExpanded && (
-                <div style={{ padding: '5px 15px 15px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(0,20,0,0.15)' }}>
+                <div style={{ padding: '5px 15px 15px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(0,10,0,0.1)' }}>
                   {group.members.map(m => (
-                    <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 15px', background: '#0d1a0d', borderRadius: '4px', border: '1px solid #2a4a2a' }}>
+                    <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 15px', background: 'rgba(13,26,13,0.3)', borderRadius: '4px', border: '1px solid #2a4a2a' }}>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontSize: '13px', fontWeight: '600', color: '#eee' }}>{m.name}</span>
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '3px' }}>
@@ -410,13 +493,17 @@ export default function CompanyMenu() {
   return (
     <div
       className={styles.companyMenu}
-      style={activeSection === 'fleet' && lokomotywowniaUrl ? {
-        backgroundImage: `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${lokomotywowniaUrl}")`,
+      style={{
+        backgroundImage: activeSection === 'fleet' && lokomotywowniaUrl
+          ? `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${lokomotywowniaUrl}")`
+          : activeSection === 'finance' && bankUrl
+            ? `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${bankUrl}")`
+            : 'none',
         backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
+        backgroundPosition: 'center center',
+        backgroundAttachment: 'scroll',
         backgroundColor: '#060f06'
-      } : {}}
+      }}
     >
       <aside className={styles.sidebar}>
         <div className={styles.sidebarTitle}>Menu Managera</div>
