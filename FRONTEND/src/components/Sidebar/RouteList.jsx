@@ -18,22 +18,12 @@ export default function RouteList() {
       </div>
 
       <div className={styles.section}>
-        <div className={styles.sectionLabel}>● AKTYWNE</div>
-        {active.map((ts) => (
+        <div className={styles.sectionLabel}>● WSZYSTKIE SKŁADY</div>
+        {trainsSets.map((ts) => (
           <TrainSetRow key={ts.id} trainSet={ts} getCityById={getCityById} companyName={companyName} isSelected={selectedTrainSet?.id === ts.id} onSelect={selectTrainSet} />
         ))}
-        {active.length === 0 && (
-          <div className={styles.noTrain} style={{ padding: '8px 16px' }}>brak aktywnych tras</div>
-        )}
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionLabel}>○ BEZ TRASY</div>
-        {inactive.map((ts) => (
-          <TrainSetRow key={ts.id} trainSet={ts} getCityById={getCityById} companyName={companyName} isSelected={selectedTrainSet?.id === ts.id} onSelect={selectTrainSet} />
-        ))}
-        {inactive.length === 0 && (
-          <div className={styles.noTrain} style={{ padding: '8px 16px' }}>wszystkie składy mają trasy</div>
+        {trainsSets.length === 0 && (
+          <div className={styles.noTrain} style={{ padding: '8px 16px' }}>brak składów</div>
         )}
       </div>
     </div>
@@ -60,11 +50,11 @@ function TrainSetRow({ trainSet, getCityById, companyName, isSelected, onSelect 
       transition={{ duration: 0.1 }}
     >
       <div className={styles.routeName}>
-        <span className={styles.indicator}>{hasRoute ? '●' : '○'}</span>
+        <span className={styles.indicator} style={!hasRoute ? { color: '#e74c3c', fontSize: '14px' } : {}}>●</span>
         <span className={styles.cities}>
           {hasRoute
             ? `${fromCity?.name || stops[0]} ↔ ${toCity?.name || stops[stops.length - 1]}`
-            : 'brak trasy'}
+            : trainSet.name}
         </span>
       </div>
       {viaStops.length > 0 && (

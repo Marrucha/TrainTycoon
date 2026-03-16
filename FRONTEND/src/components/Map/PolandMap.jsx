@@ -410,11 +410,11 @@ function MapOverlay() {
                     const cityId  = cities.find(c => c.id === stop.miasto || c.name === stop.miasto)?.id ?? stop.miasto
                     const cityName = cities.find(c => c.id === cityId)?.name ?? stop.miasto
                     const time = isLast ? (stop.przyjazd || stop.odjazd) : stop.odjazd
-                    // Pasażerowie jadący DO tej stacji
-                    const obEntry = Object.entries(onBoard).find(([k]) => k.split(':')[1] === cityId)
-                    const alEntry = Object.entries(alighted).find(([k]) => k.split(':')[1] === cityId)
-                    const onBoardCount = obEntry ? obEntry[1].class1 + obEntry[1].class2 : 0
-                    const alightedCount = alEntry ? alEntry[1].class1 + alEntry[1].class2 : 0
+                    // Pasażerowie jadący DO tej stacji (suma wszystkich odcinków)
+                    const obEntries = Object.entries(onBoard).filter(([k]) => k.split(':')[1] === cityId)
+                    const alEntries = Object.entries(alighted).filter(([k]) => k.split(':')[1] === cityId)
+                    const onBoardCount = obEntries.reduce((s, [, v]) => s + (v.class1 || 0) + (v.class2 || 0), 0)
+                    const alightedCount = alEntries.reduce((s, [, v]) => s + (v.class1 || 0) + (v.class2 || 0), 0)
                     const hasAlighted = alightedCount > 0 && onBoardCount === 0
                     const hasOnBoard  = onBoardCount > 0
                     return (

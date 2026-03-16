@@ -4,6 +4,7 @@ import TrainComposer from './TrainComposer'
 import PricingPanel from './PricingPanel'
 import RoutePlanner from './RoutePlanner'
 import SchedulePlanner from './SchedulePlanner'
+import TrainTimeline from './TrainTimeline'
 import styles from './FleetCompositions.module.css'
 
 export default function FleetCompositions() {
@@ -14,6 +15,9 @@ export default function FleetCompositions() {
     const [pricingOpenFor, setPricingOpenFor] = useState(null) // id składu z otwartym cennikiem
     const [routingOpenFor, setRoutingOpenFor] = useState(null) // skład dla RoutePlanner
     const [schedulingOpenFor, setSchedulingOpenFor] = useState(null) // skład dla SchedulePlanner
+    const [collapsedCards, setCollapsedCards] = useState({}) // id → bool
+
+    const toggleCollapse = (id) => setCollapsedCards(prev => ({ ...prev, [id]: !prev[id] }))
 
     if (isComposing) {
         return <TrainComposer onCancel={() => setIsComposing(false)} />
@@ -127,11 +131,17 @@ export default function FleetCompositions() {
                                 c.rozklad && c.rozklad.some(r => r.trainSetId === trainSet.id)
                             );
 
+                            const isCollapsed = !!collapsedCards[trainSet.id]
+
                             return (
                                 <div key={trainSet.id} className={styles.compositionCard}>
-                                    <div className={styles.cardTop}>
+                                    <div
+                                        className={styles.cardTop}
+                                        onClick={() => toggleCollapse(trainSet.id)}
+                                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                                    >
                                         <h4>{trainSet.name}</h4>
-                                        <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             {routeLabel ? (
                                                 <div title={formattedSchedule.trim()}>
                                                     <span
@@ -144,99 +154,107 @@ export default function FleetCompositions() {
                                             ) : (
                                                 <span className={styles.routeBadgeEmpty}>W Stoczni</span>
                                             )}
+                                            <span style={{ color: '#4a6a4a', fontSize: '14px' }}>{isCollapsed ? '▶' : '▼'}</span>
                                         </div>
                                     </div>
 
-                                    <div className={styles.trainAssembly}>
-                                        {snakeRows.map((row, rIndex) => (
-                                            <div key={rIndex} className={`${styles.snakeRow} ${styles[row.style]}`}>
-                                                {row.items.map((part) => (
-                                                    <div key={part.id} className={styles.assemblyPart}>
-                                                        {part.imageUrl2 || part.imageUrl ? (
-                                                            <div className={styles.imgWrap}>
-                                                                <img src={part.imageUrl2 || part.imageUrl} alt="Pojazd" />
-                                                            </div>
-                                                        ) : (
-                                                            <div className={styles.placeholderBox}>📷</div>
-                                                        )}
-                                                    </div>
-                                                ))}
+                                    {!isCollapsed && (
+                                        <div className={styles.trainAssembly}>
+                                            {snakeRows.map((row, rIndex) => (
+                                                <div key={rIndex} className={`${styles.snakeRow} ${styles[row.style]}`}>
+                                                    {row.items.map((part) => (
+                                                        <div key={part.id} className={styles.assemblyPart}>
+                                                            {part.imageUrl2 || part.imageUrl ? (
+                                                                <div className={styles.imgWrap}>
+                                                                    <img src={part.imageUrl2 || part.imageUrl} alt="Pojazd" />
+                                                                </div>
+                                                            ) : (
+                                                                <div className={styles.placeholderBox}>📷</div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {!isCollapsed && trainSet.rozklad && trainSet.rozklad.length > 0 && (
+                                        <TrainTimeline rozklad={trainSet.rozklad} />
+                                    )}
+
+                                    {!isCollapsed && (
+                                        <div className={styles.cardFooter}>
+                                            <div className={styles.statsRow}>
+                                                <span>Miejsca:<strong>{trainSet.totalSeats}</strong></span>
+                                                <span>Koszt:<strong>{Number(trainSet.totalCostPerKm).toFixed(2)} PLN/km</strong></span>
+                                                <span>Max V:<strong>{trainSet.maxSpeed} km/h</strong></span>
                                             </div>
-                                        ))}
-                                    </div>
-
-                                    <div className={styles.cardFooter}>
-                                        <div className={styles.statsRow}>
-                                            <span>Miejsca:<strong>{trainSet.totalSeats}</strong></span>
-                                            <span>Koszt:<strong>{Number(trainSet.totalCostPerKm).toFixed(2)} PLN/km</strong></span>
-                                            <span>Max V:<strong>{trainSet.maxSpeed} km/h</strong></span>
-                                        </div>
-                                        <div className={styles.footerActions}>
-                                            <button
-                                                className={styles.pricingBtn}
-                                                onClick={() => setPricingOpenFor(
-                                                    pricingOpenFor === trainSet.id ? null : trainSet.id
+                                            <div className={styles.footerActions}>
+                                                <button
+                                                    className={styles.pricingBtn}
+                                                    onClick={() => setPricingOpenFor(
+                                                        pricingOpenFor === trainSet.id ? null : trainSet.id
+                                                    )}
+                                                >
+                                                    {pricingOpenFor === trainSet.id ? '▲ Cennik' : '▼ Cennik'}
+                                                </button>
+                                                {!isPublished && (
+                                                    <button
+                                                        className={styles.pricingBtn}
+                                                        onClick={() => setRoutingOpenFor(trainSet)}
+                                                    >
+                                                        Modyfikuj Trasę
+                                                    </button>
                                                 )}
-                                            >
-                                                {pricingOpenFor === trainSet.id ? '▲ Cennik' : '▼ Cennik'}
-                                            </button>
-                                            {!isPublished && (
-                                                <button
-                                                    className={styles.pricingBtn}
-                                                    onClick={() => setRoutingOpenFor(trainSet)}
-                                                >
-                                                    Modyfikuj Trasę
-                                                </button>
-                                            )}
-                                            {!isPublished && trainSet.routeStops && trainSet.routeStops.length > 1 && (
-                                                <button
-                                                    className={styles.pricingBtn}
-                                                    style={{ borderColor: '#4CAF50', color: '#4CAF50' }}
-                                                    onClick={() => setSchedulingOpenFor(trainSet)}
-                                                >
-                                                    Godziny Jazdy
-                                                </button>
-                                            )}
-                                            {trainSet.rozklad && trainSet.rozklad.length > 0 && (
-                                                isPublished ? (
+                                                {!isPublished && trainSet.routeStops && trainSet.routeStops.length > 1 && (
                                                     <button
                                                         className={styles.pricingBtn}
-                                                        style={{ backgroundColor: '#4a1515', color: '#ff6b6b', borderColor: '#c0392b' }}
-                                                        onClick={() => {
-                                                            // Wysyłamy pustą tablicę by wyczyścić wpisy w miastach
-                                                            updateCitySchedules(trainSet.id, [], {});
-                                                        }}
+                                                        style={{ borderColor: '#4CAF50', color: '#4CAF50' }}
+                                                        onClick={() => setSchedulingOpenFor(trainSet)}
                                                     >
-                                                        Odwołaj z Trasy
+                                                        Godziny Jazdy
                                                     </button>
-                                                ) : (
+                                                )}
+                                                {trainSet.rozklad && trainSet.rozklad.length > 0 && (
+                                                    isPublished ? (
+                                                        <button
+                                                            className={styles.pricingBtn}
+                                                            style={{ backgroundColor: '#4a1515', color: '#ff6b6b', borderColor: '#c0392b' }}
+                                                            onClick={() => {
+                                                                updateCitySchedules(trainSet.id, [], {});
+                                                            }}
+                                                        >
+                                                            Odwołaj z Trasy
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            className={styles.pricingBtn}
+                                                            style={{ backgroundColor: '#2a4a2a', color: '#fff', borderColor: '#4CAF50' }}
+                                                            onClick={() => {
+                                                                updateCitySchedules(trainSet.id, trainSet.rozklad, {
+                                                                    name: trainSet.name,
+                                                                    type: trainSet.type || 'InterCity'
+                                                                });
+                                                            }}
+                                                        >
+                                                            Wyślij w Trasę
+                                                        </button>
+                                                    )
+                                                )}
+                                                {!isPublished && (
                                                     <button
                                                         className={styles.pricingBtn}
-                                                        style={{ backgroundColor: '#2a4a2a', color: '#fff', borderColor: '#4CAF50' }}
-                                                        onClick={() => {
-                                                            updateCitySchedules(trainSet.id, trainSet.rozklad, {
-                                                                name: trainSet.name,
-                                                                type: trainSet.type || 'InterCity'
-                                                            });
-                                                        }}
+                                                        onClick={() => setEditingTrainSet(trainSet)}
                                                     >
-                                                        Wyślij w Trasę
+                                                        Edytuj Skład
                                                     </button>
-                                                )
-                                            )}
-                                            {!isPublished && (
-                                                <button
-                                                    className={styles.pricingBtn}
-                                                    onClick={() => setEditingTrainSet(trainSet)}
-                                                >
-                                                    Edytuj Skład
-                                                </button>
-                                            )}
-                                            <button className={styles.compActionBtn}>Rozwiąż</button>
+                                                )}
+                                                <button className={styles.compActionBtn}>Rozwiąż</button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
-                                    {pricingOpenFor === trainSet.id && (
+                                    {!isCollapsed && pricingOpenFor === trainSet.id && (
                                         <PricingPanel
                                             trainSet={trainSet}
                                             routes={routes}
@@ -259,14 +277,14 @@ export default function FleetCompositions() {
                                         />
                                     )}
 
-                                    {routingOpenFor?.id === trainSet.id && (
+                                    {!isCollapsed && routingOpenFor?.id === trainSet.id && (
                                         <RoutePlanner
                                             trainSet={trainSet}
                                             onClose={() => setRoutingOpenFor(null)}
                                         />
                                     )}
 
-                                    {schedulingOpenFor?.id === trainSet.id && (
+                                    {!isCollapsed && schedulingOpenFor?.id === trainSet.id && (
                                         <SchedulePlanner
                                             trainSet={trainSet}
                                             onClose={() => setSchedulingOpenFor(null)}

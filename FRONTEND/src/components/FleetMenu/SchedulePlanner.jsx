@@ -24,6 +24,8 @@ export default function SchedulePlanner({ trainSet, onClose }) {
     const [courses, setCourses] = useState([])
     const [activeCourseId, setActiveCourseId] = useState(1)
     const [validationError, setValidationError] = useState(null)
+    const [saveSuccess, setSaveSuccess] = useState(false)
+    const [highlightedStop, setHighlightedStop] = useState(null) // { courseId, stopIndex }
 
     // Helper: pobiera czas przejazdu z Dijkstry
     const getTravelTime = (cityA, cityB) => {
@@ -275,9 +277,10 @@ export default function SchedulePlanner({ trainSet, onClose }) {
         recalculateCoursesFrom(courseIndex, stopIndex, targetAbsMins, minsToTime(targetAbsMins));
     };
 
-    // Usuń błąd, gdy użytkownik modyfikuje rozkład
+    // Usuń błąd i podświetlenie, gdy użytkownik modyfikuje rozkład
     useEffect(() => {
         if (validationError) setValidationError(null);
+        if (highlightedStop) setHighlightedStop(null);
         // eslint-disable-next-line
     }, [courses]);
 
@@ -367,6 +370,7 @@ export default function SchedulePlanner({ trainSet, onClose }) {
     };
 
     // Walidacja obostrzeń uruchamiana dopiero przy próbie zapisu/publikacji
+    // Zwraca { message, conflictCourseId, conflictStopIndex } lub null
     const validate = () => {
         if (courses.length === 0) return null;
 
@@ -374,7 +378,7 @@ export default function SchedulePlanner({ trainSet, onClose }) {
             const startMins = c.stops[0].depMins;
             const endMins = c.stops[c.stops.length - 1].arrMins;
             if (endMins - startMins > 11 * 60) {
-                return `Kurs ${c.id} trwa dłużej niż 11 godzin!`;
+                return { message: `Kurs ${c.id} trwa dłużej niż 11 godzin!`, conflictCourseId: c.id, conflictStopIndex: null };
             }
         }
 
@@ -384,28 +388,38 @@ export default function SchedulePlanner({ trainSet, onClose }) {
         const lastArr = lastCourse.stops[lastCourse.stops.length - 1].arrMins;
 
         if (lastArr - firstDep > 23 * 60) {
-            return `Pełny cykl dobowy wszystkich kursów przekracza 23 godziny! Zmniejsz liczbę kursów lub zacieśnij czasy.`;
+            return { message: `Pełny cykl dobowy wszystkich kursów przekracza 23 godziny! Zmniejsz liczbę kursów lub zacieśnij czasy.`, conflictCourseId: lastCourse.id, conflictStopIndex: null };
         }
 
         const firstCityId = firstCourse.stops[0].cityId;
         const lastCityId = lastCourse.stops[lastCourse.stops.length - 1].cityId;
 
         if (firstCityId !== lastCityId) {
-            return `Skład musi zamknąć cykl dobowy w punkcie startowym (${getCityById(firstCityId)?.name}). Dodaj kurs powrotny.`;
+            return { message: `Skład musi zamknąć cykl dobowy w punkcie startowym (${getCityById(firstCityId)?.name}). Dodaj kurs powrotny.`, conflictCourseId: lastCourse.id, conflictStopIndex: null };
         }
 
         // --- DETEKCJA KOLIZJI ---
+        // Buduj itinerarium z informacją o kursie i przystanku
         const myItin = [];
-        courses.forEach(c => myItin.push(...getDetailedItinerary(c.stops)));
+        courses.forEach(c => {
+            getDetailedItinerary(c.stops).forEach(seg => {
+                const stopIndex = c.stops.findIndex(s => s.cityId === seg.fromId);
+                myItin.push({ ...seg, courseId: c.id, stopIndex });
+            });
+        });
 
-        // 1. Kolizja z pociągami samorządowymi (każde X:30 z każdego miasta)
+        // 1. Kolizja z pociągami samorządowymi (każde X:30, godz. 04:00–22:30)
         for (const seg of myItin) {
             const buffer = seg.tier === 1 ? (gameSettings?.bufferTier1 ?? 3) : (gameSettings?.bufferTier2 ?? 6);
-            
-            for (let h = 0; h < 24; h++) {
+
+            for (let h = 4; h <= 22; h++) {
                 const govStart = h * 60 + 30;
                 if (isColliding(seg.entry, govStart, buffer)) {
-                    return `Kolizja z pociągiem samorządowym na odcinku ${getCityById(seg.fromId)?.name} -> ${getCityById(seg.toId)?.name} (X:30).`;
+                    return {
+                        message: `Kolizja z pociągiem samorządowym na odcinku ${getCityById(seg.fromId)?.name} -> ${getCityById(seg.toId)?.name} (X:30).`,
+                        conflictCourseId: seg.courseId,
+                        conflictStopIndex: seg.stopIndex
+                    };
                 }
             }
         }
@@ -421,7 +435,11 @@ export default function SchedulePlanner({ trainSet, onClose }) {
                     if (seg.edgeId === oSeg.edgeId && seg.fromId === oSeg.fromId) {
                         const buffer = seg.tier === 1 ? (gameSettings?.bufferTier1 ?? 3) : (gameSettings?.bufferTier2 ?? 6);
                         if (isColliding(seg.entry, oSeg.entry, buffer)) {
-                            return `Kolizja ze składem ${otherTS.name} na odcinku ${getCityById(seg.fromId)?.name} -> ${getCityById(seg.toId)?.name} ok. godziny ${minsToTime(oSeg.entry)}.`;
+                            return {
+                                message: `Kolizja ze składem ${otherTS.name} na odcinku ${getCityById(seg.fromId)?.name} -> ${getCityById(seg.toId)?.name} ok. godziny ${minsToTime(oSeg.entry)}.`,
+                                conflictCourseId: seg.courseId,
+                                conflictStopIndex: seg.stopIndex
+                            };
                         }
                     }
                 }
@@ -452,13 +470,20 @@ export default function SchedulePlanner({ trainSet, onClose }) {
     const handleSave = async () => {
         const error = validate();
         if (error) {
-            setValidationError(error);
+            setValidationError(error.message);
+            if (error.conflictCourseId != null) {
+                setActiveCourseId(error.conflictCourseId);
+            }
+            if (error.conflictStopIndex != null) {
+                setHighlightedStop({ courseId: error.conflictCourseId, stopIndex: error.conflictStopIndex });
+            }
             return;
         }
 
         const flatRozklad = serializeRozklad();
         await saveTrainRoute(trainSet.id, trainSet.routeStops, flatRozklad);
-        onClose();
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
     };
 
 
@@ -517,6 +542,9 @@ export default function SchedulePlanner({ trainSet, onClose }) {
                         <button className={styles.submitBtn} onClick={handleSave}>
                             Zapisz Rozkład
                         </button>
+                        {saveSuccess && (
+                            <span style={{ color: '#4caf50', marginLeft: '10px', fontSize: '18px', fontWeight: 'bold' }}>✓</span>
+                        )}
                     </div>
                 </div>
 
@@ -562,6 +590,11 @@ export default function SchedulePlanner({ trainSet, onClose }) {
                                                 <input
                                                     type="time"
                                                     className={styles.timeInput}
+                                                    style={
+                                                        highlightedStop?.courseId === activeCourse.id && highlightedStop?.stopIndex === sIdx
+                                                            ? { boxShadow: '0 0 0 2px #e74c3c', borderColor: '#e74c3c' }
+                                                            : {}
+                                                    }
                                                     value={stop.departure}
                                                     onChange={(e) => handleTimeChange(courseIndex, sIdx, e.target.value)}
                                                 />
