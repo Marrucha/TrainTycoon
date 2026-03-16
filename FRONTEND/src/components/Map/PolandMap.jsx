@@ -39,6 +39,7 @@ function MapOverlay() {
   const { selectedCity, selectedRoute, selectedTrainSet, routes, cities, trains, trainsSets, loading, selectCity, selectRoute, selectTrainSet, getTrainById, getCityById, defaultPricing } = useGame()
   const [hoveredCity, setHoveredCity] = useState(null)
   const [hoveredRoute, setHoveredRoute] = useState(null)
+  const [hoverHighlightActiveRoutes, setHoverHighlightActiveRoutes] = useState(false)
   const [hoveredTrain, setHoveredTrain] = useState(null) // { ts, x, y }
   const [, setTick] = useState(0)
   const [now, setNow] = useState(() => new Date())
@@ -68,9 +69,36 @@ function MapOverlay() {
   const size = map.getSize()
   const hoveredCityPos = hoveredCity ? getPos(hoveredCity.lat, hoveredCity.lon) : null
 
+  const activeRouteIds = useMemo(() => {
+    const ids = new Set()
+    if (!trainsSets || !routes || !cities) return ids
+    trainsSets.forEach(ts => {
+      if (!ts.rozklad) return
+      const byKurs = {}
+      ts.rozklad.forEach(s => {
+        if (!byKurs[s.kurs]) byKurs[s.kurs] = []
+        byKurs[s.kurs].push(s)
+      })
+      Object.values(byKurs).forEach(stops => {
+        for (let i = 0; i < stops.length - 1; i++) {
+          const fromCity = cities.find(c => c.id === stops[i].miasto || c.name === stops[i].miasto)
+          const toCity = cities.find(c => c.id === stops[i + 1].miasto || c.name === stops[i + 1].miasto)
+          if (!fromCity || !toCity) continue
+          const route = routes.find(r =>
+            (r.from === fromCity.id && r.to === toCity.id) ||
+            (r.to === fromCity.id && r.from === toCity.id)
+          )
+          if (route) ids.add(route.id)
+        }
+      })
+    })
+    return ids
+  }, [trainsSets, routes, cities])
+
   function getRouteColor(route) {
     if (selectedRoute?.id === route.id) return '#70e070'
     if (hoveredRoute?.id === route.id) return '#90c090'
+    if (hoverHighlightActiveRoutes && activeRouteIds.has(route.id)) return '#f0c040'
     if (route.routeTier === 'international') return '#707070'
     if (route.routeTier === 1) return '#7a2222'
     return '#9a6018'
@@ -78,6 +106,7 @@ function MapOverlay() {
 
   function getRouteWidth(route) {
     if (selectedRoute?.id === route.id) return 2.0
+    if (hoverHighlightActiveRoutes && activeRouteIds.has(route.id)) return 2.5
     if (route.routeTier === 'international') return 0.8
     if (route.trainId) return 1.7
     if (route.routeTier === 1) return 1.2
@@ -99,6 +128,7 @@ function MapOverlay() {
   }
 
   function isRouteDimmed(route) {
+    if (hoverHighlightActiveRoutes) return !activeRouteIds.has(route.id)
     if (selectedCity) return route.from !== selectedCity.id && route.to !== selectedCity.id
     return false
   }
@@ -406,8 +436,8 @@ function MapOverlay() {
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {kursStops.map((stop, idx) => {
                     const isFirst = idx === 0
-                    const isLast  = idx === kursStops.length - 1
-                    const cityId  = cities.find(c => c.id === stop.miasto || c.name === stop.miasto)?.id ?? stop.miasto
+                    const isLast = idx === kursStops.length - 1
+                    const cityId = cities.find(c => c.id === stop.miasto || c.name === stop.miasto)?.id ?? stop.miasto
                     const cityName = cities.find(c => c.id === cityId)?.name ?? stop.miasto
                     const time = isLast ? (stop.przyjazd || stop.odjazd) : stop.odjazd
                     // Pasażerowie jadący DO tej stacji (suma wszystkich odcinków)
@@ -416,7 +446,7 @@ function MapOverlay() {
                     const onBoardCount = obEntries.reduce((s, [, v]) => s + (v.class1 || 0) + (v.class2 || 0), 0)
                     const alightedCount = alEntries.reduce((s, [, v]) => s + (v.class1 || 0) + (v.class2 || 0), 0)
                     const hasAlighted = alightedCount > 0 && onBoardCount === 0
-                    const hasOnBoard  = onBoardCount > 0
+                    const hasOnBoard = onBoardCount > 0
                     return (
                       <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ color: '#f0c040', fontFamily: 'Share Tech Mono, monospace', fontSize: 11, minWidth: 38, flexShrink: 0 }}>
@@ -459,8 +489,17 @@ function MapOverlay() {
         )
       })()}
 
-      {/* Kontrolki zoom */}
+      {/* Kontrolki zoom i warstw */}
       <div className={styles.zoomControls}>
+        <button
+          className={styles.zoomBtn}
+          style={{ width: 'auto', padding: '0 8px', fontSize: '11px', gap: '4px', border: hoverHighlightActiveRoutes ? '1px solid #f0c040' : undefined, color: hoverHighlightActiveRoutes ? '#f0c040' : undefined }}
+          onMouseEnter={() => setHoverHighlightActiveRoutes(true)}
+          onMouseLeave={() => setHoverHighlightActiveRoutes(false)}
+          title="Podświetl aktywną sieć"
+        >
+          <span style={{ fontSize: '14px' }}>🌐</span> SIEĆ
+        </button>
         <button className={styles.zoomBtn} onClick={() => map.zoomIn()} title="Przybliż">+</button>
         <button className={styles.zoomBtn} onClick={() => map.zoomOut()} title="Oddal">−</button>
         <button className={styles.zoomBtn} onClick={() => map.setView([52.0, 19.5], 6)} title="Reset">⌂</button>

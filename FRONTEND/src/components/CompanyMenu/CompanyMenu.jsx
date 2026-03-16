@@ -118,7 +118,7 @@ export default function CompanyMenu() {
         <section className={styles.card}>
            <h3>Profil Korporacyjny</h3>
            <div style={{display: 'flex', gap: '40px', alignItems: 'center'}}>
-              <div style={{width: '240px', height: '240px', background: '#1a1c23', borderRadius: '24px', border: '2px solid #333', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '20px'}}>
+              <div style={{width: '240px', height: '240px', background: '#0d1a0d', borderRadius: '24px', border: '2px solid #2a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '20px'}}>
                  <img src="/wolfrail-logo.png" alt="WolfRail Logo" style={{width: '100%', height: '100%', objectFit: 'contain'}} />
               </div>
               <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
@@ -181,14 +181,14 @@ export default function CompanyMenu() {
                 { name: 'EcoTrain Ltd', price: '210.45', trend: '+0.8%', color: '#2ecc71' },
                 { name: 'North Express', price: '45.10', trend: '+5.6%', color: '#2ecc71' }
               ].map(comp => (
-                <div key={comp.name} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#14161c', borderRadius: '6px', border: '1px solid #222'}}>
+                <div key={comp.name} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: '#0d1a0d', borderRadius: '6px', border: '1px solid #2a4a2a'}}>
                    <div style={{display: 'flex', flexDirection: 'column'}}>
                       <span style={{fontSize: '13px', fontWeight: '700', color: '#ddd'}}>{comp.name}</span>
                       <span style={{fontSize: '10px', color: comp.color}}>{comp.price} PLN ({comp.trend})</span>
                    </div>
                    <button 
                      className={styles.saveBtn} 
-                     style={{padding: '5px 12px', fontSize: '10px', background: 'transparent', border: '1px solid #3498db', margin: 0}}
+                     style={{padding: '5px 12px', fontSize: '10px', background: 'transparent', border: '1px solid #f0c040', color: '#f0c040', margin: 0}}
                    >
                      Kup Akcje
                    </button>
@@ -269,18 +269,22 @@ export default function CompanyMenu() {
         </div>
         
         {/* Controls Line */}
+<<<<<<< Updated upstream
         <div style={{display: 'flex', gap: '8px', width: '100%', background: 'rgba(0,20,0,0.2)', padding: '10px', borderRadius: '8px', border: '1px solid #2a4a2a'}}>
+=======
+        <div style={{display: 'flex', gap: '8px', width: '100%', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px', border: '1px solid #2a4a2a'}}>
+>>>>>>> Stashed changes
            <div style={{display: 'flex', background: '#0a150a', padding: '3px', borderRadius: '6px', marginRight: '15px', border: '1px solid #2a4a2a'}}>
              <button 
                className={styles.saveBtn} 
-               style={{background: groupBy === 'set' ? '#3498db' : 'transparent', padding: '6px 12px', fontSize: '11px', margin: 0, height: '30px'}}
+               style={{background: groupBy === 'set' ? '#2a4a2a' : 'transparent', color: groupBy === 'set' ? '#f0c040' : '#8aab8a', padding: '6px 12px', fontSize: '11px', margin: 0, height: '30px'}}
                onClick={() => setGroupBy('set')}
              >
                Wg Składów
              </button>
              <button 
                className={styles.saveBtn} 
-               style={{background: groupBy === 'type' ? '#3498db' : 'transparent', padding: '6px 12px', fontSize: '11px', margin: 0, height: '30px'}}
+               style={{background: groupBy === 'type' ? '#2a4a2a' : 'transparent', color: groupBy === 'type' ? '#f0c040' : '#8aab8a', padding: '6px 12px', fontSize: '11px', margin: 0, height: '30px'}}
                onClick={() => setGroupBy('type')}
              >
                Wg Typu
@@ -290,14 +294,14 @@ export default function CompanyMenu() {
            <div style={{display: 'flex', background: '#0a150a', padding: '3px', borderRadius: '6px', border: '1px solid #2a4a2a'}}>
              <button 
                className={styles.saveBtn} 
-               style={{background: sortOrder === 'desc' ? '#2c3e50' : 'transparent', border: sortOrder === 'desc' ? '1px solid #3498db' : 'none', padding: '0 15px', fontSize: '11px', margin: 0, height: '30px', display: 'flex', alignItems: 'center', gap: '5px'}}
+               style={{background: sortOrder === 'desc' ? '#2a4a2a' : 'transparent', border: sortOrder === 'desc' ? '1px solid #f0c040' : 'none', color: sortOrder === 'desc' ? '#f0c040' : '#8aab8a', padding: '0 15px', fontSize: '11px', margin: 0, height: '30px', display: 'flex', alignItems: 'center', gap: '5px'}}
                onClick={() => setSortOrder('desc')}
              >
                Sprawność ↓
              </button>
              <button 
                className={styles.saveBtn} 
-               style={{background: sortOrder === 'asc' ? '#2c3e50' : 'transparent', border: sortOrder === 'asc' ? '1px solid #3498db' : 'none', padding: '0 15px', fontSize: '11px', margin: 0, height: '30px', display: 'flex', alignItems: 'center', gap: '5px'}}
+               style={{background: sortOrder === 'asc' ? '#2a4a2a' : 'transparent', border: sortOrder === 'asc' ? '1px solid #f0c040' : 'none', color: sortOrder === 'asc' ? '#f0c040' : '#8aab8a', padding: '0 15px', fontSize: '11px', margin: 0, height: '30px', display: 'flex', alignItems: 'center', gap: '5px'}}
                onClick={() => setSortOrder('asc')}
              >
                Sprawność ↑
@@ -313,7 +317,11 @@ export default function CompanyMenu() {
             <div key={group.id} className={styles.card} style={{padding: '0', overflow: 'hidden', borderLeft: `6px solid ${group.status === 'READY' ? '#2ecc71' : (group.status === 'MAINTENANCE' ? '#f1c40f' : '#e74c3c')}`}}>
               {/* Header: Pure Set Name/Type */}
               <div 
+<<<<<<< Updated upstream
                 style={{padding: '12px 20px', background: 'rgba(0,30,0,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: isExpanded ? '1px solid #2a4a2a' : 'none'}}
+=======
+                style={{padding: '12px 20px', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: isExpanded ? '1px solid #2a4a2a' : 'none'}}
+>>>>>>> Stashed changes
                 onClick={() => toggleGroup(group.id)}
               >
                 <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
@@ -350,16 +358,20 @@ export default function CompanyMenu() {
 
               {/* Elements list directly below, collapsible */}
               {isExpanded && (
+<<<<<<< Updated upstream
                 <div style={{padding: '5px 15px 15px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(0,20,0,0.15)'}}>
                   {group.members.map(m => (
+=======
+                <div style={{padding: '5px 15px 15px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(0,0,0,0.15)'}}>
+>>>>>>> Stashed changes
                     <div key={m.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 15px', background: '#0d1a0d', borderRadius: '4px', border: '1px solid #2a4a2a'}}>
                       <div style={{display: 'flex', flexDirection: 'column'}}>
                         <span style={{fontSize: '13px', fontWeight: '600', color: '#eee'}}>{m.name}</span>
                         <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginTop: '3px'}}>
-                          <span style={{fontSize: '11px', color: '#aaa', background: '#222', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', color: '#3498db'}}>
+                          <span style={{fontSize: '11px', background: '#060f06', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', color: '#f0c040'}}>
                             {m.ageYears} lat
                           </span>
-                          <span style={{fontSize: '11px', color: '#555'}}>| Typ: {m.type}</span>
+                          <span style={{fontSize: '11px', color: '#8aab8a'}}>| Typ: {m.type}</span>
                         </div>
                       </div>
                       <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
@@ -368,7 +380,7 @@ export default function CompanyMenu() {
                         </span>
                         <button 
                             className={styles.saveBtn} 
-                            style={{padding: '5px 12px', fontSize: '10px', background: '#1a1c23', border: '1px solid #34495e', margin: 0, textTransform: 'uppercase'}}
+                            style={{padding: '5px 12px', fontSize: '10px', background: '#0a150a', border: '1px solid #2a4a2a', color: '#8aab8a', margin: 0, textTransform: 'uppercase'}}
                             onClick={(e) => { e.stopPropagation(); performMaintenance(m.id); }}
                         >
                             Konserwacja
