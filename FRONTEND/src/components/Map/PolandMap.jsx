@@ -86,8 +86,14 @@ function MapOverlay() {
   const getRouteWidth = (route) => {
     const count = activeRouteStats[route.id] || 0
     const isActive = count > 0
+
     if (selectedRoute?.id === route.id) return 2.0
-    if (isActive) return 2.5 + (count > 2 ? 1 : 0)
+
+    // Apply highlight width ONLY when hovering the "SIEĆ" button
+    if (hoverHighlightActiveRoutes && isActive) {
+      return 2.5 + (count > 2 ? 1 : 0)
+    }
+
     if (route.routeTier === 'international') return 0.8
     if (route.trainId) return 1.7
     if (route.routeTier === 1) return 1.2

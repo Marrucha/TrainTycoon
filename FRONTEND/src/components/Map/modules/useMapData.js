@@ -122,33 +122,54 @@ export function useMapData({ trainsSets, routes, cities, currentMin, trains }) {
         return positions
     }, [trainsSets, cities, routes, currentMin])
 
-    // 3. Liczba pociągów na stacjach
+    // 3. Liczba pociągów na stacjach (pociągi, które fizycznie stoją w mieście)
     const trainCountsAtCities = useMemo(() => {
         const counts = {}
         if (!trainsSets || !cities) return counts
 
         trainsSets.forEach(ts => {
             if (!ts.rozklad?.length) return
-            const seen = new Set()
 
-            ts.rozklad.forEach(stop => {
-                const dep = timeToMin(stop.odjazd)
-                const arr = timeToMin(stop.przyjazd || stop.odjazd)
-                const city = cities.find(c => c.id === stop.miasto || c.name === stop.miasto)
-                if (!city) return
+            // Jeśli pociąg jest w ruchu (na odcinku), nie zliczamy go jako stojący na stacji
+            const isMoving = trainPositions.some(p => p.ts.id === ts.id)
+            if (isMoving) return
 
-                const isAtStation = arr <= dep
-                    ? currentMin >= arr && currentMin < dep
-                    : currentMin >= arr || currentMin < dep
-
-                if (isAtStation && !seen.has(city.id)) {
-                    counts[city.id] = (counts[city.id] || 0) + 1
-                    seen.add(city.id)
+            // Znajdź wszystkie punkty czasowe (przyjazdy/odjazdy) dla tego pociągu
+            const stops = ts.rozklad.map(s => {
+                const city = cities.find(c => c.id === s.miasto || c.name === s.miasto)
+                // Używamy odjazdu jako punktu referencyjnego, lub przyjazdu jeśli odjazdu brak
+                const tArr = timeToMin(s.przyjazd)
+                const tDep = timeToMin(s.odjazd)
+                return {
+                    cityId: city?.id,
+                    time: tDep >= 0 ? tDep : tArr
                 }
-            })
+            }).filter(s => s.cityId && s.time >= 0)
+                .sort((a, b) => a.time - b.time)
+
+            if (stops.length === 0) return
+
+            // Znajdź ostatni punkt czasowy, który już "minął" względem aktualnego czasu gry
+            let currentStop = null
+            for (let i = stops.length - 1; i >= 0; i--) {
+                if (stops[i].time <= currentMin) {
+                    currentStop = stops[i]
+                    break
+                }
+            }
+
+            // Jeśli żaden punkt nie minął (jest wcześnie rano, przed pierwszym kursem),
+            // pociąg stoi na stacji, na której skończył wczorajszą pracę (ostatni stop w rozkładzie)
+            if (!currentStop) {
+                currentStop = stops[stops.length - 1]
+            }
+
+            if (currentStop) {
+                counts[currentStop.cityId] = (counts[currentStop.cityId] || 0) + 1
+            }
         })
         return counts
-    }, [trainsSets, cities, currentMin])
+    }, [trainsSets, cities, currentMin, trainPositions])
 
     return { activeRouteStats, trainPositions, trainCountsAtCities }
 }
