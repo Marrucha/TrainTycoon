@@ -10,7 +10,8 @@ export default function CompanyMenu() {
     trains,
     trainsSets,
     defaultPricing,
-    performMaintenance
+    performMaintenance,
+    gameSettings
   } = useGame();
 
   const [activeSection, setActiveSection] = useState('fleet');
@@ -415,7 +416,15 @@ export default function CompanyMenu() {
         </div>
       </aside>
 
-      <main className={styles.content}>
+      <main
+        className={styles.content}
+        style={activeSection === 'fleet' && gameSettings?.pictures?.Lokomotywownia ? {
+          backgroundImage: `linear-gradient(rgba(6, 15, 6, 0.85), rgba(6, 15, 6, 0.85)), url(${gameSettings.pictures.Lokomotywownia})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'local'
+        } : {}}
+      >
         {activeSection === 'policy' && renderPolicy()}
         {activeSection === 'hr' && renderHR()}
         {activeSection === 'finance' && renderFinance()}
