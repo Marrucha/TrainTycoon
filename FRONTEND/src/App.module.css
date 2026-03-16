@@ -111,7 +111,6 @@
 .mapSection {
   display: flex;
   flex: 1;
-  align-items: flex-start;
-  padding: 16px;
-  overflow: auto;
+  padding: 0;
+  overflow: hidden;
 }

@@ -69,9 +69,10 @@ function MapOverlay() {
   const size = map.getSize()
   const hoveredCityPos = hoveredCity ? getPos(hoveredCity.lat, hoveredCity.lon) : null
 
-  const activeRouteIds = useMemo(() => {
-    const ids = new Set()
-    if (!trainsSets || !routes || !cities) return ids
+  const activeRouteStats = useMemo(() => {
+    const counts = {} // routeId -> count
+    if (!trainsSets || !routes || !cities) return counts
+
     trainsSets.forEach(ts => {
       if (!ts.rozklad) return
       const byKurs = {}
@@ -79,34 +80,61 @@ function MapOverlay() {
         if (!byKurs[s.kurs]) byKurs[s.kurs] = []
         byKurs[s.kurs].push(s)
       })
+
       Object.values(byKurs).forEach(stops => {
         for (let i = 0; i < stops.length - 1; i++) {
-          const fromCity = cities.find(c => c.id === stops[i].miasto || c.name === stops[i].miasto)
-          const toCity = cities.find(c => c.id === stops[i + 1].miasto || c.name === stops[i + 1].miasto)
-          if (!fromCity || !toCity) continue
-          const route = routes.find(r =>
-            (r.from === fromCity.id && r.to === toCity.id) ||
-            (r.to === fromCity.id && r.from === toCity.id)
-          )
-          if (route) ids.add(route.id)
+          const fromStop = stops[i]
+          const toStop = stops[i + 1]
+          const depMin = timeToMin(fromStop.odjazd)
+          const arrMin = timeToMin(toStop.przyjazd || toStop.odjazd)
+          if (depMin < 0 || arrMin < 0) continue
+
+          const onSegment = depMin <= arrMin
+            ? currentMin >= depMin && currentMin <= arrMin
+            : currentMin >= depMin || currentMin <= arrMin
+
+          if (onSegment) {
+            const fromCity = cities.find(c => c.id === fromStop.miasto || c.name === fromStop.miasto)
+            const toCity = cities.find(c => c.id === toStop.miasto || c.name === toStop.miasto)
+            if (!fromCity || !toCity) continue
+
+            const route = routes.find(r =>
+              (r.from === fromCity.id && r.to === toCity.id) ||
+              (r.to === fromCity.id && r.from === toCity.id)
+            )
+            if (route) {
+              counts[route.id] = (counts[route.id] || 0) + 1
+            }
+          }
         }
       })
     })
-    return ids
-  }, [trainsSets, routes, cities])
+    return counts
+  }, [trainsSets, routes, cities, currentMin])
 
   function getRouteColor(route) {
     if (selectedRoute?.id === route.id) return '#70e070'
     if (hoveredRoute?.id === route.id) return '#90c090'
-    if (hoverHighlightActiveRoutes && activeRouteIds.has(route.id)) return '#f0c040'
+
+    const count = activeRouteStats[route.id] || 0
+    if (hoverHighlightActiveRoutes && count > 0) {
+      if (count > 5) return '#d02020' // Ciemnoczerwony
+      if (count > 2) return '#ff4040' // Jasnoczerwony
+      if (count > 1) return '#f0a020' // Pomarańczowy
+      return '#f0c040' // Złoty (aktywna trasa gracz)
+    }
+
     if (route.routeTier === 'international') return '#707070'
     if (route.routeTier === 1) return '#7a2222'
     return '#9a6018'
   }
 
   function getRouteWidth(route) {
+    const count = activeRouteStats[route.id] || 0
+    const isActive = hoverHighlightActiveRoutes && count > 0
+
     if (selectedRoute?.id === route.id) return 2.0
-    if (hoverHighlightActiveRoutes && activeRouteIds.has(route.id)) return 2.5
+    if (isActive) return 2.5 + (count > 2 ? 1 : 0)
     if (route.routeTier === 'international') return 0.8
     if (route.trainId) return 1.7
     if (route.routeTier === 1) return 1.2
@@ -128,7 +156,7 @@ function MapOverlay() {
   }
 
   function isRouteDimmed(route) {
-    if (hoverHighlightActiveRoutes) return !activeRouteIds.has(route.id)
+    if (hoverHighlightActiveRoutes) return !(activeRouteStats[route.id] > 0)
     if (selectedCity) return route.from !== selectedCity.id && route.to !== selectedCity.id
     return false
   }
