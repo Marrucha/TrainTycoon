@@ -408,7 +408,16 @@ export default function CompanyMenu() {
   );
 
   return (
-    <div className={styles.companyMenu}>
+    <div
+      className={styles.companyMenu}
+      style={activeSection === 'fleet' && lokomotywowniaUrl ? {
+        backgroundImage: `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${lokomotywowniaUrl}")`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        backgroundColor: '#060f06'
+      } : {}}
+    >
       <aside className={styles.sidebar}>
         <div className={styles.sidebarTitle}>Menu Managera</div>
         <div
@@ -439,13 +448,6 @@ export default function CompanyMenu() {
 
       <main
         className={styles.content}
-        style={activeSection === 'fleet' && lokomotywowniaUrl ? {
-          backgroundImage: `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${lokomotywowniaUrl}")`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed',
-          backgroundColor: '#060f06'
-        } : {}}
       >
         {activeSection === 'policy' && renderPolicy()}
         {activeSection === 'hr' && renderHR()}
