@@ -1,9 +1,9 @@
 .mapWrapper {
   position: relative;
-  width: auto;
-  height: 100%;
+  width: min(98vw, 98vh);
+  height: min(98vw, 98vh);
   aspect-ratio: 1 / 1;
-  margin: 0 auto;
+  margin: auto;
   background: #060f06;
   border: 1px solid #2a4a2a;
   border-radius: 8px;
