@@ -8,20 +8,26 @@
 
 .sidebar {
     width: 260px;
-    background: #0a150a;
+    background: rgba(10, 21, 10, 0.7);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
     border-right: 1px solid #2a4a2a;
     display: flex;
     flex-direction: column;
     padding: 20px 0;
+    z-index: 10;
 }
 
 .sidebarTitle {
     padding: 0 20px 20px;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 800;
     text-transform: uppercase;
-    color: #555;
-    letter-spacing: 1px;
+    color: #8aab8a;
+    letter-spacing: 2px;
+    border-bottom: 1px solid rgba(42, 74, 42, 0.5);
+    margin-bottom: 15px;
+    text-shadow: 0 0 10px rgba(138, 171, 138, 0.3);
 }
 
 .navItem {

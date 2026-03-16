@@ -440,7 +440,7 @@ export default function CompanyMenu() {
       <main
         className={styles.content}
         style={activeSection === 'fleet' && lokomotywowniaUrl ? {
-          backgroundImage: `linear-gradient(rgba(6, 15, 6, 0.75), rgba(6, 15, 6, 0.75)), url("${lokomotywowniaUrl}")`,
+          backgroundImage: `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${lokomotywowniaUrl}")`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundAttachment: 'fixed',
