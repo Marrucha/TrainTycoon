@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useGame } from '../../context/GameContext';
 import styles from './CompanyMenu.module.css';
 
@@ -269,8 +269,8 @@ export default function CompanyMenu() {
         </div>
         
         {/* Controls Line */}
-        <div style={{display: 'flex', gap: '8px', width: '100%', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px', border: '1px solid #222'}}>
-           <div style={{display: 'flex', background: '#14161c', padding: '3px', borderRadius: '6px', marginRight: '15px', border: '1px solid #333'}}>
+        <div style={{display: 'flex', gap: '8px', width: '100%', background: 'rgba(0,20,0,0.2)', padding: '10px', borderRadius: '8px', border: '1px solid #2a4a2a'}}>
+           <div style={{display: 'flex', background: '#0a150a', padding: '3px', borderRadius: '6px', marginRight: '15px', border: '1px solid #2a4a2a'}}>
              <button 
                className={styles.saveBtn} 
                style={{background: groupBy === 'set' ? '#3498db' : 'transparent', padding: '6px 12px', fontSize: '11px', margin: 0, height: '30px'}}
@@ -287,7 +287,7 @@ export default function CompanyMenu() {
              </button>
            </div>
            
-           <div style={{display: 'flex', background: '#14161c', padding: '3px', borderRadius: '6px', border: '1px solid #333'}}>
+           <div style={{display: 'flex', background: '#0a150a', padding: '3px', borderRadius: '6px', border: '1px solid #2a4a2a'}}>
              <button 
                className={styles.saveBtn} 
                style={{background: sortOrder === 'desc' ? '#2c3e50' : 'transparent', border: sortOrder === 'desc' ? '1px solid #3498db' : 'none', padding: '0 15px', fontSize: '11px', margin: 0, height: '30px', display: 'flex', alignItems: 'center', gap: '5px'}}
@@ -313,7 +313,7 @@ export default function CompanyMenu() {
             <div key={group.id} className={styles.card} style={{padding: '0', overflow: 'hidden', borderLeft: `6px solid ${group.status === 'READY' ? '#2ecc71' : (group.status === 'MAINTENANCE' ? '#f1c40f' : '#e74c3c')}`}}>
               {/* Header: Pure Set Name/Type */}
               <div 
-                style={{padding: '12px 20px', background: 'rgba(255,255,255,0.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: isExpanded ? '1px solid #222' : 'none'}}
+                style={{padding: '12px 20px', background: 'rgba(0,30,0,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: isExpanded ? '1px solid #2a4a2a' : 'none'}}
                 onClick={() => toggleGroup(group.id)}
               >
                 <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
@@ -350,9 +350,9 @@ export default function CompanyMenu() {
 
               {/* Elements list directly below, collapsible */}
               {isExpanded && (
-                <div style={{padding: '5px 15px 15px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(0,0,0,0.15)'}}>
+                <div style={{padding: '5px 15px 15px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(0,20,0,0.15)'}}>
                   {group.members.map(m => (
-                    <div key={m.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 15px', background: '#14161c', borderRadius: '4px', border: '1px solid #222'}}>
+                    <div key={m.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 15px', background: '#0d1a0d', borderRadius: '4px', border: '1px solid #2a4a2a'}}>
                       <div style={{display: 'flex', flexDirection: 'column'}}>
                         <span style={{fontSize: '13px', fontWeight: '600', color: '#eee'}}>{m.name}</span>
                         <div style={{display: 'flex', gap: '10px', alignItems: 'center', marginTop: '3px'}}>

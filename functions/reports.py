@@ -138,6 +138,8 @@ def save_daily_report(db):
         if d.get('name'):
             cities_map[d['name']] = d
 
+    trains_map = {d.id: d.to_dict() for d in db.collection('trains').stream()}
+
     player_default_pricing = {}  # pid -> defaultPricing
 
     batch = db.batch()
@@ -297,6 +299,11 @@ def save_daily_report(db):
             daily_cost  = round(cost_per_km * daily_km)
             netto        = round(day_rev) - daily_cost
 
+            # Fleet composition
+            train_ids = ts.get('trainIds') or []
+            wagon_count = sum(1 for tid in train_ids if (trains_map.get(tid) or {}).get('seats', 0) > 0)
+            loco_count  = sum(1 for tid in train_ids if (trains_map.get(tid) or {}).get('seats', 0) == 0)
+
             ts_agg[ts_id] = {
                 'name':   ts.get('name', ts_id),
                 'kursy':  kursy_report,
@@ -311,6 +318,8 @@ def save_daily_report(db):
                     'km':          daily_km,
                     'koszt':       daily_cost,
                     'netto':       netto,
+                    'wagonCount':  wagon_count,
+                    'locoCount':   loco_count,
                 },
             }
 
