@@ -137,8 +137,8 @@ export function useMapData({ trainsSets, routes, cities, currentMin, trains }) {
                 const city = cities.find(c => c.id === stop.miasto || c.name === stop.miasto)
                 if (!city) return
 
-                const isAtStation = dep <= arr
-                    ? currentMin >= arr && currentMin < dep // (todo: wait duration)
+                const isAtStation = arr <= dep
+                    ? currentMin >= arr && currentMin < dep
                     : currentMin >= arr || currentMin < dep
 
                 if (isAtStation && !seen.has(city.id)) {
