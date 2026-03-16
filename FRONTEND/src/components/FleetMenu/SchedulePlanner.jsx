@@ -329,7 +329,7 @@ export default function SchedulePlanner({ trainSet, onClose }) {
                 cityId: cities.find(c => c.name === s.miasto)?.id,
                 depMins: s.odjazd ? timeToMins(s.odjazd) : null,
             })).filter(s => s.cityId);
-            
+
             if (stopsWithId.length < 2) return;
             let currentAbs = stopsWithId[0].depMins;
             for (let i = 0; i < stopsWithId.length - 1; i++) {
@@ -337,7 +337,7 @@ export default function SchedulePlanner({ trainSet, onClose }) {
                 const s2 = stopsWithId[i + 1];
                 const segmentInfo = findShortestPath(routes, s1.cityId, s2.cityId, 'fastest');
                 if (!segmentInfo) continue;
-                
+
                 let segmentEntryTime = currentAbs;
                 for (let j = 0; j < segmentInfo.edges.length; j++) {
                     const edge = segmentInfo.edges[j];
@@ -346,7 +346,7 @@ export default function SchedulePlanner({ trainSet, onClose }) {
                     itin.push({
                         edgeId: edge.id || `${edge.from}-${edge.to}`,
                         fromId: segmentInfo.path[j],
-                        toId: segmentInfo.path[j+1],
+                        toId: segmentInfo.path[j + 1],
                         entry,
                         exit,
                         tier: edge.routeTier || 2
@@ -481,7 +481,17 @@ export default function SchedulePlanner({ trainSet, onClose }) {
         }
 
         const flatRozklad = serializeRozklad();
-        await saveTrainRoute(trainSet.id, trainSet.routeStops, flatRozklad);
+
+        // Calculate all unique route segments used in all courses
+        const allSegments = new Set();
+        courses.forEach(c => {
+            getDetailedItinerary(c.stops).forEach(seg => {
+                if (seg.edgeId) allSegments.add(seg.edgeId);
+            });
+        });
+        const assignedRoutes = Array.from(allSegments);
+
+        await saveTrainRoute(trainSet.id, trainSet.routeStops, flatRozklad, assignedRoutes);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
     };

@@ -18,6 +18,15 @@
   height: auto;
 }
 
+.svgOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 400;
+  overflow: visible;
+  pointer-events: none;
+}
+
 .zoomControls {
   position: absolute;
   bottom: 12px;

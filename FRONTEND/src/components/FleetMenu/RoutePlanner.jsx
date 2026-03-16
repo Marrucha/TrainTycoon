@@ -179,7 +179,10 @@ export default function RoutePlanner({ trainSet, onClose }) {
         // Czyść rozkład tylko jeśli trasa faktycznie się zmieniła
         const rozkladToSave = routeChanged ? [] : (trainSet.rozklad || [])
 
-        await saveTrainRoute(trainSet.id, selectedStops, rozkladToSave)
+        // Calculate assigned routes from the path result
+        const assignedRoutes = multiPathResult.edges.map(e => e.id || `${e.from}-${e.to}`)
+
+        await saveTrainRoute(trainSet.id, selectedStops, rozkladToSave, assignedRoutes)
         onClose()
     }
 
