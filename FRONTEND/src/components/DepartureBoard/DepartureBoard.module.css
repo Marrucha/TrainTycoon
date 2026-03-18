@@ -77,6 +77,7 @@
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  position: relative;
 }
 
 .rowWrapper {
@@ -173,6 +174,65 @@
   color: #4a6a4a;
   font-size: 12px;
   letter-spacing: 2px;
+}
+
+/* ── Składy na stacji ── */
+.trainsAtStation {
+  border-top: 1px solid #2a4a2a;
+  flex-shrink: 0;
+}
+
+.trainsAtStationHeader {
+  padding: 5px 16px;
+  color: #4a6a4a;
+  font-size: 9px;
+  letter-spacing: 3px;
+  background: #0d0d0d;
+  border-bottom: 1px solid #1a2a1a;
+}
+
+.trainAtStationRow {
+  display: grid;
+  grid-template-columns: 36px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-bottom: 1px solid #131a13;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.trainAtStationRow:hover { background: #0f1f0f; }
+
+.trainAtStationPlatform {
+  color: #40a840;
+  font-size: 13px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.trainAtStationName {
+  color: #c0d8c0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trainAtStationType {
+  color: #4a6a4a;
+  font-size: 10px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.trainAtStationPax {
+  color: #f0c040;
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 /* ── Dolna sekcja popytu ── */

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGame } from '../../context/GameContext'
+import { timeToMin } from '../Map/modules/MapUtils'
 import styles from './DepartureBoard.module.css'
 
 function FlipCell({ value }) {
@@ -21,10 +22,32 @@ function FlipCell({ value }) {
 }
 
 export default function DepartureBoard() {
-  const { selectedCity, getDeparturesForCity, selectCity, selectTrainSet, cities, companyName, trainsSets, getCityById } = useGame()
+  const { selectedCity, getDeparturesForCity, selectCity, selectTrainSet, cities, companyName, trainsSets, getCityById, trainSetsByCity, gameTime } = useGame()
   const [demandTab, setDemandTab] = useState(0)
+  const listRef = useRef(null)
 
   const departures = selectedCity ? getDeparturesForCity(selectedCity.id) : []
+  const currentMin = timeToMin(gameTime)
+  const nextDepIdx = departures.findIndex(d => timeToMin(d.departure) >= currentMin)
+
+  useEffect(() => {
+    const list = listRef.current
+    if (!list) return
+    list.scrollTop = 0
+    if (nextDepIdx <= 0) return
+    const id = setTimeout(() => {
+      const target = list.children[nextDepIdx]
+      if (target) list.scrollTop = target.offsetTop
+    }, 350)
+    return () => clearTimeout(id)
+  }, [selectedCity?.id, nextDepIdx])
+
+  const trainsAtStation = selectedCity
+    ? (trainSetsByCity[selectedCity.id] ?? []).map((ts, i) => {
+        const dep = departures.find(d => d.trainSetId === ts.id)
+        return { ts, platform: dep?.platform ?? (i % 6) + 1 }
+      })
+    : []
 
   // Popyt globalny (gravity model) — z pola demand na dokumencie miasta
   const demandEntries = selectedCity?.demand
@@ -108,17 +131,18 @@ export default function DepartureBoard() {
       </div>
 
       {/* Wiersze rozkładu */}
-      <div className={styles.departureList}>
+      <div className={styles.departureList} ref={listRef}>
         {departures.length > 0 ? (
           <AnimatePresence>
             {departures.map((dep) => {
               const rowTrainSet = trainsSets?.find(ts => ts.id === dep.trainSetId) || null
+              const departed = timeToMin(dep.departure) < currentMin
               return (
                 <motion.div
                   key={dep.id}
                   className={`${styles.rowWrapper} ${dep.status === 'BOARDING' ? styles.boardingRow : ''}`}
                   initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  animate={{ opacity: departed ? 0.35 : 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -160,6 +184,32 @@ export default function DepartureBoard() {
           </div>
         )}
       </div>
+
+      {/* Składy na stacji */}
+      {trainsAtStation.length > 0 && (
+        <div className={styles.trainsAtStation}>
+          <div className={styles.trainsAtStationHeader}>SKŁADY NA STACJI</div>
+          {trainsAtStation.map(({ ts, platform }) => {
+            const totalOnBoard = ts.currentTransfer
+              ? Object.values(ts.currentTransfer).reduce((s, ct) => s + (ct.totalOnBoard ?? 0), 0)
+              : null
+            return (
+              <div
+                key={ts.id}
+                className={styles.trainAtStationRow}
+                onClick={() => selectTrainSet(ts)}
+              >
+                <span className={styles.trainAtStationPlatform}>{platform}</span>
+                <span className={styles.trainAtStationName}>{ts.name}</span>
+                {ts.type && <span className={styles.trainAtStationType}>{ts.type}</span>}
+                {totalOnBoard !== null && totalOnBoard > 0 && (
+                  <span className={styles.trainAtStationPax}>{totalOnBoard} os.</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Dolna sekcja popytu z zakładkami */}
       {hasDemandData && (

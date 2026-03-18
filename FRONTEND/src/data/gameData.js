@@ -78,8 +78,8 @@ export const INITIAL_ROUTES = [
   { id: 'konin-poznan', from: 'konin', to: 'poznan', routeTier: 1, trainId: null, departures: [], distance: 120, travelTime: 60, ticketPrice: 45, avgOccupancy: 0, dailyRevenue: 0, subsidy: 0 },
 
   // ── TIER-2: Trójmiasto i wybrzeże ─────────────────────────────────────────
-  { id: 'gdynia-sopot', from: 'gdynia', to: 'sopot', routeTier: 2, trainId: null, departures: [], distance: 10, travelTime: 8, ticketPrice: 5, avgOccupancy: 0, dailyRevenue: 0, subsidy: 0 },
-  { id: 'sopot-gdansk', from: 'sopot', to: 'gdansk', routeTier: 2, trainId: null, departures: [], distance: 12, travelTime: 10, ticketPrice: 6, avgOccupancy: 0, dailyRevenue: 0, subsidy: 0 },
+  { id: 'gdynia-sopot', from: 'gdynia', to: 'sopot', routeTier: 1, trainId: null, departures: [], distance: 10, travelTime: 8, ticketPrice: 5, avgOccupancy: 0, dailyRevenue: 0, subsidy: 0 },
+  { id: 'sopot-gdansk', from: 'sopot', to: 'gdansk', routeTier: 1, trainId: null, departures: [], distance: 12, travelTime: 10, ticketPrice: 6, avgOccupancy: 0, dailyRevenue: 0, subsidy: 0 },
   { id: 'gdynia-wladyslawowo', from: 'gdynia', to: 'wladyslawowo', routeTier: 2, trainId: null, departures: [], distance: 50, travelTime: 38, ticketPrice: 21, avgOccupancy: 0, dailyRevenue: 0, subsidy: 0 },
   { id: 'wladyslawowo-hel', from: 'wladyslawowo', to: 'hel', routeTier: 2, trainId: null, departures: [], distance: 30, travelTime: 25, ticketPrice: 13, avgOccupancy: 0, dailyRevenue: 0, subsidy: 0 },
   { id: 'gdynia-slupsk', from: 'gdynia', to: 'slupsk', routeTier: 2, trainId: null, departures: [], distance: 95, travelTime: 60, ticketPrice: 39, avgOccupancy: 0, dailyRevenue: 0, subsidy: 0 },
