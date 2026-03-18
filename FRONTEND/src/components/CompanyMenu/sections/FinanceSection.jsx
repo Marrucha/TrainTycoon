@@ -66,8 +66,8 @@ const FinanceSection = ({
 
                 const Row = ({ label, value, bold, dim, indent }) => (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '4px 0', borderBottom: '1px solid rgba(42,74,42,0.15)', paddingLeft: indent ? '12px' : 0 }}>
-                        <span style={{ fontSize: dim ? '10px' : '11px', color: dim ? '#4a6a4a' : '#aaa' }}>{label}</span>
-                        <span style={{ fontSize: bold ? '13px' : '11px', fontWeight: bold ? '700' : '400', color: bold ? '#fff' : '#ccc', fontFamily: 'Share Tech Mono, monospace' }}>{fmt(value)} PLN</span>
+                        <span style={{ fontSize: dim ? '11px' : '12px', color: dim ? '#8aab8a' : '#ccc' }}>{label}</span>
+                        <span style={{ fontSize: bold ? '14px' : '12px', fontWeight: bold ? '700' : '400', color: bold ? '#f0c040' : '#fff', fontFamily: 'Share Tech Mono, monospace' }}>{fmt(value)} PLN</span>
                     </div>
                 )
 
@@ -76,14 +76,10 @@ const FinanceSection = ({
                         <section className={styles.card} style={{ gridColumn: 'span 2', cursor: 'pointer' }} onClick={() => setBalanceExpanded(v => !v)}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <h3 style={{ margin: 0 }}>Bilans</h3>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                                     <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontSize: '11px', color: '#4a6a4a', letterSpacing: '1px' }}>ŚRODKI OPERACYJNE</div>
+                                        <div style={{ fontSize: '11px', color: '#8aab8a', letterSpacing: '1px', fontWeight: 'bold' }}>ŚRODKI OPERACYJNE</div>
                                         <div style={{ fontSize: '28px', fontWeight: '800', color: '#2ecc71', lineHeight: 1 }}>{fmt(budget)} PLN</div>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontSize: '11px', color: '#4a6a4a', letterSpacing: '1px' }}>TRUST-SCORE</div>
-                                        <div style={{ fontSize: '28px', fontWeight: '800', color: '#f1c40f', lineHeight: 1 }}>{(reputation * 100).toFixed(1)}%</div>
                                     </div>
                                     <span style={{ color: '#4a6a4a', fontSize: '18px' }}>{balanceExpanded ? '▲' : '▼'}</span>
                                 </div>
@@ -94,10 +90,10 @@ const FinanceSection = ({
                                     {/* AKTYWA */}
                                     <div>
                                         <div style={{ fontSize: '10px', color: '#f0c040', letterSpacing: '3px', marginBottom: '8px', borderBottom: '1px solid #f0c040', paddingBottom: '4px' }}>AKTYWA</div>
-                                        <div style={{ fontSize: '10px', color: '#4a6a4a', letterSpacing: '2px', margin: '8px 0 4px' }}>AKTYWA OBROTOWE</div>
+                                        <div style={{ fontSize: '10px', color: '#8aab8a', letterSpacing: '2px', margin: '8px 0 4px', fontWeight: 'bold' }}>AKTYWA OBROTOWE</div>
                                         <Row label="Środki pieniężne" value={cash} indent />
                                         <Row label="Lokaty terminowe" value={depositTotal} indent />
-                                        <div style={{ fontSize: '10px', color: '#4a6a4a', letterSpacing: '2px', margin: '10px 0 4px' }}>AKTYWA TRWAŁE</div>
+                                        <div style={{ fontSize: '10px', color: '#8aab8a', letterSpacing: '2px', margin: '10px 0 4px', fontWeight: 'bold' }}>AKTYWA TRWAŁE</div>
                                         <Row label="Tabor kolejowy (wartość bilansowa)" value={fleetValue} indent />
                                         <div style={{ marginTop: '10px' }}>
                                             <Row label="RAZEM AKTYWA" value={totalAssets} bold />
@@ -107,9 +103,9 @@ const FinanceSection = ({
                                     {/* PASYWA */}
                                     <div>
                                         <div style={{ fontSize: '10px', color: '#f0c040', letterSpacing: '3px', marginBottom: '8px', borderBottom: '1px solid #f0c040', paddingBottom: '4px' }}>PASYWA</div>
-                                        <div style={{ fontSize: '10px', color: '#4a6a4a', letterSpacing: '2px', margin: '8px 0 4px' }}>KAPITAŁ WŁASNY</div>
+                                        <div style={{ fontSize: '10px', color: '#8aab8a', letterSpacing: '2px', margin: '8px 0 4px', fontWeight: 'bold' }}>KAPITAŁ WŁASNY</div>
                                         <Row label="Kapitał własny" value={equity} indent />
-                                        <div style={{ fontSize: '10px', color: '#4a6a4a', letterSpacing: '2px', margin: '10px 0 4px' }}>ZOBOWIĄZANIA</div>
+                                        <div style={{ fontSize: '10px', color: '#8aab8a', letterSpacing: '2px', margin: '10px 0 4px', fontWeight: 'bold' }}>ZOBOWIĄZANIA</div>
                                         <Row label="Kredyty inwestycyjne" value={loansDebt} indent />
                                         <Row label="Linia kredytowa (wykorzystana)" value={creditLineDebt} indent />
                                         <div style={{ marginTop: '10px' }}>
@@ -136,7 +132,7 @@ const FinanceSection = ({
                         <span style={{ fontSize: '12px', color: '#666' }}>Zdolność: 500.000.000 PLN</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(42, 74, 42, 0.3)' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.6)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(42, 74, 42, 0.4)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                                 <span style={{ fontSize: '13px', fontWeight: '600' }}>Linia Kredytowa (100 mln)</span>
                                 <span style={{ fontSize: '13px', color: '#888' }}>6% rocznie</span>
@@ -147,7 +143,7 @@ const FinanceSection = ({
                                 const monthlyCommitment = Math.round(cl.limit * (cl.commitmentRate ?? 0.01) / 12);
                                 const dailyInterest = Math.round(used * (cl.annualRate ?? 0.06) / 365);
                                 return (
-                                    <div style={{ padding: '8px', background: 'rgba(46,204,113,0.1)', borderRadius: '4px', border: '1px solid #2ecc71', fontSize: '11px', color: '#2ecc71', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                    <div style={{ padding: '12px', background: 'rgba(18, 38, 18, 0.85)', border: '1px solid rgba(46, 204, 113, 0.35)', borderLeft: '4px solid #2ecc71', borderRadius: '8px', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', boxShadow: '0 4px 15px rgba(0,0,0,0.4)', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span>AKTYWNA</span>
                                             <span>Użyte: {fmt(used)} PLN</span>
@@ -171,7 +167,7 @@ const FinanceSection = ({
                             )}
                         </div>
 
-                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(42, 74, 42, 0.3)' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.6)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(42, 74, 42, 0.4)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                                 <span style={{ fontSize: '13px', fontWeight: '600' }}>Kredyty Inwestycyjne</span>
                                 <span style={{ fontSize: '11px', color: '#888' }}>Spłata: 24 m-ce</span>
@@ -183,11 +179,11 @@ const FinanceSection = ({
                                     { amt: 100000000, label: '100 mln', rate: '5.4%' },
                                     { amt: 200000000, label: '200 mln', rate: '5.6%' },
                                 ].map(loan => (
-                                    <button key={loan.amt} className={styles.saveBtn}
-                                        style={{ padding: '6px', fontSize: '10px', margin: 0, background: '#e67e22', display: 'flex', flexDirection: 'column', height: 'auto', alignItems: 'center' }}
+                                    <button key={loan.amt} className={styles.loanBtn}
+                                        style={{ padding: '6px', fontSize: '10px', margin: 0, display: 'flex', flexDirection: 'column', height: 'auto', alignItems: 'center' }}
                                         onClick={() => takeLoan(loan.amt, 24)}>
-                                        <span style={{ fontWeight: '800' }}>{loan.label}</span>
-                                        <span style={{ opacity: 0.8, fontSize: '9px' }}>Koszt: {loan.rate}</span>
+                                        <span style={{ fontWeight: '800', color: '#f0c040' }}>{loan.label}</span>
+                                        <span style={{ color: '#8aab8a', fontSize: '9px', fontWeight: '600' }}>Koszt: {loan.rate}</span>
                                     </button>
                                 ))}
                             </div>
@@ -195,13 +191,13 @@ const FinanceSection = ({
 
                         {playerDoc.finance?.loans?.length > 0 && (
                             <div style={{ marginTop: '10px' }}>
-                                <h4 style={{ fontSize: '11px', color: '#666', textTransform: 'uppercase', marginBottom: '8px' }}>Aktywne Kredyty</h4>
+                                <h4 style={{ fontSize: '11px', color: '#8aab8a', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '1px' }}>Aktywne Kredyty</h4>
                                 {playerDoc.finance.loans.map(loan => (
-                                    <div key={loan.id} style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '6px', marginBottom: '6px', overflow: 'hidden', border: '1px solid rgba(243,156,18,0.2)' }}>
-                                        <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                                    <div key={loan.id} style={{ background: 'rgba(18, 38, 18, 0.85)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', border: '1px solid rgba(46,204,113,0.3)', borderLeft: '4px solid #f0c040', boxShadow: '0 4px 15px rgba(0,0,0,0.4)' }}>
+                                        <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                                             onClick={() => toggleGroup(`loan-${loan.id}`)}>
-                                            <span style={{ fontSize: '12px', fontWeight: '700' }}>Kredyt #{loan.id.slice(-4)}</span>
-                                            <span style={{ fontSize: '12px', color: '#f39c12' }}>Pozostało: {loan.remainingMonths} m-cy</span>
+                                            <span style={{ fontSize: '12px', fontWeight: '800', color: '#fff' }}>Kredyt #{loan.id.slice(-4)}</span>
+                                            <span style={{ fontSize: '12px', fontWeight: '800', color: '#f0c040' }}>Pozostało: {loan.remainingMonths} m-cy</span>
                                         </div>
                                         {expandedGroups[`loan-${loan.id}`] && (
                                             <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.1)' }}>
@@ -226,7 +222,7 @@ const FinanceSection = ({
                 <section className={styles.card}>
                     <h3>Depozyty i Lokaty</h3>
 
-                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(42,74,42,0.3)', marginBottom: '12px' }}>
+                    <div style={{ background: 'rgba(0,0,0,0.6)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(42,74,42,0.4)', marginBottom: '12px' }}>
                         <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Nowa Lokata</div>
 
                         <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', alignItems: 'center' }}>
@@ -236,31 +232,46 @@ const FinanceSection = ({
                                 placeholder="Kwota (PLN)"
                                 value={depositAmount}
                                 onChange={e => setDepositAmount(e.target.value)}
-                                style={{ flex: 1, background: 'rgba(0,0,0,0.4)', border: '1px solid #2a4a2a', color: '#fff', padding: '6px 8px', borderRadius: '4px', fontSize: '12px', fontFamily: 'inherit' }}
+                                className={styles.financeInput}
                             />
                             {[1, 5, 10, 50].map(m => (
                                 <button key={m} onClick={() => setDepositAmount(String(m * 1000000))}
-                                    style={{ background: 'rgba(42,74,42,0.4)', border: '1px solid #2a4a2a', color: '#8aab8a', padding: '4px 7px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                    style={{ 
+                                        background: 'rgba(74, 170, 74, 0.15)', 
+                                        border: '1px solid #4a6a4a', 
+                                        color: '#f0c040', 
+                                        padding: '4px 10px', 
+                                        borderRadius: '4px', 
+                                        fontSize: '11px', 
+                                        cursor: 'pointer', 
+                                        whiteSpace: 'nowrap',
+                                        transition: 'all 0.2s',
+                                        fontWeight: 'bold'
+                                    }}
+                                    className={styles.financeTypeBtn}
+                                >
                                     {m}M
                                 </button>
                             ))}
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                             {DEPOSIT_TYPES.map(type => {
                                 const annualRate = depositRates?.[type.key] ?? type.defaultRate;
                                 const periodRate = (type.days / 365) * annualRate;
                                 const amount = parseInt(depositAmount, 10) || 0;
                                 const interest = amount > 0 ? Math.round(amount * periodRate) : null;
-                                const disabled = !depositAmount || parseInt(depositAmount) <= 0;
                                 return (
-                                    <button key={type.key} onClick={() => handleOpen(type.key)} disabled={disabled}
-                                        style={{ background: 'rgba(39,174,96,0.15)', border: '1px solid rgba(39,174,96,0.3)', borderRadius: '6px', padding: '8px 6px', cursor: disabled ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', opacity: disabled ? 0.5 : 1 }}>
-                                        <span style={{ color: '#fff', fontSize: '11px', fontWeight: '700' }}>{type.label}</span>
-                                        <span style={{ color: '#8aab8a', fontSize: '10px' }}>{type.days} {type.days === 1 ? 'dzień' : 'dni'}</span>
-                                        <span style={{ color: '#2ecc71', fontSize: '12px', fontWeight: '700' }}>+{(periodRate * 100).toFixed(2)}%</span>
-                                        <span style={{ color: '#4a6a4a', fontSize: '9px' }}>{(annualRate * 100).toFixed(1)}% p.a.</span>
-                                        {interest !== null && <span style={{ color: '#f0c040', fontSize: '10px' }}>+{fmt(interest)} PLN</span>}
+                                    <button 
+                                        key={type.key} 
+                                        onClick={() => amount > 0 ? handleOpen(type.key) : alert('Podaj kwotę lokaty!')} 
+                                        className={styles.financeTypeBtn}
+                                    >
+                                        <span style={{ color: amount <= 0 ? '#b09030' : '#f0c040', fontSize: '10px', fontWeight: '800', textTransform: 'uppercase' }}>{type.label}</span>
+                                        <span style={{ color: '#8aab8a', fontSize: '9px', fontWeight: '600' }}>Okres: {type.days} {type.days === 1 ? 'd' : 'dni'}</span>
+                                        <span style={{ color: amount <= 0 ? '#5a7a5a' : '#2ecc71', fontSize: '12px', fontWeight: '800', fontFamily: 'Share Tech Mono, monospace' }}>Zysk: +{(periodRate * 100).toFixed(2)}%</span>
+                                        <span style={{ color: '#8aab8a', fontSize: '9px', fontWeight: '600' }}>Rocznie: {(annualRate * 100).toFixed(1)}% p.a.</span>
+                                        {interest !== null && amount > 0 && <span style={{ color: '#f0c040', fontSize: '13px', fontWeight: '800', marginTop: '4px' }}>+{fmt(interest)} PLN</span>}
                                     </button>
                                 );
                             })}
@@ -269,7 +280,7 @@ const FinanceSection = ({
 
                     {deposits?.length > 0 && (
                         <div>
-                            <div style={{ fontSize: '11px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Aktywne Lokaty</div>
+                            <div style={{ fontSize: '11px', color: '#a0c0a0', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px', fontWeight: '800' }}>Aktywne Lokaty</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 {deposits.map(dep => {
                                     const matureDate = new Date(dep.matureAt);
@@ -277,24 +288,35 @@ const FinanceSection = ({
                                     const interest = Math.round(dep.amount * dep.rate);
                                     const annualLabel = dep.annualRate != null ? ` (${(dep.annualRate * 100).toFixed(1)}% p.a.)` : '';
                                     return (
-                                        <div key={dep.id} style={{ background: isMatured ? 'rgba(39,174,96,0.1)' : 'rgba(0,0,0,0.2)', border: `1px solid ${isMatured ? '#27ae60' : 'rgba(42,74,42,0.3)'}`, borderRadius: '6px', padding: '8px 10px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>{fmt(dep.amount)} PLN</span>
-                                                <span style={{ fontSize: '11px', color: isMatured ? '#27ae60' : '#f0c040', fontWeight: '700' }}>
+                                        <div key={dep.id} style={{ 
+                                            background: 'rgba(18, 38, 18, 0.85)', 
+                                            backdropFilter: 'blur(2px)', 
+                                            WebkitBackdropFilter: 'blur(2px)',
+                                            border: `1px solid rgba(46, 204, 113, 0.35)`,
+                                            borderLeft: isMatured ? '5px solid #2ecc71' : '5px solid #f0c040',
+                                            borderRadius: '8px', 
+                                            padding: '12px 16px',
+                                            boxShadow: isMatured ? '0 0 25px rgba(46,204,113,0.15)' : '0 4px 15px rgba(0,0,0,0.4)',
+                                            marginBottom: '8px'
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                                <span style={{ fontSize: '15px', fontWeight: '800', color: '#fff', fontFamily: 'Share Tech Mono, monospace' }}>{fmt(dep.amount)} PLN</span>
+                                                <span style={{ fontSize: '11px', color: isMatured ? '#2ecc71' : '#f0c040', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>
                                                     {isMatured ? '✓ DOJRZAŁA' : (dep.label ?? dep.type)}
                                                 </span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    <span style={{ fontSize: '10px', color: '#888' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                                    <span style={{ fontSize: '10px', color: '#8aab8a' }}>
                                                         Zakończenie: {matureDate.toLocaleDateString('pl-PL')} {matureDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
-                                                    <span style={{ fontSize: '10px', color: '#2ecc71' }}>
-                                                        +{fmt(interest)} PLN ({(dep.rate * 100).toFixed(2)}%{annualLabel})
+                                                    <span style={{ fontSize: '12px', color: '#2ecc71', fontWeight: 'bold' }}>
+                                                        +{fmt(interest)} PLN <span style={{ fontWeight: '400', fontSize: '10px', opacity: 0.8 }}>(+{(dep.rate * 100).toFixed(2)}%{annualLabel})</span>
                                                     </span>
                                                 </div>
                                                 <button onClick={() => breakDeposit(dep.id, dep.amount)}
-                                                    style={{ background: 'rgba(231,76,60,0.2)', border: '1px solid rgba(231,76,60,0.4)', color: '#e74c3c', padding: '4px 10px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                                    className={styles.breakBtn}
+                                                    style={{ padding: '6px 12px', fontSize: '11px', fontWeight: 'bold' }}
                                                     title="Uwaga: zerwanie lokaty przed terminem powoduje utratę wszystkich odsetek — odzyskasz tylko wpłacony kapitał.">
                                                     Zakończ
                                                 </button>
@@ -307,7 +329,7 @@ const FinanceSection = ({
                     )}
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '6px 0', borderTop: '1px solid rgba(42,74,42,0.3)' }}>
-                        <span style={{ fontSize: '11px', color: '#666', textTransform: 'uppercase' }}>Środki Zablokowane:</span>
+                        <span style={{ fontSize: '11px', color: '#a0c0a0', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Środki Zablokowane:</span>
                         <span style={{ fontSize: '14px', fontWeight: '700', color: totalBlocked > 0 ? '#f0c040' : '#444' }}>{fmt(totalBlocked)} PLN</span>
                     </div>
                 </section>
@@ -329,7 +351,7 @@ const FinanceSection = ({
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <div style={{ fontSize: '24px', fontWeight: '800', color: '#2ecc71' }}>{fmt(stockPrice)} PLN</div>
-                                        <div style={{ fontSize: '11px', color: '#666' }}>KURS AKCJI</div>
+                                        <div style={{ fontSize: '11px', color: '#a0c0a0', fontWeight: '800', letterSpacing: '1px' }}>KURS AKCJI</div>
                                     </div>
                                 </div>
 
@@ -337,7 +359,7 @@ const FinanceSection = ({
                                     {/* Lewa — struktura właścicielska */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         <h4>Struktura Akcjonariatu</h4>
-                                        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '6px', overflow: 'hidden' }}>
+                                        <div style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '6px', overflow: 'hidden' }}>
                                             {/* Gracz */}
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '8px', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(42,74,42,0.3)' }}>
                                                 <span style={{ fontSize: '12px', fontWeight: '700', color: '#f0c040' }}>{playerDoc.companyName || 'Ty'}</span>
@@ -362,7 +384,7 @@ const FinanceSection = ({
                                             ))}
                                         </div>
 
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '11px', color: '#666' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '11px', color: '#a0c0a0', fontWeight: '800' }}>
                                             <span>Łączna kapitalizacja:</span>
                                             <span style={{ color: '#fff', fontWeight: '700' }}>{fmt(marketCap)} PLN</span>
                                         </div>
@@ -371,10 +393,10 @@ const FinanceSection = ({
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '6px', marginTop: '4px' }}>
                                             {[0.05, 0.10, 0.15, 0.20].map(pct => (
                                                 <button key={pct} onClick={() => emitShares(pct)}
-                                                    className={styles.saveBtn}
-                                                    style={{ margin: 0, padding: '6px 4px', fontSize: '10px', background: '#27ae60', display: 'flex', flexDirection: 'column', alignItems: 'center', height: 'auto', gap: '1px' }}>
-                                                    <span style={{ fontWeight: '800' }}>+{pct * 100}%</span>
-                                                    <span style={{ opacity: 0.8, fontSize: '9px' }}>{fmt(Math.round(totalShares * pct / (1 - pct)) * stockPrice)} PLN</span>
+                                                    className={styles.shareBtn}
+                                                    style={{ margin: 0, padding: '7px 4px', fontSize: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', height: 'auto', gap: '2px' }}>
+                                                    <span style={{ fontWeight: '800', color: '#f0c040' }}>+{pct * 100}%</span>
+                                                    <span style={{ color: '#8aab8a', fontSize: '9px', fontWeight: '600' }}>{fmt(Math.round(totalShares * pct / (1 - pct)) * stockPrice)} PLN</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -389,7 +411,7 @@ const FinanceSection = ({
                                         ) : (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '220px' }}>
                                                 {[...emissions].reverse().map(em => (
-                                                    <div key={em.id} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '8px 12px', border: '1px solid rgba(42,74,42,0.3)' }}>
+                                                    <div key={em.id} style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '6px', padding: '8px 12px', border: '1px solid rgba(42,74,42,0.4)' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                                                             <span style={{ fontSize: '11px', color: '#888' }}>{new Date(em.date).toLocaleDateString('pl-PL')}</span>
                                                             {em.buyers?.length > 0 && <span style={{ fontSize: '11px', color: '#2ecc71', fontWeight: '700' }}>+{fmt(em.buyers.reduce((s, b) => s + b.shares * em.pricePerShare, 0))} PLN</span>}

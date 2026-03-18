@@ -84,6 +84,14 @@
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 0.95rem;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.stopItem:hover {
+    transform: translateX(6px);
+    border-color: #4CAF50;
+    background: #1e3d1e;
 }
 
 .stopNumber {

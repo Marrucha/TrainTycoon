@@ -58,6 +58,9 @@
 .zoomBtn:hover {
   border-color: #f0c040;
   color: #f0c040;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  background: rgba(20, 40, 20, 0.95);
 }
 
 .tooltip {

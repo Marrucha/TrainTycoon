@@ -224,7 +224,6 @@ export default function FleetCompositions() {
                                                 {!isPublished && trainSet.routeStops && trainSet.routeStops.length > 1 && (
                                                     <button
                                                         className={styles.pricingBtn}
-                                                        style={{ borderColor: '#4CAF50', color: '#4CAF50' }}
                                                         onClick={() => setSchedulingOpenFor(trainSet)}
                                                     >
                                                         Godziny Jazdy
@@ -233,8 +232,7 @@ export default function FleetCompositions() {
                                                 {trainSet.rozklad && trainSet.rozklad.length > 0 && (
                                                     isPublished ? (
                                                         <button
-                                                            className={styles.pricingBtn}
-                                                            style={{ backgroundColor: '#4a1515', color: '#ff6b6b', borderColor: '#c0392b' }}
+                                                            className={`${styles.pricingBtn} ${styles.cancelRouteBtn}`}
                                                             onClick={() => {
                                                                 updateCitySchedules(trainSet.id, [], {});
                                                             }}
@@ -243,8 +241,7 @@ export default function FleetCompositions() {
                                                         </button>
                                                     ) : (
                                                         <button
-                                                            className={styles.pricingBtn}
-                                                            style={{ backgroundColor: '#2a4a2a', color: '#fff', borderColor: '#4CAF50' }}
+                                                            className={`${styles.pricingBtn} ${styles.sendRouteBtn}`}
                                                             onClick={() => {
                                                                 updateCitySchedules(trainSet.id, trainSet.rozklad, {
                                                                     name: trainSet.name,

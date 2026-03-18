@@ -226,7 +226,7 @@ export default function CompanyMenu() {
         {activeTab === 'fleet-assets'      && <FleetAssets />}
         {activeTab === 'fleet-compositions'&& <FleetCompositions />}
         {activeTab === 'reports'           && <ReportsMenu />}
-        {activeTab === 'policy'  && <PolicySection companyName={companyName} defaultPricing={defaultPricing} />}
+        {activeTab === 'policy'  && <PolicySection companyName={companyName} defaultPricing={defaultPricing} reputation={reputation} />}
         {activeTab === 'hr'      && <HRSection />}
         {activeTab === 'finance' && (
           <FinanceSection

@@ -11,8 +11,8 @@
 
 .compositionBoard {
     background: rgba(10, 21, 10, 0.2);
-    backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
     border: 1px solid rgba(42, 74, 42, 0.5);
     border-radius: 12px;
     padding: 24px;
@@ -58,19 +58,21 @@
 
 .compositionCard {
     background: rgba(13, 26, 13, 0.55);
-    backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
     border: 1px solid #2a4a2a;
     border-radius: 8px;
     padding: 10px 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    transition: border-color 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .compositionCard:hover {
-    border-color: #4a7a4a;
+    border-color: #f0c040;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(240, 192, 64, 0.2);
 }
 
 .cardTop {
@@ -243,6 +245,43 @@
 .pricingBtn:hover {
     background: #2a3a0a;
     border-color: #f0c040;
+    box-shadow: 0 0 10px rgba(240, 192, 64, 0.3);
+    color: #fff;
+}
+
+.cancelRouteBtn {
+    background: #4a1515 !important;
+    color: #ff6b6b !important;
+    border: 1px solid #c0392b !important;
+}
+
+.cancelRouteBtn:hover {
+    background: #c0392b !important;
+    color: #fff !important;
+    border-color: #ff6b6b !important;
+    box-shadow: 0 0 12px rgba(192, 57, 43, 0.5);
+}
+
+.sendRouteBtn {
+    background: #2a4a2a !important;
+    color: #fff !important;
+    border: 1px solid #4CAF50 !important;
+}
+
+.sendRouteBtn:hover {
+    background: #4CAF50 !important;
+    color: #000 !important;
+    box-shadow: 0 0 12px rgba(76, 175, 80, 0.5);
+}
+
+.scheduleExtBtn {
+    border-color: #4CAF50 !important;
+    color: #4CAF50 !important;
+}
+
+.scheduleExtBtn:hover {
+    background: #4CAF50 !important;
+    color: #000 !important;
 }
 
 .compActionBtn {
