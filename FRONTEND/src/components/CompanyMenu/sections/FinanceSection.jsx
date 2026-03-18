@@ -178,8 +178,8 @@ const FinanceSection = ({
                                     { amt: 50000000,  label: '50 mln',  rate: '5.2%' },
                                     { amt: 100000000, label: '100 mln', rate: '5.4%' },
                                     { amt: 200000000, label: '200 mln', rate: '5.6%' },
-                                ].map(loan => (
-                                    <button key={loan.amt} className={styles.loanBtn}
+                                ].map((loan, idx) => (
+                                    <button key={`${loan.amt}-${idx}`} className={styles.loanBtn}
                                         style={{ padding: '6px', fontSize: '10px', margin: 0, display: 'flex', flexDirection: 'column', height: 'auto', alignItems: 'center' }}
                                         onClick={() => takeLoan(loan.amt, 24)}>
                                         <span style={{ fontWeight: '800', color: '#f0c040' }}>{loan.label}</span>
@@ -192,8 +192,8 @@ const FinanceSection = ({
                         {playerDoc.finance?.loans?.length > 0 && (
                             <div style={{ marginTop: '10px' }}>
                                 <h4 style={{ fontSize: '11px', color: '#8aab8a', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '1px' }}>Aktywne Kredyty</h4>
-                                {playerDoc.finance.loans.map(loan => (
-                                    <div key={loan.id} style={{ background: 'rgba(18, 38, 18, 0.85)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', border: '1px solid rgba(46,204,113,0.3)', borderLeft: '4px solid #f0c040', boxShadow: '0 4px 15px rgba(0,0,0,0.4)' }}>
+                                {playerDoc.finance.loans.map((loan, idx) => (
+                                    <div key={loan.id || idx} style={{ background: 'rgba(18, 38, 18, 0.85)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', borderRadius: '8px', marginBottom: '8px', overflow: 'hidden', border: '1px solid rgba(46,204,113,0.3)', borderLeft: '4px solid #f0c040', boxShadow: '0 4px 15px rgba(0,0,0,0.4)' }}>
                                         <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                                             onClick={() => toggleGroup(`loan-${loan.id}`)}>
                                             <span style={{ fontSize: '12px', fontWeight: '800', color: '#fff' }}>Kredyt #{loan.id.slice(-4)}</span>
@@ -282,13 +282,13 @@ const FinanceSection = ({
                         <div>
                             <div style={{ fontSize: '11px', color: '#a0c0a0', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px', fontWeight: '800' }}>Aktywne Lokaty</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                {deposits.map(dep => {
+                                {deposits.map((dep, idx) => {
                                     const matureDate = new Date(dep.matureAt);
                                     const isMatured = matureDate <= new Date();
                                     const interest = Math.round(dep.amount * dep.rate);
                                     const annualLabel = dep.annualRate != null ? ` (${(dep.annualRate * 100).toFixed(1)}% p.a.)` : '';
                                     return (
-                                        <div key={dep.id} style={{ 
+                                        <div key={dep.id || idx} style={{ 
                                             background: 'rgba(18, 38, 18, 0.85)', 
                                             backdropFilter: 'blur(2px)', 
                                             WebkitBackdropFilter: 'blur(2px)',
@@ -375,8 +375,8 @@ const FinanceSection = ({
                                                 </div>
                                             )}
                                             {/* Pozostali akcjonariusze (prawdziwi gracze) */}
-                                            {shareholders.map(sh => (
-                                                <div key={sh.name} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '8px', alignItems: 'center', padding: '7px 12px', borderBottom: '1px solid rgba(42,74,42,0.2)' }}>
+                                            {shareholders.map((sh, idx) => (
+                                                <div key={sh.playerId || sh.name || idx} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '8px', alignItems: 'center', padding: '7px 12px', borderBottom: '1px solid rgba(42,74,42,0.2)' }}>
                                                     <span style={{ fontSize: '11px', color: '#c0c0c0' }}>{sh.name}</span>
                                                     <span style={{ fontSize: '10px', color: '#888' }}>{fmt(sh.shares)} akcji</span>
                                                     <span style={{ fontSize: '12px', fontWeight: '700', color: '#d0d0d0', minWidth: '55px', textAlign: 'right' }}>{(sh.shares / totalShares * 100).toFixed(2)}%</span>
@@ -410,15 +410,15 @@ const FinanceSection = ({
                                             <div style={{ fontSize: '11px', color: '#4a6a4a', letterSpacing: '1px', padding: '10px 0' }}>BRAK EMISJI</div>
                                         ) : (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '220px' }}>
-                                                {[...emissions].reverse().map(em => (
-                                                    <div key={em.id} style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '6px', padding: '8px 12px', border: '1px solid rgba(42,74,42,0.4)' }}>
+                                                {[...emissions].reverse().map((em, idx) => (
+                                                    <div key={em.id || `em-${idx}`} style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '6px', padding: '8px 12px', border: '1px solid rgba(42,74,42,0.4)' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                                                             <span style={{ fontSize: '11px', color: '#888' }}>{new Date(em.date).toLocaleDateString('pl-PL')}</span>
                                                             {em.buyers?.length > 0 && <span style={{ fontSize: '11px', color: '#2ecc71', fontWeight: '700' }}>+{fmt(em.buyers.reduce((s, b) => s + b.shares * em.pricePerShare, 0))} PLN</span>}
                                                         </div>
                                                         <div style={{ fontSize: '10px', color: '#666', marginBottom: '4px' }}>{fmt(em.sharesIssued)} akcji po {fmt(em.pricePerShare)} PLN</div>
-                                                        {em.buyers?.length ? em.buyers.map(b => (
-                                                            <div key={b.playerId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', padding: '2px 0', borderTop: '1px solid rgba(42,74,42,0.15)' }}>
+                                                        {em.buyers?.length ? em.buyers.map((b, bIdx) => (
+                                                            <div key={b.playerId || bIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', padding: '2px 0', borderTop: '1px solid rgba(42,74,42,0.15)' }}>
                                                                 <span style={{ color: '#c0d8c0' }}>{b.name}</span>
                                                                 <span style={{ color: '#f0c040' }}>{fmt(b.shares)} szt. ({b.pct}%)</span>
                                                             </div>
