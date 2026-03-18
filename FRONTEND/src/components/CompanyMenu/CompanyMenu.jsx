@@ -14,13 +14,19 @@ export default function CompanyMenu() {
     reputation,
     companyName,
     trains,
+    baseTrains,
     trainsSets,
     defaultPricing,
     performMaintenance,
     pictures,
     playerDoc,
     openCreditLine,
-    takeLoan
+    takeLoan,
+    deposits,
+    depositRates,
+    openDeposit,
+    breakDeposit,
+    emitShares,
   } = useGame();
 
   const [activeSection, setActiveSection] = useState('fleet');
@@ -212,10 +218,17 @@ export default function CompanyMenu() {
             budget={budget}
             reputation={reputation}
             playerDoc={playerDoc}
+            trains={trains}
+            baseTrains={baseTrains}
             openCreditLine={openCreditLine}
             takeLoan={takeLoan}
             toggleGroup={toggleGroup}
             expandedGroups={expandedGroups}
+            deposits={deposits}
+            depositRates={depositRates}
+            openDeposit={openDeposit}
+            breakDeposit={breakDeposit}
+            emitShares={emitShares}
           />
         )}
         {activeSection === 'fleet' && (

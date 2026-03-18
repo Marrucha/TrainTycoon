@@ -19,7 +19,7 @@ export const DEFAULT_PRICE_CONFIG = {
 
 export function GameProvider({ children }) {
   const firestoreData = useFirestoreData()
-  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, loading } = firestoreData
+  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, loading } = firestoreData
 
   const selection = useSelectionState()
   const { selectedCity, selectedRoute, selectedTrainSet, selectCity, selectRoute, selectTrainSet } = selection
@@ -177,6 +177,7 @@ export function GameProvider({ children }) {
       // Dane
       budget, trains, trainsSets, routes, cities, loading, gameTime,
       baseTrains, gameSettings, pictures, playerDoc,
+      deposits, depositRates,
       // Pochodne
       dailyRevenue, activeTrainsCount, defaultPricing, trainSetsByCity,
       companyName, reputation,

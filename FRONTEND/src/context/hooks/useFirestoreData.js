@@ -11,6 +11,8 @@ export function useFirestoreData() {
   const [playerDoc, setPlayerDoc] = useState({})
   const [gameSettings, setGameSettings] = useState({})
   const [pictures, setPictures] = useState({})
+  const [deposits, setDeposits] = useState([])
+  const [depositRates, setDepositRates] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -55,6 +57,14 @@ export function useFirestoreData() {
       markLoaded()
     })
 
+    // Lokaty i oprocentowanie — nie blokują głównego loadingu
+    const unsubDeposits = onSnapshot(collection(db, 'players/player1/deposits'), (snap) => {
+      setDeposits(snap.docs.map(d => d.data()))
+    })
+    const unsubDepositRates = onSnapshot(doc(db, 'gameConfig', 'depositRates'), (snap) => {
+      setDepositRates(snap.exists() ? snap.data() : {})
+    })
+
     return () => {
       unsubCities()
       unsubBaseTrains()
@@ -64,8 +74,10 @@ export function useFirestoreData() {
       unsubPlayer()
       unsubSettings()
       unsubPictures()
+      unsubDeposits()
+      unsubDepositRates()
     }
   }, [])
 
-  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, loading }
+  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, loading }
 }

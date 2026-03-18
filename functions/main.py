@@ -1,5 +1,7 @@
-from firebase_functions import scheduler_fn, https_fn, firestore_fn
-from firebase_admin import initialize_app, firestore
+import datetime
+
+from firebase_functions import scheduler_fn, https_fn, firestore_fn, tasks_fn
+from firebase_admin import initialize_app, firestore, functions as admin_functions
 
 from demand_calc import calc_demand_for_train_sets
 from boarding_sim import run_boarding_tick, rebuild_schedule_table, rebuild_schedule_for_trainset
@@ -8,16 +10,113 @@ from reports import save_daily_report
 initialize_app()
 
 
+@firestore_fn.on_document_created(document='players/{pid}/deposits/{dep_id}')
+def on_deposit_created(
+    event: firestore_fn.Event[firestore_fn.DocumentSnapshot],
+) -> None:
+    """Firestore trigger: schedule deposit maturation via Cloud Tasks.
+
+    Fires when a new deposit document is created. Enqueues a task to
+    process_deposit_task that will execute exactly at matureAt time.
+    """
+    data = event.data.to_dict() if event.data else {}
+    mature_at_str = data.get('matureAt', '')
+    if not mature_at_str:
+        return
+
+    pid = event.params['pid']
+    dep_id = event.params['dep_id']
+
+    mature_at = datetime.datetime.fromisoformat(mature_at_str.replace('Z', '+00:00'))
+
+    queue = admin_functions.task_queue('process_deposit_task')
+    queue.enqueue(
+        {'pid': pid, 'dep_id': dep_id},
+        opts=admin_functions.TaskOptions(schedule_time=mature_at),
+    )
+
+
+@tasks_fn.on_task_dispatched(
+    retry_config=tasks_fn.RetryConfig(max_attempts=3, min_backoff_seconds=30),
+    rate_limits=tasks_fn.RateLimits(max_concurrent_dispatches=50),
+)
+def process_deposit_task(req: tasks_fn.CallableRequest) -> None:
+    """Cloud Task handler: materialize a single deposit at maturity.
+
+    Called by Cloud Tasks at the exact matureAt time. Atomically
+    deletes the deposit document and credits amount * (1 + rate) to
+    the player's balance.
+    """
+    pid = req.data.get('pid')
+    dep_id = req.data.get('dep_id')
+    if not pid or not dep_id:
+        return
+
+    db = firestore.client()
+    dep_ref = db.collection(f'players/{pid}/deposits').document(dep_id)
+    dep_snap = dep_ref.get()
+    if not dep_snap.exists:
+        return  # Already processed (broken early or duplicate task)
+
+    dep = dep_snap.to_dict()
+    player_ref = db.collection('players').document(pid)
+    balance = (player_ref.get().to_dict() or {}).get('finance', {}).get('balance', 0)
+    total_return = round(dep['amount'] * (1 + dep['rate']))
+
+    batch = db.batch()
+    batch.delete(dep_ref)
+    batch.update(player_ref, {'finance.balance': balance + total_return})
+    batch.commit()
+
+
+
+def _accrue_credit_line_interest(db) -> None:
+    """Deduct credit line costs from each player.
+
+    Runs daily. Two components:
+      interest        = max(0, limit - balance) * annualRate / 365  (daily, on used amount)
+      commitment_fee  = limit * commitmentRate / 12                  (monthly, on billing day)
+
+    The billing day is the day-of-month the credit line was opened.
+    In months shorter than the billing day, charges on the last day of the month.
+    """
+    import calendar
+    today = datetime.date.today()
+    players = db.collection('players').stream()
+    for player_doc in players:
+        data = player_doc.to_dict() or {}
+        finance = data.get('finance', {})
+        cl = finance.get('creditLine')
+        if not cl:
+            continue
+        balance = finance.get('balance', 0)
+        limit = cl['limit']
+        used = max(0, limit - balance)
+        daily_interest = round(used * cl.get('annualRate', 0.06) / 365)
+
+        # Monthly commitment fee on the anniversary day of opening
+        opened_day = datetime.date.fromisoformat(cl['openedAt'][:10]).day
+        last_day_of_month = calendar.monthrange(today.year, today.month)[1]
+        billing_day = min(opened_day, last_day_of_month)
+        monthly_fee = round(limit * cl.get('commitmentRate', 0.01) / 12) if today.day == billing_day else 0
+
+        total = daily_interest + monthly_fee
+        if total > 0:
+            player_doc.reference.update({'finance.balance': balance - total})
+
+
 @scheduler_fn.on_schedule(schedule='0 3 * * *', timezone='Europe/Warsaw')
 def calc_daily_demand(event: scheduler_fn.ScheduledEvent) -> None:
     """Cloud Function: compute daily passenger demand for all trainSets.
 
     Runs at 03:00 Warsaw time. Recalculates dailyDemand via multinomial logit
     and resets dailyTransfer / currentTransfer for the new day.
+    Also accrues daily credit line interest for all players.
     """
     db = firestore.client()
     save_daily_report(db)       # snapshot stats BEFORE reset
     calc_demand_for_train_sets(db)
+    _accrue_credit_line_interest(db)
 
 
 @scheduler_fn.on_schedule(schedule='* * * * *', timezone='Europe/Warsaw')
