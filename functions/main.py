@@ -169,3 +169,68 @@ def debug_demand(req: https_fn.Request) -> https_fn.Response:
                         if k.startswith(stop['city_id'] + ':') and (k.split(':')[1] in set(stop.get('forward_ids', []))) }
                 })
     return https_fn.Response(json.dumps(result, ensure_ascii=False, indent=2), status=200, headers={'Content-Type': 'application/json'})
+
+
+@firestore_fn.on_document_written(document='players/{pid}/trainSet/{ts_id}')
+def track_trainset_changes(event: firestore_fn.Event[firestore_fn.Change[firestore_fn.DocumentSnapshot | None]]) -> None:
+    """Track changes to specific trainSets with fine-grained weights.
+    - Delete / Remove Stop: 5
+    - Remove Wagon / Edit Times (same stops): 1
+    - Add Wagon / Price Change: 0
+    """
+    db = firestore.client()
+    pid = event.params['pid']
+    ts_id = event.params['ts_id']
+    
+    action_ref = db.collection(f'players/{pid}/dailyActions').document(ts_id)
+    
+    # CASE 1: Document deleted
+    if event.data.after is None:
+        action_ref.set({'weight': 5, 'ts_id': ts_id})
+        return
+
+    # CASE 2: Document created
+    if event.data.before is None:
+        action_ref.set({'weight': 1, 'ts_id': ts_id})
+        return
+
+    # CASE 3: Document updated - analyze delta
+    old = event.data.before.to_dict()
+    new = event.data.after.to_dict()
+    
+    weight = 0
+    
+    # 3.1 Check Stops (Rozklad)
+    old_stops = set(s.get('miasto', '') for s in old.get('rozklad', []))
+    new_stops = set(s.get('miasto', '') for s in new.get('rozklad', []))
+    
+    # Calculate how many stops were removed
+    removed_count = sum(1 for s in old_stops if s not in new_stops)
+    
+    if removed_count == 1:
+        weight = 3
+    elif removed_count == 2:
+        weight = 4
+    elif removed_count >= 3:
+        weight = 5
+    elif old.get('rozklad') != new.get('rozklad'):
+        # Schedule changed but no stops removed -> Edit (1)
+        weight = 1
+        
+    # 3.2 Check Wagons (trainIds)
+    old_trains = old.get('trainIds', [])
+    new_trains = new.get('trainIds', [])
+    if len(new_trains) < len(old_trains):
+        # Removed wagon -> 1 (if not already 5)
+        weight = max(weight, 1)
+        
+    # If weight > 0, update today's action
+    # We use MERGE to keep the MAX weight today for this ts_id
+    if weight > 0:
+        existing = action_ref.get()
+        if existing.exists:
+            curr_w = existing.to_dict().get('weight', 0)
+            if weight > curr_w:
+                action_ref.set({'weight': weight, 'ts_id': ts_id})
+        else:
+            action_ref.set({'weight': weight, 'ts_id': ts_id})
