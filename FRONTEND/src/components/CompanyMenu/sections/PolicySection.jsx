@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import styles from '../CompanyMenu.module.css';
+import { storage, db } from '../../../firebase/config';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const ReputationBar = ({ label, value, max = 20, color = '#2ecc71', thick }) => (
     <div style={{ marginBottom: thick ? '20px' : '15px' }}>
@@ -14,8 +17,37 @@ const ReputationBar = ({ label, value, max = 20, color = '#2ecc71', thick }) => 
 );
 
 const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) => {
+    const fileInputRef = useRef(null);
+    const [uploading, setUploading] = useState(false);
+
     const totalScore = Math.round(reputation * 100);
     const details = playerDoc?.reputationDetails || {};
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            setUploading(true);
+            // 1. Upload to Storage
+            const storageRef = ref(storage, `brandings/player1/logo_${Date.now()}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+
+            // 2. Update Firestore
+            const playerRef = doc(db, 'players', 'player1');
+            await updateDoc(playerRef, {
+                logoUrl: downloadURL
+            });
+            
+            alert('Branding zaktualizowany pomyślnie!');
+        } catch (error) {
+            console.error('Error uploading logo:', error);
+            alert('Wystąpił błąd podczas wgrywania logo.');
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const subScores = [
         { label: "PUNKTUALNOŚĆ", val: details.punctualityScore !== undefined ? Math.round(details.punctualityScore) : 10 },
@@ -32,18 +64,53 @@ const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) =
                 <p>Definiuj tożsamość i kierunki rozwoju swojej korporacji.</p>
             </div>
             <div className={styles.grid}>
-                <section className={styles.card} style={{ background: 'rgba(10, 30, 10, 0.5)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}>
-                    <h3>Profil Korporacyjny</h3>
-                    <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
-                        <div style={{ minWidth: '150px', height: '150px', background: 'rgba(13,26,13,0.6)', borderRadius: '24px', border: '1px solid rgba(46,204,113,0.3)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '15px' }}>
-                            <img src="/wolfrail-logo.png" alt="WolfRail Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <section className={styles.card} style={{ background: 'rgba(10, 30, 10, 0.5)', border: '1px solid rgba(46,204,113,0.3)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', textAlign: 'center' }}>
+                        <div style={{ width: '80%', height: '220px', background: 'rgba(13,26,13,0.6)', borderRadius: '24px', border: '1px solid rgba(46,204,113,0.3)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                            <img 
+                                src={playerDoc?.logoUrl || "/wolfrail-logo.png"} 
+                                alt="Company Logo" 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', flex: 1 }}>
-                            <div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center', width: '100%' }}>
+                            <div style={{ width: '100%' }}>
                                 <label style={{ fontSize: '10px', color: '#8aab8a', letterSpacing: '2px', fontWeight: 'bold' }}>NAZWA OPERATORA</label>
-                                <div style={{ fontSize: '24px', fontWeight: '800', color: '#fff', borderBottom: '1px solid rgba(46,204,113,0.2)', paddingBottom: '4px' }}>{companyName || 'Nieustalona'}</div>
+                                <div style={{ fontSize: '24px', fontWeight: '800', color: '#fff', borderBottom: '1px solid rgba(46,204,113,0.2)', paddingBottom: '8px', marginTop: '4px' }}>
+                                    {companyName || 'Nieustalona'}
+                                </div>
                             </div>
-                            <button className={styles.saveBtn} style={{ background: '#2c3e50', margin: 0, fontSize: '10px', padding: '6px 12px', width: 'fit-content' }}>Edytuj Branding</button>
+                            
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                onChange={handleFileChange} 
+                                style={{ display: 'none' }} 
+                                accept="image/*"
+                            />
+                            
+                            <button 
+                                onClick={() => fileInputRef.current.click()}
+                                disabled={uploading}
+                                style={{ 
+                                    background: 'none', 
+                                    border: 'none',
+                                    color: '#8aab8a',
+                                    fontSize: '11px', 
+                                    padding: '5px 10px', 
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline',
+                                    opacity: uploading ? 0.5 : 0.8,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                    marginTop: '5px',
+                                    transition: 'opacity 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.opacity = '1'}
+                                onMouseLeave={(e) => e.target.style.opacity = '0.8'}
+                            >
+                                {uploading ? 'Wgrywanie...' : 'Edytuj Branding'}
+                            </button>
                         </div>
                     </div>
                 </section>

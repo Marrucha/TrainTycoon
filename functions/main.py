@@ -2,7 +2,7 @@ import datetime
 import json
 import math
 
-from firebase_functions import scheduler_fn, https_fn, firestore_fn, tasks_fn
+from firebase_functions import scheduler_fn, https_fn, firestore_fn, tasks_fn, options
 from firebase_admin import initialize_app, firestore, functions as admin_functions
 
 from demand_calc import calc_demand_for_train_sets
@@ -35,7 +35,10 @@ def on_deposit_created(
     )
 
 
-@tasks_fn.on_task_dispatched()
+@tasks_fn.on_task_dispatched(
+    retry_config=options.RetryConfig(max_attempts=3, min_backoff_seconds=30),
+    rate_limits=options.RateLimits(max_concurrent_dispatches=50),
+)
 def process_deposit_task(req: tasks_fn.CallableRequest) -> None:
     """Cloud Task handler: materialize a single deposit at maturity."""
     pid = req.data.get('pid')
