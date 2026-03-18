@@ -4,7 +4,7 @@
     width: 100%;
     color: #c0d0c0;
     box-sizing: border-box;
-    background: linear-gradient(135deg, #0a110a 0%, #051a05 100%);
+    background: transparent;
     min-height: 100%;
 }
 
@@ -20,18 +20,15 @@
 .header h2 {
     font-size: 36px;
     font-weight: 700;
-    color: #fff;
     margin: 0;
-    background: linear-gradient(to right, #fff, #8aab8a);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
 .tabNav {
     display: flex;
     gap: 8px;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.72);
     padding: 6px;
     border-radius: 12px;
     border: 1px solid rgba(42, 74, 42, 0.3);
@@ -67,9 +64,9 @@
 }
 
 .sumCard {
-    background: rgba(13, 26, 13, 0.7);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(42, 74, 42, 0.4);
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: none;
+    border: 2px solid rgba(42, 74, 42, 0.7);
     border-radius: 16px;
     padding: 24px;
     display: flex;
@@ -170,6 +167,7 @@
 
 .section h3 {
     color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
     margin-bottom: 20px;
     font-size: 24px;
     display: flex;
@@ -178,9 +176,9 @@
 }
 
 .contentWrapper {
-    background: rgba(13, 26, 13, 0.5);
+    background: rgba(6, 15, 6, 0.88);
     border-radius: 16px;
-    border: 1px solid rgba(42, 74, 42, 0.3);
+    border: 2px solid rgba(42, 74, 42, 0.7);
     padding: 24px;
     overflow-x: auto;
 }

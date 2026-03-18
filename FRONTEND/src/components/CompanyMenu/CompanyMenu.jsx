@@ -2,37 +2,51 @@ import { useState, useMemo, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
 import styles from './CompanyMenu.module.css';
 
-// Section Components
 import PolicySection from './sections/PolicySection';
 import HRSection from './sections/HRSection';
 import FinanceSection from './sections/FinanceSection';
 import FleetSection from './sections/FleetSection';
+import PolandMap from '../Map/PolandMap';
+import Sidebar from '../Sidebar/Sidebar';
+import FleetAssets from '../FleetMenu/FleetAssets';
+import FleetCompositions from '../FleetMenu/FleetCompositions';
+import ReportsMenu from '../Reports/ReportsMenu';
+
+const NAV = [
+  { id: 'policy',  label: 'Firma',       icon: '📋' },
+  { id: '__sep__', label: '',            icon: '' },
+  { id: 'map',     label: 'Mapa Sieci', icon: '🗺️' },
+  {
+    id: 'fleet-group', label: 'Flota Pociągów', icon: '🚃',
+    children: [
+      { id: 'fleet',              label: 'Stan Taboru',      icon: '🔧' },
+      { id: 'fleet-assets',       label: 'Elementy Floty',   icon: '🚂' },
+      { id: 'fleet-compositions', label: 'Zarządzanie flotą', icon: '🔗' },
+    ],
+  },
+  { id: 'reports',  label: 'Raporty',  icon: '📊' },
+  { id: '__sep2__', label: '',         icon: '' },
+  { id: 'finance',  label: 'Finanse', icon: '💰' },
+  { id: 'hr',       label: 'Kadry',   icon: '👥' },
+]
 
 export default function CompanyMenu() {
   const {
-    budget,
-    reputation,
-    companyName,
-    trains,
-    baseTrains,
-    trainsSets,
-    defaultPricing,
-    performMaintenance,
-    pictures,
-    playerDoc,
-    openCreditLine,
-    takeLoan,
-    deposits,
-    depositRates,
-    openDeposit,
-    breakDeposit,
+    budget, reputation, companyName,
+    trains, baseTrains, trainsSets,
+    defaultPricing, performMaintenance,
+    pictures, playerDoc,
+    openCreditLine, takeLoan,
+    deposits, depositRates, openDeposit, breakDeposit,
     emitShares,
   } = useGame();
 
-  const [activeSection, setActiveSection] = useState('fleet');
-  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
-  const [groupBy, setGroupBy] = useState('set'); // 'set' or 'type'
-  const [expandedGroups, setExpandedGroups] = useState({}); // Tracking expanded state
+  const [activeTab, setActiveTab] = useState('policy');
+  const [collapsed, setCollapsed] = useState(false);
+  const [openGroups, setOpenGroups] = useState({ 'fleet-group': true });
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [groupBy, setGroupBy] = useState('set');
+  const [expandedGroups, setExpandedGroups] = useState({});
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
 
   useEffect(() => {
@@ -43,7 +57,6 @@ export default function CompanyMenu() {
 
   const getBackgroundUrl = (imageName) => {
     if (!pictures) return null;
-
     const searchInData = (data) => {
       if (!data) return null;
       const items = Array.isArray(data) ? data : Object.values(data);
@@ -52,33 +65,28 @@ export default function CompanyMenu() {
       const rawUrl = isLandscape ? (found.url2 || found.url) : found.url;
       return typeof rawUrl === 'string' ? rawUrl.trim() : rawUrl;
     };
-
     let url = searchInData(pictures);
     if (!url) url = searchInData(pictures.picture);
     if (!url) url = searchInData(pictures.views);
     if (!url) {
       const obj = pictures[imageName];
-      if (typeof obj === 'object' && obj !== null) {
-        url = isLandscape ? (obj.url2 || obj.url) : obj.url;
-      } else if (typeof obj === 'string') {
-        url = obj;
-      }
+      if (typeof obj === 'object' && obj !== null) url = isLandscape ? (obj.url2 || obj.url) : obj.url;
+      else if (typeof obj === 'string') url = obj;
     }
     return url;
   };
 
-  const lokomotywowniaUrl = useMemo(() => getBackgroundUrl('Lokomotywownia'), [pictures, isLandscape]);
-  const bankUrl = useMemo(() => getBackgroundUrl('Bank'), [pictures, isLandscape]);
-  const kadryUrl = useMemo(() => getBackgroundUrl('Kadry'), [pictures, isLandscape]);
+  const lokomotywowniaUrl    = useMemo(() => getBackgroundUrl('Lokomotywownia'),         [pictures, isLandscape]);
+  const lokomotywowniaWnUrl = useMemo(() => getBackgroundUrl('Lokomotywownia_wnetrze'), [pictures, isLandscape]);
+  const bankUrl              = useMemo(() => getBackgroundUrl('Bank'),                   [pictures, isLandscape]);
+  const kadryUrl             = useMemo(() => getBackgroundUrl('Kadry'),                  [pictures, isLandscape]);
+  const salonUrl             = useMemo(() => getBackgroundUrl('Salon'),                  [pictures, isLandscape]);
+  const raportyUrl           = useMemo(() => getBackgroundUrl('Raporty'),                [pictures, isLandscape]);
+  const tloUrl               = useMemo(() => getBackgroundUrl('Tlo'),                    [pictures, isLandscape]);
 
-  const toggleGroup = (groupId) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [groupId]: !prev[groupId]
-    }));
-  };
+  const toggleGroup = (groupId) =>
+    setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
 
-  // Logic for Fleet Condition with cascading status
   const fleetData = useMemo(() => {
     const analyzedTrains = trains.map(t => {
       const purchaseDate = t.purchasedAt ? new Date(t.purchasedAt) : new Date();
@@ -105,33 +113,14 @@ export default function CompanyMenu() {
         else if (members.some(m => m.status === 'MAINTENANCE')) setStatus = 'MAINTENANCE';
         const avgCondition = members.length ? Math.round(members.reduce((sum, m) => sum + m.condition, 0) / members.length) : 100;
         const minCondition = members.length ? Math.min(...members.map(m => m.condition)) : 100;
-
-        return {
-          id: ts.id,
-          name: `${ts.name} [${members.length} szt.]`,
-          type: ts.type,
-          status: setStatus,
-          condition: avgCondition,
-          minCondition,
-          members,
-          isGroup: true
-        };
+        return { id: ts.id, name: `${ts.name} [${members.length} szt.]`, type: ts.type, status: setStatus, condition: avgCondition, minCondition, members, isGroup: true };
       });
-
       const assignedIds = new Set(trainsSets.flatMap(ts => ts.trainIds || []));
       const unassigned = analyzedTrains.filter(t => !assignedIds.has(t.id)).map(t => ({
-        id: t.id,
-        name: `${t.name} [1 szt.]`,
-        type: 'WOLNY ELEMENT',
-        status: t.status,
-        condition: t.condition,
-        minCondition: t.condition,
-        members: [t],
-        isGroup: false
+        id: t.id, name: `${t.name} [1 szt.]`, type: 'WOLNY ELEMENT', status: t.status,
+        condition: t.condition, minCondition: t.condition, members: [t], isGroup: false,
       }));
-
-      const combined = [...groups, ...unassigned];
-      return combined.sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition);
+      return [...groups, ...unassigned].sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition);
     } else {
       const typeGroups = {};
       analyzedTrains.forEach(t => {
@@ -139,111 +128,126 @@ export default function CompanyMenu() {
         if (!typeGroups[typeKey]) typeGroups[typeKey] = { id: typeKey, name: typeKey, members: [], condition: 0, status: 'READY' };
         typeGroups[typeKey].members.push(t);
       });
-
       return Object.values(typeGroups).map(g => {
         const avgCondition = Math.round(g.members.reduce((sum, m) => sum + m.condition, 0) / g.members.length);
         const minCondition = Math.min(...g.members.map(m => m.condition));
         let groupStatus = 'READY';
         if (g.members.some(m => m.status === 'OVERHAUL')) groupStatus = 'OVERHAUL';
         else if (g.members.some(m => m.status === 'MAINTENANCE')) groupStatus = 'MAINTENANCE';
-
-        return {
-          ...g,
-          name: `${g.name} [${g.members.length} szt.]`,
-          condition: avgCondition,
-          minCondition,
-          status: groupStatus,
-          isGroup: true,
-          members: g.members.sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition)
-        };
+        return { ...g, name: `${g.name} [${g.members.length} szt.]`, condition: avgCondition, minCondition, status: groupStatus, isGroup: true, members: g.members.sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition) };
       }).sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition);
     }
   }, [trains, trainsSets, sortOrder, groupBy]);
+
+  const bgImage = (() => {
+    const url =
+      activeTab === 'fleet'               ? lokomotywowniaUrl :
+      activeTab === 'fleet-compositions'  ? lokomotywowniaWnUrl :
+      activeTab === 'finance'             ? bankUrl :
+      activeTab === 'hr'                  ? kadryUrl :
+      activeTab === 'fleet-assets'        ? salonUrl :
+      activeTab === 'reports'             ? raportyUrl :
+      activeTab === 'policy'              ? tloUrl : null;
+    if (!url) return 'none';
+    return `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${url}")`;
+  })();
+
+  const isMgmtTab = ['policy', 'hr', 'finance', 'fleet'].includes(activeTab);
+  const isFullTab = ['map', 'fleet-assets', 'fleet-compositions', 'reports'].includes(activeTab);
 
   return (
     <div
       className={styles.companyMenu}
       style={{
-        backgroundImage: activeSection === 'fleet' && lokomotywowniaUrl
-          ? `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${lokomotywowniaUrl}")`
-          : activeSection === 'finance' && bankUrl
-            ? `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${bankUrl}")`
-            : activeSection === 'hr' && kadryUrl
-              ? `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${kadryUrl}")`
-              : 'none',
+        backgroundImage: bgImage,
         backgroundSize: 'cover',
         backgroundPosition: 'center center',
-        backgroundAttachment: 'scroll',
-        backgroundColor: '#060f06'
+        backgroundColor: '#060f06',
       }}
     >
-      <aside className={styles.sidebar}>
-        <div className={styles.sidebarTitle}>Menu Managera</div>
-        <div
-          className={`${styles.navItem} ${activeSection === 'policy' ? styles.activeNavItem : ''}`}
-          onClick={() => setActiveSection('policy')}
-        >
-          <span>📋</span> Polityka Firmy
+      {/* ── Sidebar ── */}
+      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}>
+        <div className={styles.sidebarHeader}>
+          {!collapsed && <span className={styles.sidebarTitle}>Menu Managera</span>}
+          <button className={styles.collapseBtn} onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Rozwiń menu' : 'Zwiń menu'}>
+            {collapsed ? '▶' : '◀'}
+          </button>
         </div>
-        <div
-          className={`${styles.navItem} ${activeSection === 'hr' ? styles.activeNavItem : ''}`}
-          onClick={() => setActiveSection('hr')}
-        >
-          <span>👥</span> Kadry
-        </div>
-        <div
-          className={`${styles.navItem} ${activeSection === 'finance' ? styles.activeNavItem : ''}`}
-          onClick={() => setActiveSection('finance')}
-        >
-          <span>💰</span> Finanse
-        </div>
-        <div
-          className={`${styles.navItem} ${activeSection === 'fleet' ? styles.activeNavItem : ''}`}
-          onClick={() => setActiveSection('fleet')}
-        >
-          <span>🚂</span> Stan Taboru
-        </div>
+
+        {NAV.map(item => {
+          if (item.id.startsWith('__sep')) return (
+            <div key={item.id} className={`${styles.navSep} ${collapsed ? styles.navSepCollapsed : ''}`} />
+          );
+
+          if (item.children) {
+            const isOpen = openGroups[item.id];
+            const childActive = item.children.some(c => c.id === activeTab);
+            return (
+              <div key={item.id}>
+                <div
+                  className={`${styles.navItem} ${childActive ? styles.activeNavItem : ''}`}
+                  onClick={() => !collapsed && setOpenGroups(p => ({ ...p, [item.id]: !p[item.id] }))}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <span className={styles.navIcon}>{item.icon}</span>
+                  {!collapsed && <><span className={styles.navLabel}>{item.label}</span><span className={styles.navArrow}>{isOpen ? '▾' : '▸'}</span></>}
+                </div>
+                {!collapsed && isOpen && item.children.map(child => (
+                  <div
+                    key={child.id}
+                    className={`${styles.navItem} ${styles.navChild} ${activeTab === child.id ? styles.activeNavItem : ''}`}
+                    onClick={() => setActiveTab(child.id)}
+                  >
+                    <span className={styles.navIcon}>{child.icon}</span>
+                    <span className={styles.navLabel}>{child.label}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={item.id}
+              className={`${styles.navItem} ${activeTab === item.id ? styles.activeNavItem : ''}`}
+              onClick={() => setActiveTab(item.id)}
+              title={collapsed ? item.label : undefined}
+            >
+              <span className={styles.navIcon}>{item.icon}</span>
+              {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+            </div>
+          );
+        })}
       </aside>
 
-      <main className={styles.content}>
-        {activeSection === 'policy' && (
-          <PolicySection
-            companyName={companyName}
-            defaultPricing={defaultPricing}
-          />
-        )}
-        {activeSection === 'hr' && <HRSection />}
-        {activeSection === 'finance' && (
+      {/* ── Content ── */}
+      <div className={isFullTab ? styles.contentFull : styles.content}>
+        {activeTab === 'map'               && <><section className={styles.mapSection}><PolandMap /></section><Sidebar /></>}
+        {activeTab === 'fleet-assets'      && <FleetAssets />}
+        {activeTab === 'fleet-compositions'&& <FleetCompositions />}
+        {activeTab === 'reports'           && <ReportsMenu />}
+        {activeTab === 'policy'  && <PolicySection companyName={companyName} defaultPricing={defaultPricing} />}
+        {activeTab === 'hr'      && <HRSection />}
+        {activeTab === 'finance' && (
           <FinanceSection
-            budget={budget}
-            reputation={reputation}
-            playerDoc={playerDoc}
-            trains={trains}
-            baseTrains={baseTrains}
-            openCreditLine={openCreditLine}
-            takeLoan={takeLoan}
-            toggleGroup={toggleGroup}
-            expandedGroups={expandedGroups}
-            deposits={deposits}
-            depositRates={depositRates}
-            openDeposit={openDeposit}
-            breakDeposit={breakDeposit}
+            budget={budget} reputation={reputation} playerDoc={playerDoc}
+            trains={trains} baseTrains={baseTrains}
+            openCreditLine={openCreditLine} takeLoan={takeLoan}
+            toggleGroup={toggleGroup} expandedGroups={expandedGroups}
+            deposits={deposits} depositRates={depositRates}
+            openDeposit={openDeposit} breakDeposit={breakDeposit}
             emitShares={emitShares}
           />
         )}
-        {activeSection === 'fleet' && (
+        {activeTab === 'fleet' && (
           <FleetSection
-            fleetData={fleetData}
-            groupBy={groupBy}
-            setGroupBy={setGroupBy}
-            sortOrder={sortOrder}
-            setSortOrder={setSortOrder}
-            expandedGroups={expandedGroups}
-            toggleGroup={toggleGroup}
+            fleetData={fleetData} groupBy={groupBy} setGroupBy={setGroupBy}
+            sortOrder={sortOrder} setSortOrder={setSortOrder}
+            expandedGroups={expandedGroups} toggleGroup={toggleGroup}
             performMaintenance={performMaintenance}
           />
         )}
-      </main>
+      </div>
     </div>
   );
 }

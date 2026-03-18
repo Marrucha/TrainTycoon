@@ -18,6 +18,7 @@ export default function FleetAssets() {
     }, {}))
 
     return (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
         <div className={styles.grid}>
             {groupedTrains.map(train => (
                 <div key={train.id} className={styles.card}>
@@ -76,6 +77,7 @@ export default function FleetAssets() {
             </button>
 
             {isStoreOpen && <TrainStore onClose={() => setIsStoreOpen(false)} />}
+        </div>
         </div>
     )
 }

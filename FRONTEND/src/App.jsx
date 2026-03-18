@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react'
 import { GameProvider } from './context/GameContext'
-import PolandMap from './components/Map/PolandMap'
-import Sidebar from './components/Sidebar/Sidebar'
 import ResourceBar from './components/ResourceBar/ResourceBar'
-import FleetMenu from './components/FleetMenu/FleetMenu'
-import ReportsMenu from './components/Reports/ReportsMenu'
 import CompanyMenu from './components/CompanyMenu/CompanyMenu'
 import styles from './App.module.css'
 
@@ -29,8 +25,6 @@ function Clock() {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('company')
-
   return (
     <GameProvider>
       <div className={styles.app}>
@@ -39,51 +33,12 @@ export default function App() {
             <span className={styles.logoIcon}>🚂</span>
             <span className={styles.logoText}>TRAIN<strong>MANAGER</strong></span>
           </div>
-
-          <nav className={styles.nav}>
-            <button
-              className={`${styles.navBtn} ${activeTab === 'company' ? styles.active : ''}`}
-              onClick={() => setActiveTab('company')}
-            >
-              Zarządzanie
-            </button>
-            <button
-              className={`${styles.navBtn} ${activeTab === 'map' ? styles.active : ''}`}
-              onClick={() => setActiveTab('map')}
-            >
-              Mapa Sieci
-            </button>
-            <button
-              className={`${styles.navBtn} ${activeTab === 'fleet' ? styles.active : ''}`}
-              onClick={() => setActiveTab('fleet')}
-            >
-              Flota Pociągów
-            </button>
-            <button
-              className={`${styles.navBtn} ${activeTab === 'reports' ? styles.active : ''}`}
-              onClick={() => setActiveTab('reports')}
-            >
-              Raporty
-            </button>
-          </nav>
-
           <ResourceBar />
-
           <Clock />
         </header>
 
         <main className={styles.main}>
-          {activeTab === 'company' && <CompanyMenu />}
-          {activeTab === 'map' && (
-            <>
-              <section className={styles.mapSection}>
-                <PolandMap />
-              </section>
-              <Sidebar />
-            </>
-          )}
-          {activeTab === 'fleet' && <FleetMenu />}
-          {activeTab === 'reports' && <ReportsMenu />}
+          <CompanyMenu />
         </main>
       </div>
     </GameProvider>

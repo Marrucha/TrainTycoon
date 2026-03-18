@@ -2,7 +2,7 @@ import { useGame } from '../../context/GameContext'
 import styles from './ResourceBar.module.css'
 
 export default function ResourceBar() {
-  const { budget, trains, activeTrainsCount, dailyRevenue } = useGame()
+  const { budget, trainsSets, activeTrainsCount, dailyRevenue } = useGame()
 
   return (
     <div className={styles.bar}>
@@ -20,7 +20,7 @@ export default function ResourceBar() {
         <span className={styles.label}>TABOR</span>
         <span className={styles.value}>
           {activeTrainsCount}
-          <span className={styles.unit}> / {trains.length}</span>
+          <span className={styles.unit}> / {trainsSets?.length ?? 0}</span>
         </span>
       </div>
 

@@ -217,14 +217,14 @@ export default function TrainTimeline({ rozklad }) {
         <div style={{ padding: '6px 0 2px' }}>
             {/* Nagłówek z aktualnym statusem */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                <span style={{ fontSize: '10px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <span style={{ fontSize: '10px', color: '#8aab8a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Oś czasu 24h
                 </span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '700', color: statusColor, letterSpacing: '0.5px' }}>
                     <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: statusColor, display: 'inline-block', boxShadow: `0 0 5px ${statusColor}` }} />
                     {STATUS_LABEL[currentType]}
                 </span>
-                <span style={{ fontSize: '10px', color: '#444', marginLeft: 'auto' }}>
+                <span style={{ fontSize: '10px', color: '#c0d0c0', marginLeft: 'auto' }}>
                     {String(Math.floor(nowMins / 60)).padStart(2, '0')}:{String(nowMins % 60).padStart(2, '0')}
                 </span>
             </div>
@@ -290,8 +290,8 @@ export default function TrainTimeline({ rozklad }) {
                         alignItems: 'center',
                         gap: '1px',
                     }}>
-                        <div style={{ width: '1px', height: '4px', background: '#3a4a3a' }} />
-                        <span style={{ fontSize: '8px', color: '#3a4a3a', lineHeight: 1, whiteSpace: 'nowrap' }}>
+                        <div style={{ width: '1px', height: '4px', background: '#8aab8a' }} />
+                        <span style={{ fontSize: '8px', color: '#8aab8a', lineHeight: 1, whiteSpace: 'nowrap', fontWeight: 600 }}>
                             {String(h % 24).padStart(2, '0')}
                         </span>
                     </div>

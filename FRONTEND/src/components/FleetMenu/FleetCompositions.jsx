@@ -18,6 +18,14 @@ export default function FleetCompositions() {
     const [collapsedCards, setCollapsedCards] = useState({}) // id → bool
 
     const toggleCollapse = (id) => setCollapsedCards(prev => ({ ...prev, [id]: !prev[id] }))
+    const allCollapsed = trainsSets?.length > 0 && trainsSets.every(ts => collapsedCards[ts.id])
+    const toggleAll = () => {
+        if (allCollapsed) {
+            setCollapsedCards({})
+        } else {
+            setCollapsedCards(Object.fromEntries((trainsSets || []).map(ts => [ts.id, true])))
+        }
+    }
 
     if (isComposing) {
         return <TrainComposer onCancel={() => setIsComposing(false)} />
@@ -32,7 +40,14 @@ export default function FleetCompositions() {
             <div className={styles.compositionBoard}>
                 <div className={styles.boardHeader}>
                     <h3>Aktualnie zmontowane pociągi na bazie ({trainsSets?.length || 0})</h3>
-                    <button className={styles.createBtn} onClick={() => setIsComposing(true)}>+ Nowy Skład</button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        {trainsSets?.length > 0 && (
+                            <button className={styles.createBtn} onClick={toggleAll}>
+                                {allCollapsed ? '▶ Rozwiń wszystkie' : '▼ Zwiń wszystkie'}
+                            </button>
+                        )}
+                        <button className={styles.createBtn} onClick={() => setIsComposing(true)}>+ Nowy Skład</button>
+                    </div>
                 </div>
 
                 <div className={styles.compositionGrid}>
@@ -138,7 +153,7 @@ export default function FleetCompositions() {
                                     <div
                                         className={styles.cardTop}
                                         onClick={() => toggleCollapse(trainSet.id)}
-                                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                                        style={{ cursor: 'pointer', userSelect: 'none', borderBottom: isCollapsed ? 'none' : '1px solid #1a331a', paddingBottom: isCollapsed ? 0 : '10px' }}
                                     >
                                         <h4>{trainSet.name}</h4>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

@@ -427,7 +427,7 @@ export default function ReportsMenu() {
                 </tr>
                 {expandedTS === id && ts.kursy && (
                   Object.entries(ts.kursy).map(([kId, k]) => (
-                    <tr key={kId} style={{background: 'rgba(0,0,0,0.2)', fontSize: '0.9em'}}>
+                    <tr key={kId} style={{background: 'rgba(0,0,0,0.55)', fontSize: '0.9em'}}>
                       <td style={{paddingLeft: 30, color: '#8aab8a'}}>
                         <span style={{color: '#f0c040'}}>{k.odjazd}</span> {k.from} → {k.to}
                       </td>
@@ -512,7 +512,7 @@ export default function ReportsMenu() {
                   Object.entries(tsb.kursy)
                     .sort(([,a], [,b]) => a.odjazd.localeCompare(b.odjazd))
                     .map(([kId, kb]) => (
-                    <tr key={kId} style={{background: 'rgba(0,0,0,0.2)', fontSize: '0.9em'}}>
+                    <tr key={kId} style={{background: 'rgba(0,0,0,0.55)', fontSize: '0.9em'}}>
                       <td style={{paddingLeft: 30, color: '#8aab8a'}}>
                         <span style={{color: '#f0c040'}}>{kb.odjazd}</span> {kb.from} → {kb.to}
                       </td>
@@ -693,7 +693,7 @@ export default function ReportsMenu() {
       return (
         <div className={styles.contentWrapper}>
           <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20}}>
-            <div style={{display: 'flex', background: '#0a150a', border: '1px solid #2a4a2a', borderRadius: 4, padding: 2}}>
+            <div style={{display: 'flex', background: 'rgba(10,21,10,0.65)', border: '1px solid #2a4a2a', borderRadius: 4, padding: 2}}>
               <button onClick={() => setTrendView('monthly')} style={toggleStyle(true)}>Po dniach</button>
               <button onClick={() => setTrendView('yearly')} style={toggleStyle(false)}>Po miesiącach</button>
             </div>
@@ -735,7 +735,7 @@ export default function ReportsMenu() {
     return (
       <div className={styles.contentWrapper}>
         <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20}}>
-          <div style={{display: 'flex', background: '#0a150a', border: '1px solid #2a4a2a', borderRadius: 4, padding: 2}}>
+          <div style={{display: 'flex', background: 'rgba(10,21,10,0.65)', border: '1px solid #2a4a2a', borderRadius: 4, padding: 2}}>
             <button onClick={() => setTrendView('monthly')} style={toggleStyle(false)}>Po dniach</button>
             <button onClick={() => setTrendView('yearly')} style={toggleStyle(true)}>Po miesiącach</button>
           </div>
@@ -759,8 +759,8 @@ export default function ReportsMenu() {
     <div className={styles.container}>
       <header className={styles.header}>
         <div>
-          <h2>Raporty i Analizy</h2>
-          <p style={{color: '#8aab8a', margin: '4px 0 0 0'}}>Wyniki finansowe i operacyjne twojej floty</p>
+          <h2 style={{background: 'rgba(6,15,6,0.75)', display: 'inline-block', padding: '6px 14px', borderRadius: 6, border: '1px solid rgba(42,74,42,0.4)'}}>Raporty i Analizy</h2>
+          <p style={{color: '#8aab8a', margin: '4px 0 0 0', background: 'rgba(6,15,6,0.75)', display: 'inline-block', padding: '4px 10px', borderRadius: 4, border: '1px solid rgba(42,74,42,0.4)'}}>Wyniki finansowe i operacyjne twojej floty</p>
         </div>
         
         <nav className={styles.tabNav}>
@@ -790,7 +790,7 @@ export default function ReportsMenu() {
       {activeTab === 'daily' && (
         <section className={styles.section}>
           <div style={{display: 'flex', alignItems: 'center', gap: 16, marginBottom: 4}}>
-            <h3 style={{margin: 0}}>📊 Dane za dzień:</h3>
+            <h3 style={{margin: 0, background: 'rgba(6,15,6,0.75)', display: 'inline-block', padding: '4px 12px', borderRadius: 6, border: '1px solid rgba(42,74,42,0.4)'}}>📊 Dane za dzień:</h3>
             <select
               value={selectedDailyIdx}
               onChange={e => { setSelectedDailyIdx(Number(e.target.value)); setExpandedTS(null) }}
@@ -801,11 +801,11 @@ export default function ReportsMenu() {
               ))}
             </select>
           </div>
-          <p style={{color: '#6a8a6a', fontSize: 12, margin: '0 0 20px 0', fontFamily: "'Share Tech Mono', monospace"}}>
+          <p style={{color: '#8aab8a', fontSize: 12, margin: '0 0 20px 0', fontFamily: "'Share Tech Mono', monospace", background: 'rgba(6,15,6,0.75)', display: 'inline-block', padding: '4px 10px', borderRadius: 4, border: '1px solid rgba(42,74,42,0.4)'}}>
             Raport wygenerowany o 03:00 dnia {reports[selectedDailyIdx]?.date || '—'} · dane sprzed resetu dobowego
           </p>
           {renderSummary(dailyData, prevDailyData)}
-          <h3 style={{marginTop: 32}}>📋 Wyniki per pociąg</h3>
+          <h3 style={{marginTop: 32, background: 'rgba(6,15,6,0.75)', display: 'inline-block', padding: '4px 12px', borderRadius: 6, border: '1px solid rgba(42,74,42,0.4)'}}>📋 Wyniki per pociąg</h3>
           {renderDailyTable()}
         </section>
       )}
