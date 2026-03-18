@@ -23,6 +23,14 @@
     width: 52px;
 }
 
+.sidebarWide {
+    width: 250px;
+}
+
+.sidebarCollapsedWide {
+    width: 68px;
+}
+
 .sidebarHeader {
     display: flex;
     align-items: center;
@@ -98,6 +106,12 @@
     text-align: center;
 }
 
+.navGroupOpen {
+    background: rgba(46, 204, 113, 0.08); /* Delikatne szmaragdowe podświetlenie */
+    border-bottom: 2px solid rgba(46, 204, 113, 0.4); /* Dolne podkreślenie */
+    color: #fff;
+}
+
 .navLabel {
     font-size: 13px;
 }
@@ -109,10 +123,26 @@
 }
 
 .navChild {
-    padding-left: 32px;
+    padding-left: 14px; /* Mniejsze wcięcie, bo linia zajmuje miejsce */
+    margin-left: 22px;  /* Przesunięcie całego elementu w prawo od krawędzi */
     font-size: 12px;
     opacity: 0.9;
+    flex-direction: row; 
+    justify-content: flex-start;
+    border-left: 1px solid rgba(46, 204, 113, 0.4); /* Pionowa kreska pomocnicza */
 }
+
+.navChildCollapsed {
+    margin-left: 14px !important; /* Przesunięcie kreski w trybie zwiniętym */
+    padding-left: 6px !important;
+    justify-content: flex-start;
+    opacity: 0.7;
+}
+
+.navChildCollapsed:hover {
+    opacity: 1;
+}
+
 
 .navSep {
     height: 1px;

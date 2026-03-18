@@ -166,7 +166,7 @@ export default function CompanyMenu() {
       }}
     >
       {/* ── Sidebar ── */}
-      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}>
+        <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${Object.values(openGroups).some(v => v) ? (collapsed ? styles.sidebarCollapsedWide : styles.sidebarWide) : ''}`}>
         <div className={styles.sidebarHeader}>
           {!collapsed && <span className={styles.sidebarTitle}>Menu Managera</span>}
           <button className={styles.collapseBtn} onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Rozwiń menu' : 'Zwiń menu'}>
@@ -185,21 +185,22 @@ export default function CompanyMenu() {
             return (
               <div key={item.id}>
                 <div
-                  className={`${styles.navItem} ${childActive ? styles.activeNavItem : ''}`}
-                  onClick={() => !collapsed && setOpenGroups(p => ({ ...p, [item.id]: !p[item.id] }))}
+                  className={`${styles.navItem} ${childActive && isOpen ? styles.activeNavItem : ''} ${isOpen ? styles.navGroupOpen : ''}`}
+                  onClick={() => setOpenGroups(p => ({ ...p, [item.id]: !p[item.id] }))}
                   title={collapsed ? item.label : undefined}
                 >
                   <span className={styles.navIcon}>{item.icon}</span>
                   {!collapsed && <><span className={styles.navLabel}>{item.label}</span><span className={styles.navArrow}>{isOpen ? '▾' : '▸'}</span></>}
                 </div>
-                {!collapsed && isOpen && item.children.map(child => (
+                {isOpen && item.children.map(child => (
                   <div
                     key={child.id}
-                    className={`${styles.navItem} ${styles.navChild} ${activeTab === child.id ? styles.activeNavItem : ''}`}
+                    className={`${styles.navItem} ${styles.navChild} ${activeTab === child.id ? styles.activeNavItem : ''} ${collapsed ? styles.navChildCollapsed : ''}`}
                     onClick={() => setActiveTab(child.id)}
+                    title={collapsed ? child.label : undefined}
                   >
                     <span className={styles.navIcon}>{child.icon}</span>
-                    <span className={styles.navLabel}>{child.label}</span>
+                    {!collapsed && <span className={styles.navLabel}>{child.label}</span>}
                   </div>
                 ))}
               </div>
@@ -226,7 +227,7 @@ export default function CompanyMenu() {
         {activeTab === 'fleet-assets'      && <FleetAssets />}
         {activeTab === 'fleet-compositions'&& <FleetCompositions />}
         {activeTab === 'reports'           && <ReportsMenu />}
-        {activeTab === 'policy'  && <PolicySection companyName={companyName} defaultPricing={defaultPricing} reputation={reputation} />}
+        {activeTab === 'policy'  && <PolicySection companyName={companyName} defaultPricing={defaultPricing} reputation={reputation} playerDoc={playerDoc} />}
         {activeTab === 'hr'      && <HRSection />}
         {activeTab === 'finance' && (
           <FinanceSection

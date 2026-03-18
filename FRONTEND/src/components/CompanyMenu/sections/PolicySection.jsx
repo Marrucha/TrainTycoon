@@ -13,15 +13,16 @@ const ReputationBar = ({ label, value, max = 20, color = '#2ecc71', thick }) => 
     </div>
 );
 
-const PolicySection = ({ companyName, defaultPricing, reputation }) => {
+const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) => {
     const totalScore = Math.round(reputation * 100);
-    // Przykładowy rozkład punktów (mock) na podstawie ogólnej reputacji (20 pkt na każdą z 5 kategorii)
+    const details = playerDoc?.reputationDetails || {};
+
     const subScores = [
-        { label: "PUNKTUALNOŚĆ", val: Math.min(20, Math.round(totalScore * 0.22)) },
-        { label: "STAŁOŚĆ TRAS", val: Math.min(20, Math.round(totalScore * 0.18)) },
-        { label: "NOWOCZESNOŚĆ TABORU", val: Math.min(20, Math.round(totalScore * 0.25)) },
-        { label: "KONKURENCYJNOŚĆ CEN", val: Math.min(20, Math.round(totalScore * 0.15)) },
-        { label: "% PRZEWIEZIONYCH VS POPYT", val: Math.min(20, Math.round(totalScore * 0.20)) }
+        { label: "PUNKTUALNOŚĆ", val: details.punctualityScore !== undefined ? Math.round(details.punctualityScore) : 10 },
+        { label: "STAŁOŚĆ TRAS", val: details.stabilityScore !== undefined ? Math.round(details.stabilityScore) : 10 },
+        { label: "NOWOCZESNOŚĆ TABORU", val: details.modernityScore !== undefined ? Math.round(details.modernityScore) : 10 },
+        { label: "KONKURENCYJNOŚĆ CEN", val: details.priceScore !== undefined ? Math.round(details.priceScore) : 10 },
+        { label: "% PRZEWIEZIONYCH VS POPYT", val: details.fillRateScore !== undefined ? Math.round(details.fillRateScore) : 10 }
     ];
 
     return (

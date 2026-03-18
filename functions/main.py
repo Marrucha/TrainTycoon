@@ -117,6 +117,7 @@ def calc_daily_demand(event: scheduler_fn.ScheduledEvent) -> None:
     save_daily_report(db)       # snapshot stats BEFORE reset
     calc_demand_for_train_sets(db)
     _accrue_credit_line_interest(db)
+    _update_price_reputation(db)
 
 
 @scheduler_fn.on_schedule(schedule='* * * * *', timezone='Europe/Warsaw')
@@ -233,3 +234,89 @@ def debug_demand(req: https_fn.Request) -> https_fn.Response:
     return https_fn.Response(json.dumps(result, ensure_ascii=False, indent=2), status=200,
                              headers={'Content-Type': 'application/json'})
 
+def _update_price_reputation(db) -> None:
+    """Daily check of price competitiveness vs 'samorządowy' operator.
+    
+    Calculates PriceRatio = OurPrice / CompPrice for each route.
+    Aggregates x = (AvgRatioC2 * 0.8) + (AvgRatioC1 * 0.2).
+    Reputation = max(0, min(20, -10 * log2(x) + 10)).
+    """
+    import math
+    from reports import _calc_ticket_price, DEFAULT_PRICING
+    
+    cities_col = db.collection('cities').stream()
+    cities_map = {c.id: c.to_dict() for c in cities_col}
+    routes_col = db.collection('routes').stream()
+    routes = [r.to_dict() for r in routes_col]
+    
+    if not routes:
+        return
+
+    sam_snap = db.collection('players').document('samorządowy').get()
+    sam_pricing = (sam_snap.to_dict() or {}).get('defaultPricing', DEFAULT_PRICING)
+    
+    players = db.collection('players').stream()
+    for p_doc in players:
+        pid = p_doc.id
+        if pid == 'samorządowy':
+            continue
+            
+        p_data = p_doc.to_dict() or {}
+        our_pricing = p_data.get('defaultPricing', DEFAULT_PRICING)
+        details = p_data.get('reputationDetails', {})
+        
+        sum_r1 = 0
+        sum_r2 = 0
+        count = 0
+        
+        # Consistent multipliers as per user's logic
+        m1 = our_pricing.get('multipliers', DEFAULT_PRICING['multipliers'])
+        m2 = sam_pricing.get('multipliers', DEFAULT_PRICING['multipliers'])
+        
+        for r in routes:
+            dist = r.get('distance')
+            if not dist or dist <= 0:
+                continue
+            
+            # Our prices
+            o1 = _calc_ticket_price(dist, our_pricing.get('class1Per100km', 10), m1)
+            o2 = _calc_ticket_price(dist, our_pricing.get('class2Per100km', 6), m1)
+            
+            # Competitor prices
+            s1 = _calc_ticket_price(dist, sam_pricing.get('class1Per100km', 10), m2)
+            s2 = _calc_ticket_price(dist, sam_pricing.get('class2Per100km', 6), m2)
+            
+            if s1 > 0 and s2 > 0:
+                sum_r1 += (o1 / s1)
+                sum_r2 += (o2 / s2)
+                count += 1
+        
+        if count > 0:
+            avg1 = sum_r1 / count
+            avg2 = sum_r2 / count
+            x = (avg2 * 0.8) + (avg1 * 0.2)
+            
+            # Formula: f(x) = -10 * log2(x) + 10
+            score = -10 * math.log2(max(0.01, x)) + 10
+            score = max(0, min(20, score))
+            
+            # Update specific score
+            details['priceScore'] = round(score, 2)
+            
+            # Ensure other components exist (defaulting to 10/20 if new)
+            for key in ['punctualityScore', 'stabilityScore', 'modernityScore', 'fillRateScore']:
+                if key not in details:
+                    details[key] = 10.0
+            
+            total_pts = sum([
+                details['punctualityScore'],
+                details['stabilityScore'],
+                details['modernityScore'],
+                details['priceScore'],
+                details['fillRateScore']
+            ])
+            
+            p_doc.reference.update({
+                'reputationDetails': details,
+                'reputation': round(total_pts / 100, 4)
+            })
