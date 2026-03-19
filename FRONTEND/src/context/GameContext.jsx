@@ -53,8 +53,8 @@ export function GameProvider({ children }) {
   )
 
   const activeTrainsCount = useMemo(
-    () => new Set(routes.filter(r => r.trainId).map(r => r.trainId)).size,
-    [routes]
+    () => trainsSets?.filter(ts => ts.rozklad?.length > 0).length ?? 0,
+    [trainsSets]
   )
 
   // Mapa cityId → [ts, ...] — identyczna logika jak trainPositions + trainCountsAtCities w useMapData

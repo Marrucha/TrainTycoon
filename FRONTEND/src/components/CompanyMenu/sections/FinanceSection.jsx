@@ -338,7 +338,7 @@ const FinanceSection = ({
                 <section className={styles.card} style={{ gridColumn: 'span 2' }}>
                     {(() => {
                         const co = playerDoc.company ?? { totalShares: 1000000, playerShares: 1000000, stockPrice: 100, freeFloat: 0, shareholders: [], emissions: [] };
-                        const { totalShares, playerShares, stockPrice, freeFloat = 0, shareholders, emissions } = co;
+                        const { totalShares, playerShares, stockPrice, freeFloat = 0, shareholders = [], emissions = [] } = co;
                         const playerPct = (playerShares / totalShares * 100).toFixed(2);
                         const marketCap = totalShares * stockPrice;
 

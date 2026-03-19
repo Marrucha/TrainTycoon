@@ -185,6 +185,16 @@ function MapOverlay() {
                   stroke="#fff" strokeWidth={0.8} />
                 <polygon points="4,-3 4,3 8,0" fill={isSelected ? '#ffaaaa' : '#ff5555'} />
               </g>
+              {p.ts.awarie?.[p.kursId]?.isAwaria === 1 && (
+                <g>
+                  <circle cx={5} cy={-9} r={4.5} fill="#e74c3c" stroke="#fff" strokeWidth={0.8}>
+                    <animate attributeName="opacity" values="1;0.4;1" dur="1.2s" repeatCount="indefinite" />
+                  </circle>
+                  <text x={5} y={-6} textAnchor="middle" fontSize="5" fontWeight="bold" fill="#fff" style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                    !
+                  </text>
+                </g>
+              )}
             </g>
           )
         })}

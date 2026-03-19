@@ -233,6 +233,8 @@ def run_boarding_tick(db, now_str=None):
         daily_demand     = _deep_copy_demand(ts.get('dailyDemand') or {})
         daily_transfer   = _deep_copy_demand(ts.get('dailyTransfer') or {})
         current_transfer = _deep_copy_current(ts.get('currentTransfer') or {})
+        daily_arrivals   = dict(ts.get('dailyArrivals') or {})
+        awarie           = ts.get('awarie') or {}
 
         # Sort by stop_index so multi-stop same-minute cases are ordered
         events.sort(key=lambda x: x[1].get('stop_index', 0))
@@ -250,12 +252,17 @@ def run_boarding_tick(db, now_str=None):
                 seat_caps, daily_demand, daily_transfer, current_transfer,
                 now_str, next_city_id=next_city,
             )
+            if is_last:
+                awaria = awarie.get(kurs_id, {})
+                delay = awaria.get('awariaTime', 0) if awaria.get('isAwaria') == 1 else 0
+                daily_arrivals[kurs_id] = _add_delay(now_str, delay)
             processed += 1
 
         write_batch.update(ts_ref, {
             'dailyDemand':     daily_demand,
             'dailyTransfer':   daily_transfer,
             'currentTransfer': current_transfer,
+            'dailyArrivals':   daily_arrivals,
         })
 
     write_batch.commit()
@@ -425,3 +432,12 @@ def _deep_copy_demand(m):
 def _deep_copy_current(m):
     return {kk: {**v, 'onBoard': {ok: dict(ov) for ok, ov in v.get('onBoard', {}).items()}}
             for kk, v in m.items()}
+
+
+def _add_delay(time_str, minutes):
+    """Add minutes to 'HH:MM', wrapping past midnight."""
+    if not minutes:
+        return time_str
+    h, m = map(int, time_str.split(':'))
+    total = h * 60 + m + minutes
+    return f'{(total // 60) % 24:02d}:{total % 60:02d}'

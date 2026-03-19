@@ -4,23 +4,26 @@ import { storage, db } from '../../../firebase/config';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
 
-const ReputationBar = ({ label, value, max = 20, color = '#2ecc71', thick }) => (
-    <div style={{ marginBottom: thick ? '20px' : '15px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: thick ? '13px' : '11px', color: '#fff', fontWeight: '800', letterSpacing: '1px' }}>
-            <span>{label}</span>
-            <span>{value} <span style={{ opacity: 0.6 }}>/ {max}</span></span>
+const ReputationBar = ({ label, value, max = 20, color = '#2ecc71', barHeight, decimals = 1 }) => {
+    const clampedValue = Math.min(value, max);
+    const height = barHeight ?? Math.round((max / 20) * 10);
+    return (
+    <div style={{ marginBottom: '15px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '11px', color: '#fff', fontWeight: '800', letterSpacing: '1px' }}>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginRight: '8px' }}>{label}</span>
+            <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>{clampedValue.toFixed(decimals)} <span style={{ opacity: 0.6 }}>/ {max}</span></span>
         </div>
-        <div style={{ height: thick ? '16px' : '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
-            <div style={{ width: `${(value / max) * 100}%`, height: '100%', background: color, boxShadow: `0 0 15px ${color}55`, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }} />
+        <div style={{ height: `${height}px`, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ width: `${(clampedValue / max) * 100}%`, height: '100%', background: color, boxShadow: `0 0 15px ${color}55`, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }} />
         </div>
     </div>
-);
+    );
+};
 
 const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) => {
     const fileInputRef = useRef(null);
     const [uploading, setUploading] = useState(false);
 
-    const totalScore = Math.round(reputation * 100);
     const details = playerDoc?.reputationDetails || {};
 
     const handleFileChange = async (e) => {
@@ -50,12 +53,15 @@ const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) =
     };
 
     const subScores = [
-        { label: "PUNKTUALNOŚĆ", val: details.punctualityScore !== undefined ? Math.round(details.punctualityScore) : 10 },
-        { label: "STAŁOŚĆ TRAS", val: details.stabilityScore !== undefined ? Math.round(details.stabilityScore) : 10 },
-        { label: "NOWOCZESNOŚĆ TABORU", val: details.modernityScore !== undefined ? Math.round(details.modernityScore) : 10 },
-        { label: "KONKURENCYJNOŚĆ CEN", val: details.priceScore !== undefined ? Math.round(details.priceScore) : 10 },
-        { label: "% PRZEWIEZIONYCH VS POPYT", val: details.fillRateScore !== undefined ? Math.round(details.fillRateScore) : 10 }
+        { label: "PUNKTUALNOŚĆ",              val: details.punctualityScore ?? 10, max: 20 },
+        { label: "STAŁOŚĆ TRAS",              val: details.stabilityScore  ?? 5,  max: 10 },
+        { label: "NOWOCZESNOŚĆ TABORU",       val: details.modernityScore  ?? 5,  max: 10 },
+        { label: "KONKURENCYJNOŚĆ CEN",       val: details.priceScore      ?? 10, max: 20 },
+        { label: "% PRZEWIEZIONYCH VS POPYT", val: details.fillRateScore   ?? 10, max: 20 },
+        { label: "PRĘDKOŚĆ PRZEJAZDU",        val: details.speedScore      ?? 10, max: 20 },
     ];
+    const totalScore = subScores.reduce((sum, s) => sum + Math.min(s.val, s.max), 0);
+    const globalBarHeight = subScores.reduce((sum, s) => sum + Math.round((s.max / 20) * 10), 0);
 
     return (
         <>
@@ -118,10 +124,10 @@ const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) =
                 <section className={styles.card} style={{ background: 'rgba(10, 30, 10, 0.5)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', height: 'fit-content' }}>
                     <h3 style={{ fontSize: '16px', color: '#f1c40f', marginBottom: '20px' }}>Wskaźniki Reputacji (Trust-Score)</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        <ReputationBar label="WSKAŹNIK REPUTACJI (GLOBALNY)" value={totalScore} max={100} color="#f1c40f" thick />
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: '40px', rowGap: '15px', marginTop: '10px' }}>
+                        <ReputationBar label="WSKAŹNIK REPUTACJI (GLOBALNY)" value={totalScore} max={100} color="#2ecc71" barHeight={globalBarHeight} decimals={1} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
                             {subScores.map(s => (
-                                <ReputationBar key={s.label} label={s.label} value={s.val} max={20} color="#2ecc71" />
+                                <ReputationBar key={s.label} label={s.label} value={s.val} max={s.max} color="#f1c40f" />
                             ))}
                         </div>
                     </div>

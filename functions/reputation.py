@@ -11,7 +11,7 @@ def update_reputation_metrics(db):
     routes_col = db.collection('routes').stream()
     routes = [r.to_dict() for r in routes_col]
     sam_snap = db.collection('players').document('samorządowy').get()
-    sam_pricing = (sam_snap.to_dict() or {}).get('defaultPricing', DEFAULT_PRICING)
+    sam_data = sam_snap.to_dict() or {}
     
     cities_col = db.collection('cities').stream()
     cities_map = {c.id: c.to_dict() for c in cities_col}
@@ -28,7 +28,7 @@ def update_reputation_metrics(db):
         new_details = {}
         
         # --- A. PRICE REPUTATION (RAW) ---
-        raw_price = _calc_raw_price_score(db, pid, p_data, routes, sam_pricing)
+        raw_price = _calc_raw_price_score(db, pid, p_data, routes, sam_data)
         new_details['priceScore'] = _apply_ema(old_details.get('priceScore'), raw_price)
         
         # --- B. MODERNITY REPUTATION (RAW) ---
@@ -49,24 +49,29 @@ def update_reputation_metrics(db):
         # --- E. PUNCTUALITY PLACEHOLDER ---
         raw_punct = old_details.get('punctualityScore', 10.0)
         new_details['punctualityScore'] = _apply_ema(old_details.get('punctualityScore'), raw_punct)
-            
+
+        # --- F. SPEED REPUTATION (RAW) ---
+        raw_speed = _calc_raw_speed_score(db, pid, date_str, now_waw, sam_data.get('speedKmh', 80))
+        new_details['speedScore'] = _apply_ema(old_details.get('speedScore'), raw_speed)
+
         _finalize_player_reputation(p_doc.reference, new_details)
 
 def _apply_ema(old_val, raw_val):
-    if old_val is None: return round(float(raw_val), 3)
-    return round((float(old_val) * 0.99) + (float(raw_val) * 0.01), 3)
+    if old_val is None: return float(raw_val)
+    return (float(old_val) * 0.99) + (float(raw_val) * 0.01)
 
 def _finalize_player_reputation(ref, details):
     total_pts = sum([
         details.get('punctualityScore', 10.0),
-        details.get('stabilityScore', 10.0),
-        details.get('modernityScore', 10.0),
+        details.get('stabilityScore', 5.0),
+        details.get('modernityScore', 5.0),
         details.get('priceScore', 10.0),
-        details.get('fillRateScore', 10.0)
+        details.get('fillRateScore', 10.0),
+        details.get('speedScore', 10.0),
     ])
     ref.update({
         'reputationDetails': details,
-        'reputation': round(total_pts / 100, 4)
+        'reputation': total_pts / 100
     })
 
 def _calc_raw_stability_score(db, pid):
@@ -79,10 +84,10 @@ def _calc_raw_stability_score(db, pid):
     for _ in db.collection(f'players/{pid}/trainSet').stream():
         ts_count += 1
         
-    if ts_count == 0: return 20.0
+    if ts_count == 0: return 10.0
     ratio = sum_changes / ts_count
-    score = 20 * (1 - ratio)
-    return max(0.0, score)
+    score = 10 * (1 - ratio)
+    return max(0.0, min(10.0, score))
 
 def _clear_daily_actions(db, pid):
     actions_ref = db.collection(f'players/{pid}/dailyActions')
@@ -92,25 +97,43 @@ def _clear_daily_actions(db, pid):
         batch.delete(doc.reference)
     batch.commit()
 
-def _calc_raw_price_score(db, pid, p_data, routes, sam_pricing):
+def _calc_raw_price_score(db, pid, p_data, routes, sam_data):
     if not routes: return 10.0
     our_pricing = p_data.get('defaultPricing', DEFAULT_PRICING)
-    sum_r1 = sum_r2 = count = 0
-    m1 = our_pricing.get('multipliers', DEFAULT_PRICING['multipliers'])
-    m2 = sam_pricing.get('multipliers', DEFAULT_PRICING['multipliers'])
+    our_m = our_pricing.get('multipliers', DEFAULT_PRICING['multipliers'])
+    our_c2 = our_pricing.get('class2Per100km', DEFAULT_PRICING['class2Per100km'])
+    our_c1 = our_pricing.get('class1Per100km', DEFAULT_PRICING['class1Per100km'])
+
+    # samorządowy stores flat fields (priceClass2Per100km) with optional priceDropRate per 100km
+    sam_c2 = sam_data.get('priceClass2Per100km')
+    sam_c1 = sam_data.get('priceClass1Per100km')
+    drop = sam_data.get('priceDropRate', 0.0)
+    sam_m = [(1.0 - drop) ** i for i in range(20)]
+
+    if not sam_c2: return 10.0
+
+    sum_r2 = count2 = 0
+    sum_r1 = count1 = 0
     for r in routes:
         dist = r.get('distance')
         if not dist or dist <= 0: continue
-        o1 = _calc_ticket_price(dist, our_pricing.get('class1Per100km', 10), m1)
-        o2 = _calc_ticket_price(dist, our_pricing.get('class2Per100km', 6), m1)
-        s1 = _calc_ticket_price(dist, sam_pricing.get('class1Per100km', 10), m2)
-        s2 = _calc_ticket_price(dist, sam_pricing.get('class2Per100km', 6), m2)
-        if s1 > 0 and s2 > 0:
-            sum_r1 += (o1 / s1); sum_r2 += (o2 / s2); count += 1
-    if count == 0: return 10.0
-    x = ((sum_r2 / count) * 0.8) + ((sum_r1 / count) * 0.2)
-    score = -10 * math.log2(max(0.01, x)) + 10
-    return max(0, min(20, score))
+        o2 = _calc_ticket_price(dist, our_c2, our_m)
+        s2 = _calc_ticket_price(dist, sam_c2, sam_m)
+        if s2 > 0:
+            sum_r2 += o2 / s2
+            count2 += 1
+        if sam_c1:
+            o1 = _calc_ticket_price(dist, our_c1, our_m)
+            s1 = _calc_ticket_price(dist, sam_c1, sam_m)
+            if s1 > 0:
+                sum_r1 += o1 / s1
+                count1 += 1
+
+    if count2 == 0: return 10.0
+    score_c2 = max(0.0, min(20.0, -10 * math.log2(max(0.01, sum_r2 / count2)) + 10))
+    # jeśli samorządowy nie ma klasy 1, gracz dostaje automatycznie max za tę klasę
+    score_c1 = max(0.0, min(20.0, -10 * math.log2(max(0.01, sum_r1 / count1)) + 10)) if count1 > 0 else 20.0
+    return score_c2 * 0.8 + score_c1 * 0.2
 
 def _calc_raw_modernity_score(db, pid):
     active_ids = set()
@@ -133,7 +156,7 @@ def _calc_raw_modernity_score(db, pid):
         equiv_ages.append(actual_age / eff)
     if not equiv_ages: return 0.0
     avg_age = sum(equiv_ages) / len(equiv_ages)
-    return max(0, min(20, 20 - (avg_age * 0.5)))
+    return max(0, min(10, 10 - (avg_age * 0.25)))
 
 def _calc_raw_fill_rate_score(db, pid, date_str, now_waw):
     report_snap = db.collection(f'players/{pid}/Raporty').document(date_str).get()
@@ -150,7 +173,26 @@ def _calc_raw_fill_rate_score(db, pid, date_str, now_waw):
     if total_dm <= 0: return 0.0, 0.0
     perc = (total_tr / total_dm) * 100
     score = 20 - ((100 - perc) / 4.5)
-    return max(0, min(20, score)), round(perc, 1)
+    return max(0, min(20, score)), perc
+
+def _calc_raw_speed_score(db, pid, date_str, now_waw, sam_speed_kmh):
+    report_snap = db.collection(f'players/{pid}/Raporty').document(date_str).get()
+    if not report_snap.exists:
+        yst_str = (now_waw - timedelta(days=1)).strftime('%Y-%m-%d')
+        report_snap = db.collection(f'players/{pid}/Raporty').document(yst_str).get()
+    if not report_snap.exists: return 10.0
+    ts_agg = report_snap.to_dict().get('trainSets') or {}
+    speeds = []
+    for ts in ts_agg.values():
+        for kurs in ts.get('kursy', {}).values():
+            speed = kurs.get('commercialSpeedKmh')
+            if speed and speed > 0:
+                speeds.append(speed)
+    if not speeds: return 10.0
+    avg_speed = sum(speeds) / len(speeds)
+    x = sam_speed_kmh / avg_speed   # <1 means we're faster → better score
+    score = -10 * math.log2(max(0.01, x)) + 10
+    return max(0.0, min(20.0, score))
 
 def update_price_reputation(db): update_reputation_metrics(db)
 def update_modernity_reputation(db): update_reputation_metrics(db)

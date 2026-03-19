@@ -54,6 +54,22 @@ def _haversine_km(lat1, lon1, lat2, lon2):
 
 
 # ---------------------------------------------------------------------------
+# Time helpers
+# ---------------------------------------------------------------------------
+
+def _time_to_min(t):
+    """'HH:MM' → minutes from midnight."""
+    h, m = map(int, t.split(':'))
+    return h * 60 + m
+
+def _time_diff_min(t_from, t_to):
+    """t_to - t_from in minutes, handles midnight crossing (max 24h span)."""
+    d = _time_to_min(t_to) - _time_to_min(t_from)
+    if d < 0:
+        d += 24 * 60
+    return d
+
+# ---------------------------------------------------------------------------
 # Pricing
 # ---------------------------------------------------------------------------
 
@@ -161,10 +177,11 @@ def save_daily_report(db):
             ts      = ts_doc.to_dict() or {}
             pricing = ts.get('pricing') or default_pricing
 
-            daily_demand   = ts.get('dailyDemand') or {}
-            daily_transfer = ts.get('dailyTransfer') or {}
-            current_tf     = ts.get('currentTransfer') or {}
-            rozklad        = ts.get('rozklad') or []
+            daily_demand    = ts.get('dailyDemand') or {}
+            daily_transfer  = ts.get('dailyTransfer') or {}
+            current_tf      = ts.get('currentTransfer') or {}
+            daily_arrivals  = ts.get('dailyArrivals') or {}
+            rozklad         = ts.get('rozklad') or []
 
             # Build name lookup: kurs_id -> first-stop info
             by_kurs = {}
@@ -244,13 +261,24 @@ def save_daily_report(db):
                 revenue_c1 = round(revenue_c1)
                 revenue_c2 = round(revenue_c2)
 
-                # First-stop info for this kurs
+                # First/last stop info for this kurs
                 k_stops   = by_kurs.get(kurs_id, [])
                 odjazd    = k_stops[0].get('odjazd', '')   if k_stops else ''
                 from_c    = k_stops[0].get('miasto', '')   if k_stops else ''
                 to_c      = k_stops[-1].get('kierunek', k_stops[-1].get('miasto', '')) if k_stops else ''
                 from_name = cities_map.get(from_c, {}).get('name', from_c)
                 to_name   = cities_map.get(to_c,   {}).get('name', to_c)
+
+                # Scheduled arrival = last stop przyjazd (or odjazd for terminal)
+                last_stop = k_stops[-1] if k_stops else {}
+                scheduled_arrival = last_stop.get('przyjazd') or last_stop.get('odjazd') or None
+                actual_arrival    = daily_arrivals.get(kurs_id)
+
+                delay_min = None
+                if scheduled_arrival and actual_arrival:
+                    delay_min = _time_diff_min(scheduled_arrival, actual_arrival)
+                    if delay_min > 12 * 60:   # >12h difference = arrived early (negative delay)
+                        delay_min -= 24 * 60
 
                 # Per-kurs km
                 kurs_km = 0
@@ -266,6 +294,13 @@ def save_daily_report(db):
                 cost_per_km = ts.get('totalCostPerKm', 0) or 0
                 kurs_koszt = round(cost_per_km * kurs_km)
                 kurs_netto = revenue - kurs_koszt
+
+                # Commercial speed: km / actual travel time
+                commercial_speed = None
+                if actual_arrival and odjazd and kurs_km > 0:
+                    travel_min = _time_diff_min(odjazd, actual_arrival)
+                    if travel_min > 0:
+                        commercial_speed = kurs_km / (travel_min / 60)
 
                 kursy_report[kurs_id] = {
                     'odjazd': odjazd,
@@ -283,6 +318,10 @@ def save_daily_report(db):
                     'km':      kurs_km,
                     'koszt':   kurs_koszt,
                     'netto':   kurs_netto,
+                    'scheduledArrival':  scheduled_arrival,
+                    'actualArrival':     actual_arrival,
+                    'delayMin':          delay_min,
+                    'commercialSpeedKmh': commercial_speed,
                 }
 
                 day_tr_c1 += tr_c1; day_tr_c2 += tr_c2

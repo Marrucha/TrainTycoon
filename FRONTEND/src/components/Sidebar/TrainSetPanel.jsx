@@ -240,6 +240,23 @@ export default function TrainSetPanel() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className={styles.trainType}>{companyName || ts.type}</span>
             <span className={styles.cities}>{ts.name}</span>
+            {Object.values(ts.awarie || {}).some(a => a.isAwaria === 1) && (() => {
+              const delays = Object.values(ts.awarie).filter(a => a.isAwaria === 1).map(a => a.awariaTime)
+              const maxDelay = Math.max(...delays)
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <svg width={14} height={14} style={{ flexShrink: 0 }}>
+                    <circle cx={7} cy={7} r={6} fill="#e74c3c" stroke="#fff" strokeWidth={0.8}>
+                      <animate attributeName="opacity" values="1;0.4;1" dur="1.2s" repeatCount="indefinite" />
+                    </circle>
+                    <text x={7} y={10.5} textAnchor="middle" fontSize="7" fontWeight="bold" fill="#fff" style={{ userSelect: 'none' }}>!</text>
+                  </svg>
+                  <span style={{ background: '#e74c3c', color: '#fff', fontSize: 10, fontWeight: 'bold', padding: '1px 5px', borderRadius: 3 }}>
+                    +{maxDelay} min
+                  </span>
+                </div>
+              )
+            })()}
           </div>
           <span className={styles.meta}>
             {stops.length > 0 ? `${fromCity?.name || stops[0]} ↔ ${toCity?.name || stops[stops.length - 1]}` : 'brak trasy'}

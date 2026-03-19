@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import styles from '../RoutePanel.module.css'
 
+function addDelay(timeStr, minutes) {
+  if (!timeStr || timeStr === '—' || !minutes) return null
+  const [h, m] = timeStr.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return null
+  const total = h * 60 + m + minutes
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 export default function CourseSchedule({
   ts,
   coursesCount,
@@ -173,10 +181,17 @@ export default function CourseSchedule({
                     const time = stop.przyjazd && stop.odjazd && stop.przyjazd !== stop.odjazd
                       ? `${stop.przyjazd} / ${stop.odjazd}`
                       : stop.odjazd || stop.przyjazd || '—'
+                    const awaria = ts.awarie?.[s.kurs]
+                    const delayedArrival = isLast && awaria?.isAwaria === 1
+                      ? addDelay(stop.przyjazd || stop.odjazd, awaria.awariaTime)
+                      : null
                     return (
                       <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0', borderBottom: idx < byKurs[s.kurs].length - 1 ? '1px solid #1a2a1a' : 'none' }}>
                         <span style={{ color: '#f0c040', fontFamily: 'monospace', minWidth: 72, flexShrink: 0 }}>{time}</span>
-                        <span style={{ color: isFirst || isLast ? '#ffffff' : '#6a9a6a', fontWeight: isFirst || isLast ? 'bold' : 'normal' }}>{cityName}</span>
+                        <span style={{ color: isFirst || isLast ? '#ffffff' : '#6a9a6a', fontWeight: isFirst || isLast ? 'bold' : 'normal' }}>
+                          {cityName}
+                          {delayedArrival && <span style={{ color: '#e74c3c', marginLeft: 6 }}>({delayedArrival})</span>}
+                        </span>
                       </div>
                     )
                   })}

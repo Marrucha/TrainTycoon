@@ -1,6 +1,7 @@
 import datetime
 import json
 import math
+import random
 
 from firebase_functions import scheduler_fn, https_fn, firestore_fn, tasks_fn, options
 from firebase_admin import initialize_app, firestore, functions as admin_functions
@@ -28,7 +29,7 @@ def on_deposit_created(
 
     mature_at = datetime.datetime.fromisoformat(mature_at_str.replace('Z', '+00:00'))
 
-    queue = admin_functions.task_queue('process_deposit_task')
+    queue = admin_functions.task_queue('process-deposit-task')
     queue.enqueue(
         {'pid': pid, 'dep_id': dep_id},
         opts=admin_functions.TaskOptions(schedule_time=mature_at),
@@ -61,6 +62,38 @@ def process_deposit_task(req: tasks_fn.CallableRequest) -> None:
     batch.delete(dep_ref)
     batch.update(player_ref, {'finance.balance': balance + total_return})
     batch.commit()
+
+
+def _calc_daily_breakdowns(db) -> None:
+    """Once per day: roll awaria probability per kurs for every trainSet."""
+    for p_doc in db.collection('players').stream():
+        pid = p_doc.id
+        if pid == 'samorządowy':
+            continue
+
+        player_trains = {d.id: d.to_dict() for d in db.collection(f'players/{pid}/trains').stream()}
+        batch = db.batch()
+
+        for ts_doc in db.collection(f'players/{pid}/trainSet').stream():
+            ts_data = ts_doc.to_dict() or {}
+            train_ids = ts_data.get('trainIds') or []
+            conditions = [player_trains.get(tid, {}).get('condition', 1.0) for tid in train_ids]
+            condition = sum(conditions) / len(conditions) if conditions else 1.0
+
+            rozklad = ts_data.get('rozklad') or []
+            kurs_ids = {str(s.get('kurs')) for s in rozklad if s.get('kurs') is not None}
+
+            awarie = {}
+            for kurs_id in kurs_ids:
+                prob = (1 - condition) ** (1 / 5)
+                if random.random() < prob:
+                    awarie[kurs_id] = {'isAwaria': 1, 'awariaTime': random.randint(1, 59)}
+                else:
+                    awarie[kurs_id] = {'isAwaria': 0, 'awariaTime': 0}
+
+            batch.update(ts_doc.reference, {'awarie': awarie})
+
+        batch.commit()
 
 
 def _accrue_credit_line_interest(db) -> None:
@@ -96,6 +129,7 @@ def calc_daily_demand(event: scheduler_fn.ScheduledEvent) -> None:
     save_daily_report(db)
     calc_demand_for_train_sets(db)
     _accrue_credit_line_interest(db)
+    _calc_daily_breakdowns(db)
     update_reputation_metrics(db)
 
 
