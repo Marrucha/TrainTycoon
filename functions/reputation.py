@@ -1,6 +1,7 @@
 import math
 from datetime import datetime, timezone, timedelta
 from reports import _calc_ticket_price, DEFAULT_PRICING
+from staff import calc_raw_comfort
 
 def update_reputation_metrics(db):
     """Entry point to calculate and update all player reputation components using EMA."""
@@ -50,29 +51,39 @@ def update_reputation_metrics(db):
         raw_punct = old_details.get('punctualityScore', 10.0)
         new_details['punctualityScore'] = _apply_ema(old_details.get('punctualityScore'), raw_punct)
 
-        # --- F. SPEED REPUTATION (RAW) ---
+        # --- F. SPEED REPUTATION (RAW, max 10) ---
         raw_speed = _calc_raw_speed_score(db, pid, date_str, now_waw, sam_data.get('speedKmh', 80))
         new_details['speedScore'] = _apply_ema(old_details.get('speedScore'), raw_speed)
 
-        _finalize_player_reputation(p_doc.reference, new_details)
+        # --- G. COMFORT REPUTATION (RAW, max 10) ---
+        raw_comfort = _calc_raw_comfort_score(db, pid, date_str, now_waw)
+        new_details['comfortScore'] = _apply_ema(old_details.get('comfortScore'), raw_comfort)
+
+        _finalize_player_reputation(p_doc.reference, new_details, old_details)
 
 def _apply_ema(old_val, raw_val):
     if old_val is None: return float(raw_val)
     return (float(old_val) * 0.99) + (float(raw_val) * 0.01)
 
-def _finalize_player_reputation(ref, details):
+def _finalize_player_reputation(ref, details, prev_details=None):
+    # Max scores: punctuality(20) + stability(10) + modernity(10) +
+    #             price(20) + fillRate(20) + speed(10) + comfort(10) = 100
     total_pts = sum([
         details.get('punctualityScore', 10.0),
         details.get('stabilityScore', 5.0),
         details.get('modernityScore', 5.0),
         details.get('priceScore', 10.0),
         details.get('fillRateScore', 10.0),
-        details.get('speedScore', 10.0),
+        details.get('speedScore', 5.0),
+        details.get('comfortScore', 5.0),
     ])
-    ref.update({
+    update_data = {
         'reputationDetails': details,
-        'reputation': total_pts / 100
-    })
+        'reputation': total_pts / 100,
+    }
+    if prev_details is not None:
+        update_data['reputationDetailsPrev'] = prev_details
+    ref.update(update_data)
 
 def _calc_raw_stability_score(db, pid):
     actions_ref = db.collection(f'players/{pid}/dailyActions')
@@ -188,11 +199,40 @@ def _calc_raw_speed_score(db, pid, date_str, now_waw, sam_speed_kmh):
             speed = kurs.get('commercialSpeedKmh')
             if speed and speed > 0:
                 speeds.append(speed)
-    if not speeds: return 10.0
+    if not speeds: return 5.0
     avg_speed = sum(speeds) / len(speeds)
     x = sam_speed_kmh / avg_speed   # <1 means we're faster → better score
-    score = -10 * math.log2(max(0.01, x)) + 10
-    return max(0.0, min(20.0, score))
+    score = -5 * math.log2(max(0.01, x)) + 5
+    return max(0.0, min(10.0, score))
+
+def _calc_raw_comfort_score(db, pid, date_str, now_waw):
+    """Comfort score (0–10) based on average inspection index from today's report.
+
+    idx=0  → 10 pts (no inspections)
+    idx=1  →  5 pts (neutral)
+    idx≥2  →  0 pts (over-inspected)
+    """
+    report_snap = db.collection(f'players/{pid}/Raporty').document(date_str).get()
+    if not report_snap.exists:
+        yst_str = (now_waw - timedelta(days=1)).strftime('%Y-%m-%d')
+        report_snap = db.collection(f'players/{pid}/Raporty').document(yst_str).get()
+    if not report_snap.exists:
+        return 5.0  # neutral default
+
+    ts_agg = report_snap.to_dict().get('trainSets') or {}
+    indices = []
+    for ts_info in ts_agg.values():
+        for kurs in ts_info.get('kursy', {}).values():
+            idx = kurs.get('inspectionIndex')
+            if idx is not None:
+                indices.append(float(idx))
+
+    if not indices:
+        return 5.0
+
+    avg_idx = sum(indices) / len(indices)
+    return calc_raw_comfort(avg_idx)
+
 
 def update_price_reputation(db): update_reputation_metrics(db)
 def update_modernity_reputation(db): update_reputation_metrics(db)

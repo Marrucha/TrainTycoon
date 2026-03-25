@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, doc } from 'firebase/firestore'
+import { collection, onSnapshot, doc, query, orderBy, limit } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 
 export function useFirestoreData() {
@@ -13,6 +13,8 @@ export function useFirestoreData() {
   const [pictures, setPictures] = useState({})
   const [deposits, setDeposits] = useState([])
   const [depositRates, setDepositRates] = useState({})
+  const [employees, setEmployees] = useState([])
+  const [financeLedger, setFinanceLedger] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -65,6 +67,22 @@ export function useFirestoreData() {
       setDepositRates(snap.exists() ? snap.data() : {})
     })
 
+    // Pracownicy (kadry)
+    const unsubEmployees = onSnapshot(
+      collection(db, 'players/player1/kadry'),
+      (snap) => setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    )
+
+    // Księga finansowa – ostatnie 30 wpisów
+    const ledgerQuery = query(
+      collection(db, 'players/player1/financeLedger'),
+      orderBy('date', 'desc'),
+      limit(30)
+    )
+    const unsubLedger = onSnapshot(ledgerQuery, (snap) => {
+      setFinanceLedger(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+
     return () => {
       unsubCities()
       unsubBaseTrains()
@@ -76,8 +94,10 @@ export function useFirestoreData() {
       unsubPictures()
       unsubDeposits()
       unsubDepositRates()
+      unsubEmployees()
+      unsubLedger()
     }
   }, [])
 
-  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, loading }
+  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, loading }
 }

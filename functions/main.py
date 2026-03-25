@@ -10,6 +10,7 @@ from demand_calc import calc_demand_for_train_sets
 from boarding_sim import run_boarding_tick, rebuild_schedule_table, rebuild_schedule_for_trainset
 from reports import save_daily_report, _calc_ticket_price, DEFAULT_PRICING
 from reputation import update_reputation_metrics
+from staff import run_daily_staff, run_monthly_staff, _generate_agency_lists
 
 initialize_app()
 
@@ -29,7 +30,7 @@ def on_deposit_created(
 
     mature_at = datetime.datetime.fromisoformat(mature_at_str.replace('Z', '+00:00'))
 
-    queue = admin_functions.task_queue('process-deposit-task')
+    queue = admin_functions.task_queue('processDepositTask')
     queue.enqueue(
         {'pid': pid, 'dep_id': dep_id},
         opts=admin_functions.TaskOptions(schedule_time=mature_at),
@@ -40,7 +41,7 @@ def on_deposit_created(
     retry_config=options.RetryConfig(max_attempts=3, min_backoff_seconds=30),
     rate_limits=options.RateLimits(max_concurrent_dispatches=50),
 )
-def process_deposit_task(req: tasks_fn.CallableRequest) -> None:
+def processDepositTask(req: tasks_fn.CallableRequest) -> None:
     """Cloud Task handler: materialize a single deposit at maturity."""
     pid = req.data.get('pid')
     dep_id = req.data.get('dep_id')
@@ -130,6 +131,8 @@ def calc_daily_demand(event: scheduler_fn.ScheduledEvent) -> None:
     calc_demand_for_train_sets(db)
     _accrue_credit_line_interest(db)
     _calc_daily_breakdowns(db)
+    run_daily_staff(db)
+    run_monthly_staff(db)
     update_reputation_metrics(db)
 
 
@@ -150,6 +153,18 @@ def on_trainset_written(
     ts_data = event.data.after.to_dict() if event.data.after else None
     db = firestore.client()
     rebuild_schedule_for_trainset(db, pid, ts_id, ts_data)
+
+
+@https_fn.on_request()
+def generate_agency_lists_manual(req: https_fn.Request) -> https_fn.Response:
+    """Tymczasowy endpoint – generuje listy kandydatów agencji dla wszystkich graczy."""
+    db = firestore.client()
+    _generate_agency_lists(db)
+    return https_fn.Response(
+        'Agency lists generated.\n',
+        status=200,
+        headers={'Access-Control-Allow-Origin': '*'},
+    )
 
 
 @https_fn.on_request()

@@ -8,6 +8,7 @@ import { useSelectionState } from './hooks/useSelectionState'
 import { useTrainActions } from './hooks/useTrainActions'
 import { useFinanceActions } from './hooks/useFinanceActions'
 import { useScheduleActions } from './hooks/useScheduleActions'
+import { useHRActions } from './hooks/useHRActions'
 
 const GameContext = createContext(null)
 
@@ -19,7 +20,7 @@ export const DEFAULT_PRICE_CONFIG = {
 
 export function GameProvider({ children }) {
   const firestoreData = useFirestoreData()
-  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, loading } = firestoreData
+  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, loading } = firestoreData
 
   const selection = useSelectionState()
   const { selectedCity, selectedRoute, selectedTrainSet, selectCity, selectRoute, selectTrainSet } = selection
@@ -121,6 +122,7 @@ export function GameProvider({ children }) {
   const trainActions = useTrainActions({ baseTrains, budget })
   const financeActions = useFinanceActions({ budget, playerDoc })
   const scheduleActions = useScheduleActions({ cities, trainsSets, setSelectedRoute: selection.setSelectedRoute })
+  const hrActions = useHRActions({ budget, trainsSets })
 
   function getTrainById(id) {
     return trains.find(t => t.id === id) || null
@@ -178,6 +180,7 @@ export function GameProvider({ children }) {
       budget, trains, trainsSets, routes, cities, loading, gameTime,
       baseTrains, gameSettings, pictures, playerDoc,
       deposits, depositRates,
+      employees, financeLedger,
       // Pochodne
       dailyRevenue, activeTrainsCount, defaultPricing, trainSetsByCity,
       companyName, reputation,
@@ -190,6 +193,8 @@ export function GameProvider({ children }) {
       ...financeActions,
       // Akcje rozkładów
       ...scheduleActions,
+      // Akcje kadr
+      ...hrActions,
       // Helpery
       getTrainById, getCityById, getDemandForRoute,
       getTicketPrice, updateDefaultPricing, getDeparturesForCity,

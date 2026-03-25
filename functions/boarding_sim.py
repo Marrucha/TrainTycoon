@@ -31,10 +31,57 @@ rozkłady document schema
     forward_ids: list[str]
 """
 
+import math
 from datetime import datetime
 import zoneinfo
 
 from utils import _find_city
+from staff import calc_wars_revenue, calc_fine_revenue, calc_inspection_index
+
+# Defaults for gameConfig fields (overridden by Firestore gameSettings/config)
+_DEFAULT_FINE_MULTIPLIER   = 20
+_DEFAULT_PENALTY_MIN       = 15
+_DEFAULT_COND_CAP_PER_HOUR = 100
+_DEFAULT_CLASS2_PER_100KM  = 6
+
+
+# ---------------------------------------------------------------------------
+# Geometry / pricing helpers
+# ---------------------------------------------------------------------------
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def _time_diff_minutes(t1, t2):
+    """Minutes from t1 to t2 (HH:MM), handling overnight wrap."""
+    if not t1 or not t2 or t1 == '—' or t2 == '—':
+        return 0
+    h1, m1 = map(int, t1.split(':'))
+    h2, m2 = map(int, t2.split(':'))
+    diff = (h2 * 60 + m2) - (h1 * 60 + m1)
+    return diff if diff >= 0 else diff + 24 * 60
+
+
+def _calc_min_segment_price(stops, cities, per_100km=_DEFAULT_CLASS2_PER_100KM):
+    """Minimum class-2 ticket price over all consecutive stop pairs."""
+    min_price = None
+    for i in range(len(stops) - 1):
+        c1 = cities.get(stops[i]['city_id'], {})
+        c2 = cities.get(stops[i + 1]['city_id'], {})
+        lat1, lon1 = c1.get('lat'), c1.get('lon')
+        lat2, lon2 = c2.get('lat'), c2.get('lon')
+        if lat1 is None or lat2 is None:
+            continue
+        dist = _haversine_km(lat1, lon1, lat2, lon2)
+        price = max(1, round(dist * per_100km / 100))
+        min_price = price if min_price is None else min(min_price, price)
+    return min_price or 1
 
 
 # ---------------------------------------------------------------------------
@@ -116,14 +163,20 @@ def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
                 'forward_ids': resolved[i + 1:],
             })
 
+        # Kurs duration from first departure to last arrival
+        first_dep = stops[0].get('odjazd') if stops else None
+        last_arr  = stops[-1].get('przyjazd') if stops else None
+        kurs_duration_min = _time_diff_minutes(first_dep, last_arr) if first_dep and last_arr else 0
+
         doc_id = f'{pid}__{ts_id}__{kurs_id}'
         batch.set(sched_ref.document(doc_id), {
-            'player_id':       pid,
-            'ts_id':           ts_id,
-            'kurs_id':         kurs_id,
-            'departure_times': departure_times,
-            'arrival_times':   arrival_times,
-            'stops':           stops,
+            'player_id':         pid,
+            'ts_id':             ts_id,
+            'kurs_id':           kurs_id,
+            'departure_times':   departure_times,
+            'arrival_times':     arrival_times,
+            'stops':             stops,
+            'kurs_duration_min': kurs_duration_min,
         })
         written += 1
 
@@ -173,6 +226,19 @@ def run_boarding_tick(db, now_str=None):
 
     sched_ref   = db.collection('rozkłady')
     base_trains = {d.id: d.to_dict() for d in db.collection('trains').stream()}
+
+    # Load cities once for min_segment_price calculation
+    cities = {d.id: d.to_dict() for d in db.collection('cities').stream()}
+
+    # Load gameConfig for fine/inspection parameters
+    config_snap = db.collection('gameSettings').document('config').get()
+    game_config = config_snap.to_dict() or {} if config_snap.exists else {}
+    fine_multiplier   = int(game_config.get('fineMultiplier',   _DEFAULT_FINE_MULTIPLIER))
+    penalty_min       = int(game_config.get('finePenaltyMinutes', _DEFAULT_PENALTY_MIN))
+    cond_cap_per_hour = int(game_config.get('conductorPassengersPerHour', _DEFAULT_COND_CAP_PER_HOUR))
+
+    # Cache employees per player (loaded on first encounter)
+    emp_cache = {}   # pid → {emp_id: emp_dict}
 
     # ------------------------------------------------------------------
     # 1. Query kurs docs that have a departure or arrival at now_str
@@ -227,7 +293,14 @@ def run_boarding_tick(db, now_str=None):
         if not ts_snap.exists:
             continue
 
-        ts          = ts_snap.to_dict()
+        ts    = ts_snap.to_dict()
+        crew  = ts.get('crew') or {}
+
+        # Require maszynista + kierownik to operate
+        if not crew.get('maszynista') or not crew.get('kierownik'):
+            print(f'Boarding tick {now_str}: skipping {pid}/{ts_id} – missing required crew.')
+            continue
+
         seat_caps   = _calc_total_seats(ts, player_trains, base_trains)
 
         daily_demand     = _deep_copy_demand(ts.get('dailyDemand') or {})
@@ -235,6 +308,24 @@ def run_boarding_tick(db, now_str=None):
         current_transfer = _deep_copy_current(ts.get('currentTransfer') or {})
         daily_arrivals   = dict(ts.get('dailyArrivals') or {})
         awarie           = ts.get('awarie') or {}
+        gapowicze_rate   = float(ts.get('gapowiczeRate', 0.0))
+
+        # Load employees for this player (cached)
+        if pid not in emp_cache:
+            emp_cache[pid] = {d.id: d.to_dict() for d in db.collection(f'players/{pid}/kadry').stream()}
+        emp_map = emp_cache[pid]
+
+        # Resolve barman experience list
+        barman_id    = crew.get('barman')
+        barmans_exp  = []
+        if barman_id:
+            b_emp = emp_map.get(barman_id, {})
+            if not b_emp.get('isIntern'):
+                barmans_exp.append(float(b_emp.get('experience', 0.0)))
+
+        # Conductor count
+        cond_ids = crew.get('konduktorzy') or []
+        n_cond   = len(cond_ids)
 
         # Sort by stop_index so multi-stop same-minute cases are ordered
         events.sort(key=lambda x: x[1].get('stop_index', 0))
@@ -252,10 +343,45 @@ def run_boarding_tick(db, now_str=None):
                 seat_caps, daily_demand, daily_transfer, current_transfer,
                 now_str, next_city_id=next_city,
             )
+
             if is_last:
                 awaria = awarie.get(kurs_id, {})
                 delay = awaria.get('awariaTime', 0) if awaria.get('isAwaria') == 1 else 0
                 daily_arrivals[kurs_id] = _add_delay(now_str, delay)
+
+                # --- Per-kurs revenue calculations ---
+                kurs_stops       = kurs_data.get('stops') or []
+                kurs_duration    = int(kurs_data.get('kurs_duration_min') or 0)
+                kurs_hours       = kurs_duration / 60.0 if kurs_duration > 0 else 0.0
+                total_passengers = (daily_transfer.get(kurs_id) or {}).get('total', 0)
+
+                # Wars (restaurant car) revenue
+                wars_rev = round(calc_wars_revenue(total_passengers, barmans_exp, base_rate=20))
+
+                # Fine revenue
+                min_seg_price = _calc_min_segment_price(kurs_stops, cities)
+                fine_rev = round(calc_fine_revenue(
+                    passengers=total_passengers,
+                    rate=gapowicze_rate,
+                    n_cond=n_cond,
+                    duration_min=kurs_duration,
+                    penalty_min=penalty_min,
+                    fine_multiplier=fine_multiplier,
+                    min_segment_price=min_seg_price,
+                ))
+
+                # Inspection index
+                inspection_idx = round(
+                    calc_inspection_index(n_cond, total_passengers, kurs_hours, cond_cap_per_hour),
+                    4,
+                ) if kurs_hours > 0 else 0.0
+
+                # Attach to daily_transfer entry
+                kt = daily_transfer.setdefault(kurs_id, {'od': {}, 'total': 0, 'class1': 0, 'class2': 0})
+                kt['warsRevenue']    = wars_rev
+                kt['fineRevenue']    = fine_rev
+                kt['inspectionIndex'] = inspection_idx
+
             processed += 1
 
         write_batch.update(ts_ref, {

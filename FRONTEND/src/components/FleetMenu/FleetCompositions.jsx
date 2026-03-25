@@ -5,17 +5,51 @@ import PricingPanel from './PricingPanel'
 import RoutePlanner from './RoutePlanner'
 import SchedulePlanner from './SchedulePlanner'
 import TrainTimeline from './TrainTimeline'
+import CrewSection from '../Sidebar/trainset/CrewSection'
 import styles from './FleetCompositions.module.css'
 
 export default function FleetCompositions() {
     // Pobieramy całą flotę (trains), wygenerowane składy (trainsSets) i opublikowane trasy (routes)
-    const { trainsSets, trains, routes, cities, defaultPricing, updateTicketPrice, updateDefaultPricing, updateCitySchedules } = useGame()
+    const { trainsSets, trains, routes, cities, defaultPricing, updateTicketPrice, updateDefaultPricing, updateCitySchedules, employees } = useGame()
     const [isComposing, setIsComposing] = useState(false)
     const [editingTrainSet, setEditingTrainSet] = useState(null)
     const [pricingOpenFor, setPricingOpenFor] = useState(null) // id składu z otwartym cennikiem
     const [routingOpenFor, setRoutingOpenFor] = useState(null) // skład dla RoutePlanner
     const [schedulingOpenFor, setSchedulingOpenFor] = useState(null) // skład dla SchedulePlanner
+    const [crewOpenFor, setCrewOpenFor] = useState(null) // id składu z otwartą obsadą
     const [collapsedCards, setCollapsedCards] = useState({}) // id → bool
+
+    // Skrócona nazwa pracownika: "J. Kowalski"
+    const empShortName = (id) => {
+        if (!id) return '—'
+        const e = employees?.find(emp => emp.id === id)
+        if (!e) return '?'
+        const parts = (e.name || '').split(' ')
+        return parts.length >= 2 ? `${parts[0][0]}. ${parts[1]}` : e.name
+    }
+
+    // Pełny tooltip pracownika
+    const empTooltip = (id) => {
+        if (!id) return ''
+        const e = employees?.find(emp => emp.id === id)
+        if (!e) return ''
+        const lines = [e.name]
+        if (e.dateOfBirth) {
+            const b = new Date(e.dateOfBirth), now = new Date()
+            let age = now.getFullYear() - b.getFullYear()
+            const mo = now.getMonth() - b.getMonth()
+            if (mo < 0 || (mo === 0 && now.getDate() < b.getDate())) age--
+            lines.push(`Wiek: ${age} l.`)
+        }
+        if (e.hiredAt) {
+            const months = Math.floor((Date.now() - new Date(e.hiredAt).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+            const y = Math.floor(months / 12), r = months % 12
+            lines.push(`Staż: ${months < 12 ? `${months} mies.` : r > 0 ? `${y} l. ${r} mies.` : `${y} l.`}`)
+        }
+        const salary = e.isIntern ? 4300 : (e.monthlySalary ?? 0)
+        if (salary) lines.push(`Pensja: ${salary.toLocaleString('pl-PL')} PLN/mies.`)
+        return lines.join('\n')
+    }
 
     const toggleCollapse = (id) => setCollapsedCards(prev => ({ ...prev, [id]: !prev[id] }))
     const allCollapsed = trainsSets?.length > 0 && trainsSets.every(ts => collapsedCards[ts.id])
@@ -197,13 +231,39 @@ export default function FleetCompositions() {
                                         <TrainTimeline rozklad={trainSet.rozklad} />
                                     )}
 
-                                    {!isCollapsed && (
+                                    {!isCollapsed && (() => {
+                                        const crew = trainSet.crew || {}
+                                        const nCond = (crew.konduktorzy || []).length
+                                        const crewMissing = !crew.maszynista || !crew.kierownik
+                                        return (
                                         <div className={styles.cardFooter}>
-                                            <div className={styles.statsRow}>
-                                                <span>Miejsca:<strong>{trainSet.totalSeats}</strong></span>
-                                                <span>Koszt:<strong>{Number(trainSet.totalCostPerKm).toFixed(2)} PLN/km</strong></span>
-                                                <span>Max V:<strong>{trainSet.maxSpeed} km/h</strong></span>
+                                            {/* Linia obsady */}
+                                            <div className={styles.crewRow}>
+                                                <span className={styles.crewLabel}>Obsada:</span>
+                                                {[
+                                                    { label: 'Maszynista',         id: crew.maszynista,         required: true  },
+                                                    { label: 'Kierownik',          id: crew.kierownik,          required: true  },
+                                                    { label: 'Pomocnik masz.',     id: crew.pomocnikMaszynisty, required: false },
+                                                    { label: 'Barman',             id: crew.barman,             required: false },
+                                                ].map(({ label, id, required }) => (
+                                                    <span key={label} className={styles.crewItem} title={id ? empTooltip(id) : ''}>
+                                                        {label}
+                                                        <span className={id ? styles.crewBadgeOk : required ? styles.crewBadgeMissing : styles.crewBadgeOpt}>
+                                                            {id ? '✔' : '✘'}
+                                                        </span>
+                                                    </span>
+                                                ))}
+                                                <span className={styles.crewItem}>
+                                                    Konduktorzy <span className={nCond > 0 ? styles.crewBadgeOk : styles.crewBadgeOpt}>{nCond > 0 ? nCond : '✘'}</span>
+                                                </span>
                                             </div>
+                                            {/* Linia statystyk */}
+                                            <div className={styles.statsRow}>
+                                                <span>Miejsca: <strong>{trainSet.totalSeats}</strong></span>
+                                                <span>Koszt: <strong>{Number(trainSet.totalCostPerKm).toFixed(2)} PLN/km</strong></span>
+                                                <span>Max V: <strong>{trainSet.maxSpeed} km/h</strong></span>
+                                            </div>
+                                            {/* Przyciski akcji */}
                                             <div className={styles.footerActions}>
                                                 <button
                                                     className={styles.pricingBtn}
@@ -229,6 +289,12 @@ export default function FleetCompositions() {
                                                         Godziny Jazdy
                                                     </button>
                                                 )}
+                                                <button
+                                                    className={`${styles.pricingBtn} ${crewOpenFor === trainSet.id ? styles.crewBtnActive : styles.crewBtn}`}
+                                                    onClick={() => setCrewOpenFor(crewOpenFor === trainSet.id ? null : trainSet.id)}
+                                                >
+                                                    {crewOpenFor === trainSet.id ? '▲ Kadry' : '▼ Kadry'}
+                                                </button>
                                                 {trainSet.rozklad && trainSet.rozklad.length > 0 && (
                                                     isPublished ? (
                                                         <button
@@ -263,6 +329,13 @@ export default function FleetCompositions() {
                                                 )}
                                                 <button className={styles.compActionBtn}>Rozwiąż</button>
                                             </div>
+                                        </div>
+                                        )
+                                    })()}
+
+                                    {!isCollapsed && crewOpenFor === trainSet.id && (
+                                        <div className={styles.crewPanel}>
+                                            <CrewSection ts={trainSet} />
                                         </div>
                                     )}
 

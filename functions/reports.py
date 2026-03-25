@@ -39,6 +39,8 @@ Document structure in Raporty:
 import math
 from datetime import datetime, timezone, timedelta
 
+from staff import _write_daily_ledger
+
 
 # ---------------------------------------------------------------------------
 # Geometry
@@ -212,11 +214,16 @@ def save_daily_report(db):
             day_tr_c1 = day_tr_c2 = 0
             day_dm_c1 = day_dm_c2 = 0
             day_rev = day_rev_c1 = day_rev_c2 = 0
+            day_wars = day_fines = 0
 
             for kurs_id in all_kurs_ids:
                 kd = daily_demand.get(kurs_id, {})
                 kt = daily_transfer.get(kurs_id, {})
                 kc = current_tf.get(kurs_id, {})
+
+                kurs_wars  = int(kt.get('warsRevenue',    0))
+                kurs_fines = int(kt.get('fineRevenue',    0))
+                kurs_insp  = float(kt.get('inspectionIndex', 0.0))
 
                 od_demand   = kd.get('od', {})
                 od_transfer = kt.get('od', {})
@@ -315,6 +322,9 @@ def save_daily_report(db):
                     'przychod':   revenue,
                     'przychodC1': revenue_c1,
                     'przychodC2': revenue_c2,
+                    'warsRevenue':     kurs_wars,
+                    'fineRevenue':     kurs_fines,
+                    'inspectionIndex': round(kurs_insp, 4),
                     'km':      kurs_km,
                     'koszt':   kurs_koszt,
                     'netto':   kurs_netto,
@@ -329,6 +339,8 @@ def save_daily_report(db):
                 day_rev += revenue
                 day_rev_c1 += revenue_c1
                 day_rev_c2 += revenue_c2
+                day_wars  += kurs_wars
+                day_fines += kurs_fines
 
             day_orig_c1 = day_tr_c1 + day_dm_c1
             day_orig_c2 = day_tr_c2 + day_dm_c2
@@ -354,6 +366,8 @@ def save_daily_report(db):
                     'przychod':    round(day_rev),
                     'przychodC1':  round(day_rev_c1),
                     'przychodC2':  round(day_rev_c2),
+                    'warsRevenue': day_wars,
+                    'fineRevenue': day_fines,
                     'km':          daily_km,
                     'koszt':       daily_cost,
                     'netto':       netto,
@@ -370,6 +384,34 @@ def save_daily_report(db):
                 'trainSets': ts_agg,
             })
             written += 1
+
+            # --- Financial ledger entry ---
+            player_courses_rev = sum(
+                ts_info['daily']['przychod'] for ts_info in ts_agg.values()
+            )
+            player_wars_rev = sum(
+                ts_info['daily'].get('warsRevenue', 0) for ts_info in ts_agg.values()
+            )
+            player_fines_rev = sum(
+                ts_info['daily'].get('fineRevenue', 0) for ts_info in ts_agg.values()
+            )
+            player_operational = sum(
+                ts_info['daily']['koszt'] for ts_info in ts_agg.values()
+            )
+
+            _write_daily_ledger(
+                db, pid, date_str,
+                revenues={
+                    'courses': player_courses_rev,
+                    'wars':    player_wars_rev,
+                    'fines':   player_fines_rev,
+                },
+                costs={
+                    'operational':    player_operational,
+                    'trackFees':      0,
+                    'creditInterest': 0,
+                },
+            )
 
     batch.commit()
     print(f'Daily report saved: {date_str} — {written} player(s).')

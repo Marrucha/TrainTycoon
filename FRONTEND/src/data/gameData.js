@@ -5,6 +5,7 @@ export const TRAINS = [
   { id: 't2', name: 'IC 1002', type: 'InterCity', speed: 160, seats: 300, costPerKm: 12 },
   { id: 't3', name: 'TLK 4001', type: 'TLK', speed: 120, seats: 420, costPerKm: 8 },
   { id: 't4', name: 'EIC 301', type: 'EIC', speed: 200, seats: 250, costPerKm: 18 },
+  { id: 't5', name: 'Wars WR-111', type: 'wars', speed: 160, seats: 0, costPerKm: 3 },
 ]
 
 // travelTime w minutach

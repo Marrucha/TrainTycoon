@@ -4,14 +4,25 @@ import { storage, db } from '../../../firebase/config';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
 
-const ReputationBar = ({ label, value, max = 20, color = '#2ecc71', barHeight, decimals = 1 }) => {
+const TrendIcon = ({ current, prev }) => {
+    if (prev === null || prev === undefined) return null;
+    const diff = current - prev;
+    if (diff > 0.005)  return <span style={{ color: '#2ecc71', fontSize: '13px', marginLeft: '5px', lineHeight: 1 }}>↑</span>;
+    if (diff < -0.005) return <span style={{ color: '#e74c3c', fontSize: '13px', marginLeft: '5px', lineHeight: 1 }}>↓</span>;
+    return <span style={{ color: '#f1c40f', fontSize: '13px', marginLeft: '5px', lineHeight: 1, fontWeight: 'bold' }}>–</span>;
+};
+
+const ReputationBar = ({ label, value, max = 20, color = '#2ecc71', barHeight, decimals = 1, prevValue }) => {
     const clampedValue = Math.min(value, max);
     const height = barHeight ?? Math.round((max / 20) * 10);
     return (
     <div style={{ marginBottom: '15px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '11px', color: '#fff', fontWeight: '800', letterSpacing: '1px' }}>
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginRight: '8px' }}>{label}</span>
-            <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>{clampedValue.toFixed(decimals)} <span style={{ opacity: 0.6 }}>/ {max}</span></span>
+            <span style={{ whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                {clampedValue.toFixed(decimals)} <span style={{ opacity: 0.6, marginLeft: 2 }}>/ {max}</span>
+                <TrendIcon current={value} prev={prevValue} />
+            </span>
         </div>
         <div style={{ height: `${height}px`, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
             <div style={{ width: `${(clampedValue / max) * 100}%`, height: '100%', background: color, boxShadow: `0 0 15px ${color}55`, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }} />
@@ -24,7 +35,8 @@ const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) =
     const fileInputRef = useRef(null);
     const [uploading, setUploading] = useState(false);
 
-    const details = playerDoc?.reputationDetails || {};
+    const details     = playerDoc?.reputationDetails     || {};
+    const prevDetails = playerDoc?.reputationDetailsPrev || null;
 
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
@@ -53,14 +65,19 @@ const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) =
     };
 
     const subScores = [
-        { label: "PUNKTUALNOŚĆ",              val: details.punctualityScore ?? 10, max: 20 },
-        { label: "STAŁOŚĆ TRAS",              val: details.stabilityScore  ?? 5,  max: 10 },
-        { label: "NOWOCZESNOŚĆ TABORU",       val: details.modernityScore  ?? 5,  max: 10 },
-        { label: "KONKURENCYJNOŚĆ CEN",       val: details.priceScore      ?? 10, max: 20 },
-        { label: "% PRZEWIEZIONYCH VS POPYT", val: details.fillRateScore   ?? 10, max: 20 },
-        { label: "PRĘDKOŚĆ PRZEJAZDU",        val: details.speedScore      ?? 10, max: 20 },
+        { label: "PUNKTUALNOŚĆ",              val: details.punctualityScore ?? 10, max: 20, prevKey: 'punctualityScore' },
+        { label: "STAŁOŚĆ TRAS",              val: details.stabilityScore  ?? 5,  max: 10, prevKey: 'stabilityScore'   },
+        { label: "NOWOCZESNOŚĆ TABORU",       val: details.modernityScore  ?? 5,  max: 10, prevKey: 'modernityScore'   },
+        { label: "KONKURENCYJNOŚĆ CEN",       val: details.priceScore      ?? 10, max: 20, prevKey: 'priceScore'       },
+        { label: "% PRZEWIEZIONYCH VS POPYT", val: details.fillRateScore   ?? 10, max: 20, prevKey: 'fillRateScore'    },
+        { label: "PRĘDKOŚĆ PRZEJAZDU",        val: details.speedScore      ?? 5,  max: 10, prevKey: 'speedScore'       },
+        { label: "KOMFORT PRZEJAZDU",         val: details.comfortScore    ?? 5,  max: 10, prevKey: 'comfortScore'     },
     ];
-    const totalScore = subScores.reduce((sum, s) => sum + Math.min(s.val, s.max), 0);
+    const totalScore    = subScores.reduce((sum, s) => sum + Math.min(s.val, s.max), 0);
+    const prevTotalScore = prevDetails
+        ? subScores.reduce((sum, s) => sum + Math.min(prevDetails[s.prevKey] ?? s.val, s.max), 0)
+        : null;
+    const globalMax       = subScores.reduce((sum, s) => sum + s.max, 0);
     const globalBarHeight = subScores.reduce((sum, s) => sum + Math.round((s.max / 20) * 10), 0);
 
     return (
@@ -124,10 +141,10 @@ const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) =
                 <section className={styles.card} style={{ background: 'rgba(10, 30, 10, 0.5)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', height: 'fit-content' }}>
                     <h3 style={{ fontSize: '16px', color: '#f1c40f', marginBottom: '20px' }}>Wskaźniki Reputacji (Trust-Score)</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        <ReputationBar label="WSKAŹNIK REPUTACJI (GLOBALNY)" value={totalScore} max={100} color="#2ecc71" barHeight={globalBarHeight} decimals={1} />
+                        <ReputationBar label="WSKAŹNIK REPUTACJI (GLOBALNY)" value={totalScore} max={globalMax} color="#2ecc71" barHeight={globalBarHeight} decimals={1} prevValue={prevTotalScore} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
                             {subScores.map(s => (
-                                <ReputationBar key={s.label} label={s.label} value={s.val} max={s.max} color="#f1c40f" />
+                                <ReputationBar key={s.label} label={s.label} value={s.val} max={s.max} color="#f1c40f" prevValue={prevDetails ? (prevDetails[s.prevKey] ?? null) : null} />
                             ))}
                         </div>
                     </div>
