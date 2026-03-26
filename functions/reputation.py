@@ -52,7 +52,7 @@ def update_reputation_metrics(db):
         if raw_punct is None:
             new_details['punctualityScore'] = old_details.get('punctualityScore', 10.0)
         else:
-            new_details['punctualityScore'] = _apply_ema(old_details.get('punctualityScore'), raw_punct)
+            new_details['punctualityScore'] = max(0.0, _apply_ema(old_details.get('punctualityScore'), raw_punct))
 
         # --- F. SPEED REPUTATION (RAW, max 10) ---
         raw_speed = _calc_raw_speed_score(db, pid, date_str, now_waw, sam_data.get('speedKmh', 80))
