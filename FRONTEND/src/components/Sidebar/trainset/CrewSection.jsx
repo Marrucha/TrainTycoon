@@ -10,14 +10,6 @@ const CREW_ROLES = [
   { key: 'barman',            label: 'Barman',             array: false, required: false },
 ]
 
-const ROLE_KEY_TO_EMP = {
-  maszynista:         'maszynista',
-  kierownik:          'kierownik',
-  pomocnikMaszynisty: 'pomocnik',
-  konduktorzy:        'konduktor',
-  barman:             'barman',
-}
-
 function GapBar({ rate }) {
   const pct = Math.round((rate || 0) * 100)
   const color = pct < 10 ? '#2ecc71' : pct < 25 ? '#f39c12' : '#e74c3c'
@@ -31,58 +23,12 @@ function GapBar({ rate }) {
   )
 }
 
-function AssignModal({ role, roleLabel, tsId, excludeIds, onAssign, onClose }) {
-  const { employees } = useGame()
-  const empRole = ROLE_KEY_TO_EMP[role] ?? role
-  const candidates = employees.filter(
-    e => e.role === empRole && !e.isIntern && !e.assignedTo && !excludeIds.has(e.id)
-  )
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#111', border: '1px solid #333', borderRadius: 8, padding: 18, minWidth: 300, maxWidth: 400 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span style={{ color: '#eee', fontWeight: 'bold', fontSize: 13 }}>Przypisz – {roleLabel}</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer' }}>✕</button>
-        </div>
-        {candidates.length === 0 && (
-          <div style={{ color: '#666', fontSize: 12 }}>Brak wolnych pracowników tej roli. Zatrudnij w sekcji Kadry.</div>
-        )}
-        {candidates.map(emp => (
-          <div key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #1a1a1a' }}>
-            <div>
-              <div style={{ color: '#ddd', fontSize: 12 }}>{emp.name}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>exp: {Math.round(emp.experience ?? 0)}</div>
-            </div>
-            <button
-              onClick={() => onAssign(emp.id)}
-              style={{ background: '#1a3a1a', border: '1px solid #27ae60', color: '#27ae60', borderRadius: 4, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}
-            >
-              Przypisz
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export default function CrewSection({ ts }) {
-  const { employees, assignCrew, unassignCrew } = useGame()
-  const [assignRole, setAssignRole] = useState(null)
+  const { employees } = useGame()
   const [open, setOpen] = useState(false)
 
   const crew = ts.crew || {}
-
-  // All assigned employee IDs in this trainSet (to exclude from candidates)
-  const allAssignedIds = new Set([
-    crew.maszynista,
-    crew.kierownik,
-    crew.pomocnikMaszynisty,
-    ...(crew.konduktorzy || []),
-    crew.barman,
-  ].filter(Boolean))
-
   const empById = Object.fromEntries(employees.map(e => [e.id, e]))
 
   function empLabel(empId) {
@@ -97,28 +43,8 @@ export default function CrewSection({ ts }) {
   const hasBarman    = !!crew.barman
   const hasHelper    = !!crew.pomocnikMaszynisty
 
-  async function handleAssign(empId) {
-    await assignCrew(ts.id, assignRole, empId)
-    setAssignRole(null)
-  }
-
-  async function handleUnassign(role, empId) {
-    await unassignCrew(ts.id, role, empId)
-  }
-
   return (
     <div className={styles.section}>
-      {assignRole && (
-        <AssignModal
-          role={assignRole}
-          roleLabel={CREW_ROLES.find(r => r.key === assignRole)?.label ?? assignRole}
-          tsId={ts.id}
-          excludeIds={allAssignedIds}
-          onAssign={handleAssign}
-          onClose={() => setAssignRole(null)}
-        />
-      )}
-
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
         <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>OBSADA</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -165,29 +91,9 @@ export default function CrewSection({ ts }) {
                 <span className={styles.statLabel} style={{ color: required && ids.length === 0 ? '#e74c3c' : undefined, minWidth: 110 }}>
                   {label}{required && ids.length === 0 ? ' !' : ''}
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  {ids.length === 0 && (
-                    <span className={styles.statLabel}>Nieprzypisany</span>
-                  )}
-                  {ids.map(id => (
-                    <span key={id} className={styles.statValue} style={{ marginRight: 4 }}>{empLabel(id)}</span>
-                  ))}
-                  <button
-                    onClick={() => setAssignRole(key)}
-                    style={{ background: 'none', border: '1px solid #2a4a2a', color: '#6a8a6a', borderRadius: 3, padding: '2px 6px', fontSize: 10, cursor: 'pointer' }}
-                  >
-                    {ids.length === 0 ? 'Przypisz' : '+'}
-                  </button>
-                  {ids.map(id => (
-                    <button
-                      key={`rm-${id}`}
-                      onClick={() => handleUnassign(key, id)}
-                      style={{ background: 'none', border: '1px solid #422', color: '#c0392b', borderRadius: 3, padding: '2px 6px', fontSize: 10, cursor: 'pointer' }}
-                    >
-                      −
-                    </button>
-                  ))}
-                </div>
+                <span className={styles.statValue} style={{ color: ids.length === 0 ? '#444' : undefined }}>
+                  {ids.length === 0 ? 'Nieprzypisany' : ids.map(id => empLabel(id)).join(', ')}
+                </span>
               </div>
             )
           })}
