@@ -267,20 +267,20 @@ export default function TrainSetPanel() {
       </div>
 
       <div className={styles.body}>
+        <PositionSection positionState={positionState} />
         <CrewSection ts={ts} />
-        <WagonSection wagonGroups={wagonGroups} maxSpeed={ts.maxSpeed} totalCostPerKm={ts.totalCostPerKm} />
+        <WagonSection wagonGroups={wagonGroups} maxSpeed={ts.maxSpeed} totalCostPerKm={ts.totalCostPerKm} wagons={wagons} />
         <RevenueSection byKurs={byKurs} cities={cities} totalCostPerKm={ts.totalCostPerKm} totalDailyRevenue={totalDailyRevenue} />
-        <CourseSchedule 
-          ts={ts} coursesCount={coursesCount} firstStops={firstStops} 
-          dailyDemand={dailyDemand} dailyTransfer={dailyTransfer} byKurs={byKurs} 
-          cities={cities} openKurs={openKurs} setOpenKurs={setOpenKurs} 
-          openTimetable={openTimetable} setOpenTimetable={setOpenTimetable} 
-          kursRevenue={kursRevenue} totalDailyRevenue={totalDailyRevenue} 
+        <CourseSchedule
+          ts={ts} coursesCount={coursesCount} firstStops={firstStops}
+          dailyDemand={dailyDemand} dailyTransfer={dailyTransfer} byKurs={byKurs}
+          cities={cities} openKurs={openKurs} setOpenKurs={setOpenKurs}
+          openTimetable={openTimetable} setOpenTimetable={setOpenTimetable}
+          kursRevenue={kursRevenue} totalDailyRevenue={totalDailyRevenue}
           totalSeats={totalSeats} stopOrder={stopOrder}
         />
-        <PositionSection positionState={positionState} />
         <TrafficStats totalDailyPassengers={totalDailyPassengers} totalTransferred={totalTransferred} avgOccupancy={avgOccupancy} />
-        <DemandMatrix mergedOD={mergedOD} stopOrder={stopOrder} cities={cities} />
+        <DemandMatrix mergedOD={mergedOD} stopOrder={stopOrder} cities={cities} dailyDemand={dailyDemand} currentTransfer={ts.currentTransfer} />
       </div>
     </div>
   )

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import styles from '../RoutePanel.module.css'
 
 export default function PositionSection({ positionState }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   return (
     <section className={styles.section}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>

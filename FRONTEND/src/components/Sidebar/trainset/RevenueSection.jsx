@@ -23,7 +23,14 @@ export default function RevenueSection({ byKurs, cities, totalCostPerKm, totalDa
     <section className={styles.section}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
         <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>PRZYCHODY I KOSZTY</span>
-        <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!open && netBalance !== null && (
+            <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 10, color: netBalance >= 0 ? '#4caf50' : '#e74c3c', fontWeight: 'bold' }}>
+              {netBalance >= 0 ? '+' : ''}{netBalance.toLocaleString('pl-PL')} PLN
+            </span>
+          )}
+          <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+        </div>
       </div>
       {open && (
         <div className={styles.stats} style={{ marginTop: 10 }}>

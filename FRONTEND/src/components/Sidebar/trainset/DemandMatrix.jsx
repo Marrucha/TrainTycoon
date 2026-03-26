@@ -1,15 +1,34 @@
 import { useState } from 'react'
 import styles from '../RoutePanel.module.css'
 
-export default function DemandMatrix({ mergedOD, stopOrder, cities }) {
+export default function DemandMatrix({ mergedOD, stopOrder, cities, dailyDemand, currentTransfer }) {
   const [open, setOpen] = useState(false)
   if (Object.keys(mergedOD).length === 0) return null
+
+  const totalDemand = Object.values(mergedOD).reduce((s, v) => s + v.dmC1 + v.dmC2 + v.trC1 + v.trC2 + v.obC1 + v.obC2, 0)
+
+  const activeKursId = currentTransfer
+    ? Object.entries(currentTransfer).find(([, v]) => (v.totalOnBoard || 0) > 0)?.[0]
+    : null
+  const activeKursDemand = activeKursId && dailyDemand?.[activeKursId]?.total != null
+    ? dailyDemand[activeKursId].total
+    : null
 
   return (
     <section className={styles.section}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
         <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>POPYT OD (pary miast / dobę)</span>
-        <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!open && (
+            <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 10, color: '#a0c0a0' }}>
+              {totalDemand.toLocaleString('pl-PL')} os.
+              {activeKursDemand !== null && (
+                <span style={{ color: '#6a8a6a' }}> · kurs: {activeKursDemand}</span>
+              )}
+            </span>
+          )}
+          <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+        </div>
       </div>
       {open && <div className={styles.stats} style={{ marginTop: 10 }}>
         {Object.entries(mergedOD)

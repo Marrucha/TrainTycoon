@@ -47,11 +47,20 @@ export default function CourseSchedule({
   let dayTrC1 = 0, dayTrC2 = 0;
   let dayDmC1 = 0, dayDmC2 = 0;
 
+  const totalOnBoard = ts.currentTransfer
+    ? Object.values(ts.currentTransfer).reduce((s, d) => s + (d.totalOnBoard || 0), 0)
+    : 0
+
   return (
     <section className={styles.section}>
       <div className={styles.sectionLabelRow} style={{ cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
         <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>ROZKŁAD KURSÓW</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!open && totalOnBoard > 0 && (
+            <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 10, color: '#e74c3c', fontWeight: 'bold' }}>
+              {totalOnBoard} w pociągu
+            </span>
+          )}
           <span className={styles.depCount}>{coursesCount} kursów / dobę</span>
           <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
         </div>

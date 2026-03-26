@@ -9,7 +9,14 @@ export default function TrafficStats({
     <section className={styles.section}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
         <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>STATYSTYKI RUCHU</span>
-        <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!open && totalTransferred !== null && (
+            <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 10, color: '#a0c0a0' }}>
+              {totalTransferred.toLocaleString('pl-PL')} os.
+            </span>
+          )}
+          <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+        </div>
       </div>
       {open && (
         <div className={styles.stats} style={{ marginTop: 10 }}>
