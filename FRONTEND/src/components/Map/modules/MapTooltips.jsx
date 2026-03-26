@@ -9,7 +9,9 @@ export function MapTooltips({
     size,
     cities,
     getCityById,
-    getTrainById
+    getTrainById,
+    cityDemandInfo,
+    gameTime,
 }) {
     if (!hoveredCity && !hoveredRoute && !hoveredTrain) return null
 
@@ -38,6 +40,26 @@ export function MapTooltips({
                             )}
                             {hoveredCity.platforms && (
                                 <span>{hoveredCity.platforms} {hoveredCity.platforms === 1 ? 'peron' : hoveredCity.platforms < 5 ? 'perony' : 'peronów'}</span>
+                            )}
+                            {cityDemandInfo?.rows?.length > 0 && (
+                                <span style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4, borderTop: '1px solid #2a4a2a', paddingTop: 4 }}>
+                                    <span style={{ color: '#8aab8a', fontSize: 10, marginBottom: 1 }}>
+                                        Popyt godz. {gameTime?.split(':')[0]}:xx
+                                    </span>
+                                    {cityDemandInfo.rows.map((row, i) => {
+                                        const pct = cityDemandInfo.totalHourlyDemand > 0
+                                            ? Math.round((row.demand / cityDemandInfo.totalHourlyDemand) * 100)
+                                            : 0
+                                        return (
+                                            <span key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                                <span style={{ color: '#f0c040', fontFamily: 'Share Tech Mono, monospace', fontSize: 10, flexShrink: 0 }}>{row.departure}</span>
+                                                <span style={{ color: '#c0d0c0', fontSize: 10, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.tsName}</span>
+                                                <span style={{ color: '#4caf50', fontSize: 10, flexShrink: 0 }}>{row.demand}</span>
+                                                <span style={{ color: '#6a8a6a', fontSize: 10, flexShrink: 0 }}>{pct}%</span>
+                                            </span>
+                                        )
+                                    })}
+                                </span>
                             )}
                         </>
                     )}

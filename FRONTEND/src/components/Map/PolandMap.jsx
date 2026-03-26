@@ -38,6 +38,59 @@ function MapOverlay() {
     trainsSets, routes, cities, currentMin, trains
   })
 
+  // Demand from hovered city at current hour
+  const cityDemandInfo = useMemo(() => {
+    if (!hoveredCity || !trainsSets || currentMin < 0) return null
+    const cityId = hoveredCity.id
+    const currentHour = Math.floor(currentMin / 60)
+    const rows = []
+    let totalHourlyDemand = 0
+
+    // First pass: collect all hourly demand across all cities to get the total
+    trainsSets.forEach(ts => {
+      if (!ts.rozklad || !ts.dailyDemand) return
+      const byKurs = {}
+      ts.rozklad.forEach(s => { if (!byKurs[s.kurs]) byKurs[s.kurs] = []; byKurs[s.kurs].push(s) })
+      Object.entries(byKurs).forEach(([kursId, stops]) => {
+        const firstStop = stops[0]
+        if (!firstStop?.odjazd) return
+        const depHour = Math.floor(timeToMin(firstStop.odjazd) / 60)
+        if (depHour !== currentHour) return
+        const demand = ts.dailyDemand[kursId]
+        if (!demand?.od) return
+        Object.values(demand.od).forEach(val => {
+          totalHourlyDemand += (val.class1 || 0) + (val.class2 || 0)
+        })
+      })
+    })
+
+    // Second pass: collect demand from hoveredCity in current hour
+    trainsSets.forEach(ts => {
+      if (!ts.rozklad || !ts.dailyDemand) return
+      const byKurs = {}
+      ts.rozklad.forEach(s => { if (!byKurs[s.kurs]) byKurs[s.kurs] = []; byKurs[s.kurs].push(s) })
+      Object.entries(byKurs).forEach(([kursId, stops]) => {
+        const cityStop = stops.find(s => {
+          const c = cities.find(cc => cc.id === cityId)
+          return s.miasto === c?.name || s.miasto === cityId
+        })
+        if (!cityStop?.odjazd) return
+        const depMin = timeToMin(cityStop.odjazd)
+        if (depMin < 0 || Math.floor(depMin / 60) !== currentHour) return
+        const demand = ts.dailyDemand[kursId]
+        if (!demand?.od) return
+        let fromCity = 0
+        Object.entries(demand.od).forEach(([key, val]) => {
+          if (key.split(':')[0] === cityId) fromCity += (val.class1 || 0) + (val.class2 || 0)
+        })
+        if (fromCity > 0) rows.push({ tsName: ts.name, departure: cityStop.odjazd, demand: fromCity })
+      })
+    })
+
+    rows.sort((a, b) => b.demand - a.demand)
+    return { rows, totalHourlyDemand }
+  }, [hoveredCity, trainsSets, currentMin, cities])
+
   useMapEvents({
     move: () => setTick(t => t + 1),
     zoom: () => setTick(t => t + 1),
@@ -236,6 +289,8 @@ function MapOverlay() {
         cities={cities}
         getCityById={getCityById}
         getTrainById={getTrainById}
+        cityDemandInfo={cityDemandInfo}
+        gameTime={gameTime}
       />
 
       <MapControls
