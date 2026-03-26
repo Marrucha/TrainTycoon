@@ -2,10 +2,12 @@ import { useState, useMemo } from 'react'
 import { useGame } from '../../context/GameContext'
 import { doc, setDoc, updateDoc } from 'firebase/firestore'
 import { db, auth } from '../../firebase/config'
+import { calcCompositionSpeed, calcTotalDelay } from '../../utils/trainSpeed'
+import { findShortestPath } from '../../utils/dijkstra'
 import styles from './TrainComposer.module.css'
 
 export default function TrainComposer({ onCancel, editTrainSet = null }) {
-    const { trains, trainsSets } = useGame()
+    const { trains, trainsSets, routes } = useGame()
 
     const [trainName, setTrainName] = useState(editTrainSet?.name ?? 'Nowy Skład')
     const [composition, setComposition] = useState(() => {
@@ -55,9 +57,29 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
     }
 
     // Wyliczanie statystyk
-    const currentMaxSpeed = composition.length > 0 ? Math.min(...composition.map(c => c.speed || 100000)) : 0
+    const minComponentSpeed = composition.length > 0 ? Math.min(...composition.map(c => c.speed || 100000)) : 0
+    const locoMaxSpeed = composition.length > 0 ? Math.max(...composition.map(c => c.speed || 0)) : 0
+    const compositionSpeed = composition.length > 0
+        ? calcCompositionSpeed(locoMaxSpeed, composition.length, minComponentSpeed === 100000 ? locoMaxSpeed : minComponentSpeed)
+        : 0
     const totalSeats = composition.reduce((sum, c) => sum + (c.seats || 0), 0)
     const maxCostPerKm = composition.reduce((sum, c) => sum + (c.costPerKm || 0), 0)
+
+    // Ostrzeżenie o zmianie prędkości względem zapisanego rozkładu
+    const speedWarning = useMemo(() => {
+        if (!isEditing || !editTrainSet?.scheduleCompositionSpeed || !editTrainSet?.routeStops || composition.length === 0) return null
+        const oldSpeed = editTrainSet.scheduleCompositionSpeed
+        if (compositionSpeed >= oldSpeed) return null
+        const stops = editTrainSet.routeStops
+        const allEdges = []
+        for (let i = 0; i < stops.length - 1; i++) {
+            const seg = findShortestPath(routes, stops[i], stops[i + 1], 'fastest')
+            if (seg) allEdges.push(...seg.edges)
+        }
+        const delay = calcTotalDelay(allEdges, oldSpeed, compositionSpeed)
+        if (delay <= 0) return null
+        return { delay, block: delay > 50 }
+    }, [isEditing, editTrainSet, compositionSpeed, routes, composition.length])
 
     const snakeRows = useMemo(() => {
         const rows = [];
@@ -102,9 +124,11 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
                     name: trainName,
                     type: composition[0]?.type || 'Zwykły',
                     trainIds: composition.map(c => c.id),
-                    maxSpeed: currentMaxSpeed === 100000 ? 0 : currentMaxSpeed,
+                    maxSpeed: minComponentSpeed === 100000 ? 0 : minComponentSpeed,
+                    locoMaxSpeed,
                     totalSeats,
                     totalCostPerKm: maxCostPerKm,
+                    speedMismatchBlock: speedWarning?.block ?? false,
                 })
             } else {
                 const setId = `trainset-${Date.now()}`
@@ -113,7 +137,8 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
                     name: trainName,
                     type: composition[0]?.type || 'Zwykły',
                     trainIds: composition.map(c => c.id),
-                    maxSpeed: currentMaxSpeed === 100000 ? 0 : currentMaxSpeed,
+                    maxSpeed: minComponentSpeed === 100000 ? 0 : minComponentSpeed,
+                    locoMaxSpeed,
                     totalSeats,
                     totalCostPerKm: maxCostPerKm,
                 })
@@ -141,7 +166,7 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
                 </div>
                 <div className={styles.headerActions}>
                     <button className={styles.cancelBtn} onClick={onCancel} disabled={saving}>Anuluj</button>
-                    <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>{isEditing ? 'Zapisz Zmiany' : 'Zapisz Skład'}</button>
+                    <button className={styles.saveBtn} onClick={handleSave} disabled={saving || speedWarning?.block}>{isEditing ? 'Zapisz Zmiany' : 'Zapisz Skład'}</button>
                 </div>
             </div>
 
@@ -150,10 +175,23 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
                 {/* LEWA STRONA: Obszar zrzutu poziomego */}
                 <div className={styles.boardArea}>
                     <div className={styles.statsBar}>
-                        <div>Prędkość MAX: <strong>{currentMaxSpeed === 100000 ? 0 : currentMaxSpeed} km/h</strong></div>
+                        <div>Prędkość składu: <strong>{compositionSpeed} km/h</strong></div>
                         <div>Konserwacja: <strong>{maxCostPerKm} PLN/km</strong></div>
                         <div>Pojemność SUMA: <strong>{totalSeats} os.</strong></div>
                     </div>
+                    {speedWarning && (
+                        <div style={{
+                            margin: '6px 0', padding: '8px 10px', borderRadius: 6,
+                            background: speedWarning.block ? 'rgba(231,76,60,0.15)' : 'rgba(243,156,18,0.15)',
+                            border: `1px solid ${speedWarning.block ? '#e74c3c' : '#f39c12'}`,
+                            fontSize: 11, color: speedWarning.block ? '#e74c3c' : '#f39c12'
+                        }}>
+                            {speedWarning.block
+                                ? `Uwaga: dodanie wagonu spowoduje opóźnienie +${speedWarning.delay} min — przekracza 50 min. Zaktualizuj rozkład jazdy przed zapisem.`
+                                : `Uwaga: dodanie wagonu może spowodować opóźnienie do +${speedWarning.delay} min. Rozważ aktualizację rozkładu.`
+                            }
+                        </div>
+                    )}
 
                     <div
                         className={styles.dropZone}

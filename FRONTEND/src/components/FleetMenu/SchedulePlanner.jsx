@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useGame } from '../../context/GameContext'
 import { findShortestPath } from '../../utils/dijkstra'
+import { calcCompositionSpeed, calcEdgeTravelTime } from '../../utils/trainSpeed'
 import styles from './SchedulePlanner.module.css'
 
 function timeToMins(t) {
@@ -27,10 +28,19 @@ export default function SchedulePlanner({ trainSet, onClose }) {
     const [saveSuccess, setSaveSuccess] = useState(false)
     const [highlightedStop, setHighlightedStop] = useState(null) // { courseId, stopIndex }
 
-    // Helper: pobiera czas przejazdu z Dijkstry
+    // Prędkość składu (bez modyfikatora pomocnika)
+    const compSpeed = useMemo(() => {
+        if (!trainSet.locoMaxSpeed || !trainSet.trainIds?.length) return null
+        const minSpd = trainSet.maxSpeed || trainSet.locoMaxSpeed
+        return calcCompositionSpeed(trainSet.locoMaxSpeed, trainSet.trainIds.length, minSpd)
+    }, [trainSet])
+
+    // Helper: pobiera czas przejazdu z uwzględnieniem prędkości składu
     const getTravelTime = (cityA, cityB) => {
         const res = findShortestPath(routes, cityA, cityB, 'fastest');
-        return res ? res.totalTime : 60; // fallback 60min
+        if (!res) return 60;
+        if (!compSpeed) return res.totalTime;
+        return res.edges.reduce((sum, edge) => sum + calcEdgeTravelTime(compSpeed, edge.distance, edge.travelTime), 0);
     };
 
     const getStopDuration = (cityId) => {
@@ -491,7 +501,7 @@ export default function SchedulePlanner({ trainSet, onClose }) {
         });
         const assignedRoutes = Array.from(allSegments);
 
-        await saveTrainRoute(trainSet.id, trainSet.routeStops, flatRozklad, assignedRoutes);
+        await saveTrainRoute(trainSet.id, trainSet.routeStops, flatRozklad, assignedRoutes, compSpeed);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
     };

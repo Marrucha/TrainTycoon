@@ -98,13 +98,11 @@ export function useScheduleActions({ cities, trainsSets, setSelectedRoute }) {
     }
   }
 
-  async function saveTrainRoute(trainSetId, routeStops, newRozklad, assignedRoutes = []) {
+  async function saveTrainRoute(trainSetId, routeStops, newRozklad, assignedRoutes = [], compSpeed = null) {
     try {
-      await updateDoc(doc(db, `players/${auth.currentUser.uid}/trainSet`, trainSetId), {
-        routeStops,
-        rozklad: newRozklad,
-        assignedRoutes,
-      })
+      const update = { routeStops, rozklad: newRozklad, assignedRoutes, speedMismatchBlock: false }
+      if (compSpeed != null) update.scheduleCompositionSpeed = compSpeed
+      await updateDoc(doc(db, `players/${auth.currentUser.uid}/trainSet`, trainSetId), update)
     } catch (e) {
       console.error('Błąd zapisu przypisanej trasy na składzie:', e)
     }

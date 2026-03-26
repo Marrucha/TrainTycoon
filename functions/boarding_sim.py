@@ -301,6 +301,11 @@ def run_boarding_tick(db, now_str=None):
             print(f'Boarding tick {now_str}: skipping {pid}/{ts_id} – missing required crew.')
             continue
 
+        # Skip if speed mismatch blocks operation (schedule outdated after wagon change)
+        if ts.get('speedMismatchBlock'):
+            print(f'Boarding tick {now_str}: skipping {pid}/{ts_id} – speedMismatchBlock.')
+            continue
+
         seat_caps   = _calc_total_seats(ts, player_trains, base_trains)
 
         daily_demand     = _deep_copy_demand(ts.get('dailyDemand') or {})
