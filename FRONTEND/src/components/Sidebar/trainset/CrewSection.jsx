@@ -120,6 +120,24 @@ export default function CrewSection({ ts }) {
 
       <div className={styles.sectionTitle}>Obsada</div>
 
+      {ts.noCrewAlert && (
+        <div style={{
+          background: 'rgba(230,126,34,0.15)', border: '1px solid #e67e22',
+          borderRadius: 6, padding: '8px 10px', marginBottom: 8,
+          display: 'flex', alignItems: 'flex-start', gap: 8
+        }}>
+          <span style={{ fontSize: 14, lineHeight: 1 }}>⚠️</span>
+          <div>
+            <div style={{ color: '#e67e22', fontWeight: 'bold', fontSize: 11, marginBottom: 2 }}>
+              POCIĄG UNIERUCHOMIONY
+            </div>
+            <div style={{ color: '#b0804a', fontSize: 10 }}>
+              Brak wymaganej obsady. Przypisz maszynistę i kierownika, aby wznowić kursy.
+            </div>
+          </div>
+        </div>
+      )}
+
       {CREW_ROLES.map(({ key, label, array, required }) => {
         const val = crew[key]
         const ids = array ? (val || []) : (val ? [val] : [])

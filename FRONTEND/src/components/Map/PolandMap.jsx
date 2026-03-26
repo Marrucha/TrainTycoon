@@ -195,6 +195,33 @@ function MapOverlay() {
                   </text>
                 </g>
               )}
+              {p.ts.noCrewAlert && (
+                <g>
+                  <circle cx={-5} cy={-9} r={4.5} fill="#e67e22" stroke="#fff" strokeWidth={0.8}>
+                    <animate attributeName="opacity" values="1;0.3;1" dur="0.9s" repeatCount="indefinite" />
+                  </circle>
+                  <text x={-5} y={-6} textAnchor="middle" fontSize="6" fontWeight="bold" fill="#fff" style={{ pointerEvents: 'none', userSelect: 'none' }}>⚠</text>
+                </g>
+              )}
+            </g>
+          )
+        })}
+
+        {/* Alert markers for crew-less trains stopped at a station */}
+        {(trainsSets || []).filter(ts => ts.noCrewAlert && ts.noCrewCityId && !trainPositions.some(p => p.ts.id === ts.id)).map(ts => {
+          const city = getCityById(ts.noCrewCityId)
+          if (!city) return null
+          const pos = getPos(city.lat, city.lon)
+          return (
+            <g key={`nocrew-${ts.id}`}
+               transform={`translate(${pos.x + 14}, ${pos.y - 14})`}
+               style={{ cursor: 'pointer' }}
+               onClick={e => { e.stopPropagation(); selectTrainSet(ts) }}
+            >
+              <circle r={7} fill="#e67e22" stroke="#fff" strokeWidth={0.8}>
+                <animate attributeName="opacity" values="1;0.3;1" dur="0.9s" repeatCount="indefinite" />
+              </circle>
+              <text textAnchor="middle" dy="3" fontSize="8" fontWeight="bold" fill="#fff" style={{ pointerEvents: 'none', userSelect: 'none' }}>⚠</text>
             </g>
           )
         })}

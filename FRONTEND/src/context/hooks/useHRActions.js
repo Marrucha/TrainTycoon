@@ -271,6 +271,17 @@ export function useHRActions({ budget, trainsSets, employees }) {
         if (ts) crewUpdate.effectiveMaxSpeed = ts.maxSpeed ?? 160
       }
 
+      // Clear noCrewAlert when both required roles are now filled
+      if (crewKey === 'maszynista' || crewKey === 'kierownik') {
+        const ts = trainsSets?.find(t => t.id === tsId)
+        const crew = ts?.crew || {}
+        const otherKey = crewKey === 'maszynista' ? 'kierownik' : 'maszynista'
+        if (crew[otherKey]) {
+          crewUpdate.noCrewAlert = false
+          crewUpdate.noCrewCityId = null
+        }
+      }
+
       const oldTsId = (employees || []).find(e => e.id === empId)?.assignedTo ?? null
       await Promise.all([
         updateDoc(tsRef,  crewUpdate),
@@ -302,6 +313,49 @@ export function useHRActions({ budget, trainsSets, employees }) {
       if (crewKey === 'pomocnikMaszynisty') {
         const ts = trainsSets?.find(t => t.id === tsId)
         if (ts) crewUpdate.effectiveMaxSpeed = Math.min(ts.maxSpeed ?? 160, 130)
+      }
+
+      // Emergency stop when removing maszynista or kierownik from an operational train
+      if (crewKey === 'maszynista' || crewKey === 'kierownik') {
+        const ts = trainsSets?.find(t => t.id === tsId)
+        const crew = ts?.crew || {}
+        const wasOperational = !!(crew.maszynista && crew.kierownik)
+
+        if (wasOperational) {
+          // Fetch live currentTransfer to count stranded passengers
+          const tsSnap = await getDoc(tsRef)
+          const tsData = tsSnap.data() || {}
+          const ct = tsData.currentTransfer || {}
+
+          let stranded = 0
+          let lastCityId = null
+          for (const kd of Object.values(ct)) {
+            stranded += kd.totalOnBoard || 0
+            if (kd.lastStation) lastCityId = kd.lastStation
+          }
+
+          const compensation = stranded * 500
+          const roleLabel = crewKey === 'maszynista' ? 'maszynistę' : 'kierownika pociągu'
+          const msg = stranded > 0
+            ? `Pociąg ma ${stranded} pasażerów na pokładzie!\n` +
+              `Zostaną wyładowani na najbliższej stacji.\n` +
+              `Odszkodowanie: ${compensation.toLocaleString()} PLN.\n\nKontynuować?`
+            : `Odpiąć ${roleLabel}? Pociąg zostanie unieruchomiony na stacji.`
+          if (!window.confirm(msg)) return false
+
+          crewUpdate.noCrewAlert = true
+          crewUpdate.currentTransfer = {}
+          if (lastCityId) crewUpdate.noCrewCityId = lastCityId
+
+          if (compensation > 0) {
+            await setDoc(doc(db, 'players', uid), {
+              finance: { balance: budget - compensation },
+            }, { merge: true })
+          }
+        } else {
+          // Train was already stopped — just set alert without passenger check
+          crewUpdate.noCrewAlert = true
+        }
       }
 
       await Promise.all([
