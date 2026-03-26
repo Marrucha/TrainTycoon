@@ -48,7 +48,7 @@ export function MapTooltips({
                                     </span>
                                     {cityDemandInfo.rows.map((row, i) => {
                                         const pct = cityDemandInfo.totalHourlyDemand > 0
-                                            ? Math.round((row.demand / cityDemandInfo.totalHourlyDemand) * 100)
+                                            ? Math.round((row.demand / cityDemandInfo.totalHourlyDemand) * 1000) / 10
                                             : 0
                                         return (
                                             <span key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
