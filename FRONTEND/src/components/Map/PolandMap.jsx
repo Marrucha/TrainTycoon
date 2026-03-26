@@ -44,14 +44,25 @@ function MapOverlay() {
     const cityId = hoveredCity.id
     const currentHour = Math.floor(currentMin / 60)
     const cityName = hoveredCity.name
-    const rows = []
 
+    // Helper: resolve stop name → cityId
+    const stopCityId = (miasto) => {
+      if (!miasto) return null
+      const c = cities.find(cc => cc.name === miasto || cc.id === miasto)
+      return c?.id ?? null
+    }
+
+    // First pass: collect matching kursy with their forward stop sets
+    const rows = []
     trainsSets.forEach(ts => {
       if (!ts.rozklad || !ts.dailyDemand) return
       const byKurs = {}
       ts.rozklad.forEach(s => { if (!byKurs[s.kurs]) byKurs[s.kurs] = []; byKurs[s.kurs].push(s) })
+
       Object.entries(byKurs).forEach(([kursId, stops]) => {
-        const cityStop = stops.find(s => s.miasto === cityName || s.miasto === cityId)
+        const cityStopIdx = stops.findIndex(s => s.miasto === cityName || s.miasto === cityId)
+        if (cityStopIdx < 0) return
+        const cityStop = stops[cityStopIdx]
         if (!cityStop?.odjazd) return
         const depMin = timeToMin(cityStop.odjazd)
         if (depMin < 0 || Math.floor(depMin / 60) !== currentHour) return
@@ -59,22 +70,38 @@ function MapOverlay() {
         const demand = ts.dailyDemand[kursId]
         if (!demand?.od) return
 
-        // Total demand of THIS kurs (all stop-origins) = denominator for this row
-        const kursTotal = Object.entries(demand.od).reduce((s, [key, val]) => {
-          // Only count origins that are actual stops of this kurs
-          const fromId = key.split(':')[0]
-          const isStop = stops.some(st => st.miasto === fromId ||
-            cities.find(c => c.id === fromId)?.name === st.miasto)
-          return isStop ? s + (val.class1 || 0) + (val.class2 || 0) : s
-        }, 0)
+        // Forward stops = all stops AFTER hoveredCity in this kurs
+        const forwardIds = new Set(
+          stops.slice(cityStopIdx + 1).map(s => stopCityId(s.miasto)).filter(Boolean)
+        )
 
-        // Demand originating from hoveredCity on this kurs
+        // Demand from hoveredCity on this kurs (to any forward stop)
         let fromCity = 0
         Object.entries(demand.od).forEach(([key, val]) => {
-          if (key.split(':')[0] === cityId) fromCity += (val.class1 || 0) + (val.class2 || 0)
+          const [fId, tId] = key.split(':')
+          if (fId === cityId && forwardIds.has(tId))
+            fromCity += (val.class1 || 0) + (val.class2 || 0)
         })
-        if (fromCity > 0) rows.push({ tsName: ts.name, departure: cityStop.odjazd, demand: fromCity, kursTotal })
+        if (fromCity > 0) rows.push({ tsName: ts.name, departure: cityStop.odjazd, demand: fromCity, forwardIds })
       })
+    })
+
+    // Second pass: for each row, compute total demand from hoveredCity to its forwardIds
+    // across ALL our trainSets/kursy (general market demand on those OD pairs)
+    rows.forEach(row => {
+      let totalFromCityToForward = 0
+      trainsSets.forEach(ts => {
+        if (!ts.dailyDemand) return
+        Object.values(ts.dailyDemand).forEach(kd => {
+          if (!kd?.od) return
+          Object.entries(kd.od).forEach(([key, val]) => {
+            const [fId, tId] = key.split(':')
+            if (fId === cityId && row.forwardIds.has(tId))
+              totalFromCityToForward += (val.class1 || 0) + (val.class2 || 0)
+          })
+        })
+      })
+      row.kursTotal = totalFromCityToForward
     })
 
     rows.sort((a, b) => b.demand - a.demand)
