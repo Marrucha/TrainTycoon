@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react'
 import { doc, setDoc } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { db, auth } from '../firebase/config'
 import { INITIAL_BUDGET } from '../data/gameData'
 import { timeToMin } from '../components/Map/modules/MapUtils'
 import { useFirestoreData } from './hooks/useFirestoreData'
@@ -9,6 +9,7 @@ import { useTrainActions } from './hooks/useTrainActions'
 import { useFinanceActions } from './hooks/useFinanceActions'
 import { useScheduleActions } from './hooks/useScheduleActions'
 import { useHRActions } from './hooks/useHRActions'
+import Onboarding from '../components/Onboarding/Onboarding'
 
 const GameContext = createContext(null)
 
@@ -24,6 +25,7 @@ export function GameProvider({ children }) {
 
   const selection = useSelectionState()
   const { selectedCity, selectedRoute, selectedTrainSet, selectCity, selectRoute, selectTrainSet } = selection
+
 
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -144,7 +146,7 @@ export function GameProvider({ children }) {
 
   async function updateDefaultPricing(config) {
     try {
-      await setDoc(doc(db, 'players', 'player1'), { defaultPricing: config }, { merge: true })
+      await setDoc(doc(db, 'players', auth.currentUser.uid), { defaultPricing: config }, { merge: true })
     } catch (e) {
       console.error('Błąd aktualizacji globalnego cennika:', e)
     }
@@ -172,6 +174,19 @@ export function GameProvider({ children }) {
         via: (entry.via || []).map(v => cities.find(c => c.id === v || c.name === v)?.name || v),
         status: 'ON TIME',
       }))
+  }
+
+  // Hook rules preserved: renders early returns AFTER all hooks!
+  if (loading) {
+    return (
+      <div style={{ background: '#0a0a0c', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff8c00', fontSize: '20px', fontWeight: 'bold' }}>
+        Ładowanie profilu dyrektora...
+      </div>
+    );
+  }
+
+  if (!playerDoc?.companyName) {
+    return <Onboarding />;
   }
 
   return (

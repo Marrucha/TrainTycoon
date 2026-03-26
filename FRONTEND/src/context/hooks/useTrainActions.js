@@ -1,5 +1,5 @@
 import { doc, writeBatch, updateDoc } from 'firebase/firestore'
-import { db } from '../../firebase/config'
+import { db, auth } from '../../firebase/config'
 
 export function useTrainActions({ baseTrains, budget }) {
   async function buyTrain(baseTrainId) {
@@ -18,7 +18,7 @@ export function useTrainActions({ baseTrains, budget }) {
       const newTrainId = `pt_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`
       const purchasedAt = new Date().toISOString()
 
-      batch.set(doc(db, `players/player1/trains/${newTrainId}`), {
+      batch.set(doc(db, `players/${auth.currentUser.uid}/trains/${newTrainId}`), {
         id: newTrainId,
         parent_id: baseTrain.id,
         name: `${baseTrain.name} #${Math.floor(Math.random() * 900) + 100}`,
@@ -27,7 +27,7 @@ export function useTrainActions({ baseTrains, budget }) {
         lastOverhaul: purchasedAt,
       })
 
-      batch.set(doc(db, 'players', 'player1'), { finance: { balance: budget - vehiclePrice } }, { merge: true })
+      batch.set(doc(db, 'players', auth.currentUser.uid), { finance: { balance: budget - vehiclePrice } }, { merge: true })
 
       await batch.commit()
       alert(`Zakupiono pociąg! Kwota ${vehiclePrice.toLocaleString()} PLN pomyślnie pobrana z konta.`)
@@ -40,7 +40,7 @@ export function useTrainActions({ baseTrains, budget }) {
 
   async function performMaintenance(trainId) {
     try {
-      await updateDoc(doc(db, `players/player1/trains/${trainId}`), {
+      await updateDoc(doc(db, `players/${auth.currentUser.uid}/trains/${trainId}`), {
         lastMaintenance: new Date().toISOString(),
       })
       return true

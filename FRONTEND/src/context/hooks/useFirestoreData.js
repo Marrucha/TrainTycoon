@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { collection, onSnapshot, doc, query, orderBy, limit } from 'firebase/firestore'
-import { db } from '../../firebase/config'
+import { db, auth } from '../../firebase/config'
 
 export function useFirestoreData() {
   const [baseTrains, setBaseTrains] = useState([])
@@ -34,11 +34,11 @@ export function useFirestoreData() {
       setBaseTrains(snap.docs.map(d => d.data()))
       markLoaded()
     })
-    const unsubPlayerTrains = onSnapshot(collection(db, 'players/player1/trains'), (snap) => {
+    const unsubPlayerTrains = onSnapshot(collection(db, `players/${auth.currentUser.uid}/trains`), (snap) => {
       setPlayerTrains(snap.docs.map(d => d.data()))
       markLoaded()
     })
-    const unsubTrainsSets = onSnapshot(collection(db, 'players/player1/trainSet'), (snap) => {
+    const unsubTrainsSets = onSnapshot(collection(db, `players/${auth.currentUser.uid}/trainSet`), (snap) => {
       setTrainsSets(snap.docs.map(d => d.data()))
       markLoaded()
     })
@@ -46,7 +46,7 @@ export function useFirestoreData() {
       setRoutes(snap.docs.map(d => d.data()))
       markLoaded()
     })
-    const unsubPlayer = onSnapshot(doc(db, 'players', 'player1'), (snap) => {
+    const unsubPlayer = onSnapshot(doc(db, 'players', auth.currentUser.uid), (snap) => {
       setPlayerDoc(snap.exists() ? snap.data() : {})
       markLoaded()
     })
@@ -60,7 +60,7 @@ export function useFirestoreData() {
     })
 
     // Lokaty i oprocentowanie — nie blokują głównego loadingu
-    const unsubDeposits = onSnapshot(collection(db, 'players/player1/deposits'), (snap) => {
+    const unsubDeposits = onSnapshot(collection(db, `players/${auth.currentUser.uid}/deposits`), (snap) => {
       setDeposits(snap.docs.map(d => d.data()))
     })
     const unsubDepositRates = onSnapshot(doc(db, 'gameConfig', 'depositRates'), (snap) => {
@@ -69,13 +69,13 @@ export function useFirestoreData() {
 
     // Pracownicy (kadry)
     const unsubEmployees = onSnapshot(
-      collection(db, 'players/player1/kadry'),
+      collection(db, `players/${auth.currentUser.uid}/kadry`),
       (snap) => setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     )
 
     // Księga finansowa – ostatnie 30 wpisów
     const ledgerQuery = query(
-      collection(db, 'players/player1/financeLedger'),
+      collection(db, `players/${auth.currentUser.uid}/financeLedger`),
       orderBy('date', 'desc'),
       limit(30)
     )
@@ -101,3 +101,4 @@ export function useFirestoreData() {
 
   return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, loading }
 }
+;

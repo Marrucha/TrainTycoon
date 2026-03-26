@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, Fragment } from 'react'
 import { collection, query, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore'
-import { db } from '../../firebase/config'
+import { db, auth } from '../../firebase/config'
 import styles from './ReportsMenu.module.css'
 
 export default function ReportsMenu() {
@@ -37,7 +37,7 @@ export default function ReportsMenu() {
   useEffect(() => {
     // Fetch last 30 reports for display and trends
     const q = query(
-      collection(db, 'players/player1/Raporty'),
+      collection(db, `players/${auth.currentUser.uid}/Raporty`),
       orderBy('date', 'desc'),
       limit(365) // Increased to allow for yearly data if available
     )

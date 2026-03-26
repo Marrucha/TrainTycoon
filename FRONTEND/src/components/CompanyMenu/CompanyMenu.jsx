@@ -6,6 +6,7 @@ import PolicySection from './sections/PolicySection';
 import HRSection from './sections/HRSection';
 import FinanceSection from './sections/FinanceSection';
 import FleetSection from './sections/FleetSection';
+import ShopSection from './sections/ShopSection';
 import PolandMap from '../Map/PolandMap';
 import Sidebar from '../Sidebar/Sidebar';
 import FleetAssets from '../FleetMenu/FleetAssets';
@@ -28,6 +29,8 @@ const NAV = [
   { id: '__sep2__', label: '',         icon: '' },
   { id: 'finance',  label: 'Finanse', icon: '💰' },
   { id: 'hr',       label: 'Kadry',   icon: '👥' },
+  { id: '__sep3__', label: '',        icon: '' },
+  { id: 'shop',     label: 'Sklep Premium', icon: '🛒' },
 ]
 
 export default function CompanyMenu() {
@@ -147,6 +150,7 @@ export default function CompanyMenu() {
       activeTab === 'hr'                  ? kadryUrl :
       activeTab === 'fleet-assets'        ? salonUrl :
       activeTab === 'reports'             ? raportyUrl :
+      activeTab === 'shop'                ? bankUrl :
       activeTab === 'policy'              ? tloUrl : null;
     if (!url) return 'none';
     return `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${url}")`;
@@ -227,6 +231,7 @@ export default function CompanyMenu() {
         {activeTab === 'fleet-assets'      && <FleetAssets />}
         {activeTab === 'fleet-compositions'&& <FleetCompositions />}
         {activeTab === 'reports'           && <ReportsMenu />}
+        {activeTab === 'shop'              && <ShopSection />}
         {activeTab === 'policy'  && <PolicySection companyName={companyName} defaultPricing={defaultPricing} reputation={reputation} playerDoc={playerDoc} />}
         {activeTab === 'hr'      && <HRSection />}
         {activeTab === 'finance' && (

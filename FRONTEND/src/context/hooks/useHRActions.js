@@ -1,5 +1,5 @@
 import { doc, setDoc, addDoc, deleteDoc, updateDoc, collection, arrayUnion, arrayRemove } from 'firebase/firestore'
-import { db } from '../../firebase/config'
+import { db, auth } from '../../firebase/config'
 
 const _FIRST_NAMES = [
   'Adam', 'Piotr', 'Marek', 'Tomasz', 'Andrzej', 'Krzysztof', 'Michał',
@@ -75,7 +75,7 @@ export function useHRActions({ budget, trainsSets }) {
     }
     try {
       const hiredAt = new Date().toISOString().slice(0, 10)
-      await addDoc(collection(db, 'players/player1/kadry'), {
+      await addDoc(collection(db, `players/${auth.currentUser.uid}/kadry`), {
         name,
         role,
         experience:    parseFloat(experience),
@@ -86,7 +86,7 @@ export function useHRActions({ budget, trainsSets }) {
         assignedTo:    null,
         dateOfBirth:   candidateData.dateOfBirth ?? null,
       })
-      await setDoc(doc(db, 'players', 'player1'), {
+      await setDoc(doc(db, 'players', auth.currentUser.uid), {
         finance: { balance: budget - fee },
       }, { merge: true })
       return true
@@ -104,7 +104,7 @@ export function useHRActions({ budget, trainsSets }) {
       const graduatesAt = new Date(hiredAt)
       graduatesAt.setFullYear(graduatesAt.getFullYear() + 1)
 
-      await addDoc(collection(db, 'players/player1/kadry'), {
+      await addDoc(collection(db, `players/${auth.currentUser.uid}/kadry`), {
         name:              _randomName(),
         role,
         experience:        0.0,
@@ -155,15 +155,15 @@ export function useHRActions({ budget, trainsSets }) {
             }
           }
           if (Object.keys(updates).length) {
-            await updateDoc(doc(db, `players/player1/trainSet`, assignedTo), updates)
+            await updateDoc(doc(db, `players/${auth.currentUser.uid}/trainSet`, assignedTo), updates)
           }
         }
       }
 
-      await deleteDoc(doc(db, 'players/player1/kadry', empId))
+      await deleteDoc(doc(db, `players/${auth.currentUser.uid}/kadry`, empId))
 
       if (severance > 0) {
-        await setDoc(doc(db, 'players', 'player1'), {
+        await setDoc(doc(db, 'players', auth.currentUser.uid), {
           finance: { balance: budget - severance },
         }, { merge: true })
       }
@@ -180,8 +180,8 @@ export function useHRActions({ budget, trainsSets }) {
     const crewKey = ROLE_KEY_MAP[role] ?? role
     const isArray = ARRAY_ROLES.includes(crewKey)
     try {
-      const tsRef  = doc(db, `players/player1/trainSet`, tsId)
-      const empRef = doc(db, 'players/player1/kadry', empId)
+      const tsRef  = doc(db, `players/${auth.currentUser.uid}/trainSet`, tsId)
+      const empRef = doc(db, `players/${auth.currentUser.uid}/kadry`, empId)
 
       const crewUpdate = isArray
         ? { [`crew.${crewKey}`]: arrayUnion(empId) }
@@ -210,8 +210,8 @@ export function useHRActions({ budget, trainsSets }) {
     const crewKey = ROLE_KEY_MAP[role] ?? role
     const isArray = ARRAY_ROLES.includes(crewKey)
     try {
-      const tsRef  = doc(db, `players/player1/trainSet`, tsId)
-      const empRef = doc(db, 'players/player1/kadry', empId)
+      const tsRef  = doc(db, `players/${auth.currentUser.uid}/trainSet`, tsId)
+      const empRef = doc(db, `players/${auth.currentUser.uid}/kadry`, empId)
 
       const crewUpdate = isArray
         ? { [`crew.${crewKey}`]: arrayRemove(empId) }
@@ -236,3 +236,4 @@ export function useHRActions({ budget, trainsSets }) {
 
   return { hireFromAgency, hireIntern, fireEmployee, assignCrew, unassignCrew }
 }
+;

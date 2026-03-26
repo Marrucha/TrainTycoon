@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import styles from '../CompanyMenu.module.css';
-import { storage, db } from '../../../firebase/config';
+import { storage, db, auth } from '../../../firebase/config';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
 
@@ -45,12 +45,12 @@ const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) =
         try {
             setUploading(true);
             // 1. Upload to Storage
-            const storageRef = ref(storage, `brandings/player1/logo_${Date.now()}`);
+            const storageRef = ref(storage, `brandings/${auth.currentUser.uid}/logo_${Date.now()}`);
             const snapshot = await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(snapshot.ref);
 
             // 2. Update Firestore
-            const playerRef = doc(db, 'players', 'player1');
+            const playerRef = doc(db, 'players', auth.currentUser.uid);
             await updateDoc(playerRef, {
                 logoUrl: downloadURL
             });

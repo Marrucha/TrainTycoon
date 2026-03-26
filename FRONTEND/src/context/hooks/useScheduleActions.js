@@ -1,5 +1,5 @@
 import { doc, updateDoc, writeBatch, deleteField } from 'firebase/firestore'
-import { db } from '../../firebase/config'
+import { db, auth } from '../../firebase/config'
 
 // Wspólna logika budowania wpisów rozkładu dla miast
 function buildCityEntries(rozklad, trainSetMeta, resolveCityId) {
@@ -100,7 +100,7 @@ export function useScheduleActions({ cities, trainsSets, setSelectedRoute }) {
 
   async function saveTrainRoute(trainSetId, routeStops, newRozklad, assignedRoutes = []) {
     try {
-      await updateDoc(doc(db, 'players/player1/trainSet', trainSetId), {
+      await updateDoc(doc(db, `players/${auth.currentUser.uid}/trainSet`, trainSetId), {
         routeStops,
         rozklad: newRozklad,
         assignedRoutes,
@@ -113,7 +113,7 @@ export function useScheduleActions({ cities, trainsSets, setSelectedRoute }) {
   async function updateTicketPrice(trainSetId, config) {
     try {
       await updateDoc(
-        doc(db, 'players/player1/trainSet', trainSetId),
+        doc(db, `players/${auth.currentUser.uid}/trainSet`, trainSetId),
         { pricing: config === null ? deleteField() : config }
       )
     } catch (e) {
@@ -123,3 +123,4 @@ export function useScheduleActions({ cities, trainsSets, setSelectedRoute }) {
 
   return { updateRouteSchedule, updateCitySchedules, rebuildAllCitySchedules, saveTrainRoute, updateTicketPrice }
 }
+;

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useGame } from '../../context/GameContext'
 import { doc, setDoc, updateDoc } from 'firebase/firestore'
-import { db } from '../../firebase/config'
+import { db, auth } from '../../firebase/config'
 import styles from './TrainComposer.module.css'
 
 export default function TrainComposer({ onCancel, editTrainSet = null }) {
@@ -98,7 +98,7 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
 
         try {
             if (isEditing) {
-                await updateDoc(doc(db, 'players/player1/trainSet', editTrainSet.id), {
+                await updateDoc(doc(db, `players/${auth.currentUser.uid}/trainSet`, editTrainSet.id), {
                     name: trainName,
                     type: composition[0]?.type || 'Zwykły',
                     trainIds: composition.map(c => c.id),
@@ -108,7 +108,7 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
                 })
             } else {
                 const setId = `trainset-${Date.now()}`
-                await setDoc(doc(db, 'players/player1/trainSet', setId), {
+                await setDoc(doc(db, `players/${auth.currentUser.uid}/trainSet`, setId), {
                     id: setId,
                     name: trainName,
                     type: composition[0]?.type || 'Zwykły',

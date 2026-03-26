@@ -1,5 +1,5 @@
 import { doc, setDoc, writeBatch } from 'firebase/firestore'
-import { db } from '../../firebase/config'
+import { db, auth } from '../../firebase/config'
 
 export const DEPOSIT_TYPES = [
   { key: 'daily',      label: 'Dzienna',    days: 1,   defaultRate: 0.02  },
@@ -39,7 +39,7 @@ export function useFinanceActions({ budget, playerDoc }) {
 
       const currentLoans = playerDoc.finance?.loans || []
 
-      batch.set(doc(db, 'players', 'player1'), {
+      batch.set(doc(db, 'players', auth.currentUser.uid), {
         finance: { balance: budget + amount, loans: [...currentLoans, newLoan] }
       }, { merge: true })
 
@@ -57,7 +57,7 @@ export function useFinanceActions({ budget, playerDoc }) {
     const COMMITMENT_RATE = 0.01
     const monthlyCommitment = Math.round(limit * COMMITMENT_RATE / 12)
     try {
-      await setDoc(doc(db, 'players', 'player1'), {
+      await setDoc(doc(db, 'players', auth.currentUser.uid), {
         finance: {
           balance: budget + limit,
           creditLine: {
@@ -94,7 +94,7 @@ export function useFinanceActions({ budget, playerDoc }) {
       const createdAt = new Date()
       const matureAt = new Date(createdAt.getTime() + type.days * 24 * 60 * 60 * 1000)
 
-      batch.set(doc(db, 'players/player1/deposits', depositId), {
+      batch.set(doc(db, `players/${auth.currentUser.uid}/deposits`, depositId), {
         id: depositId,
         amount,
         type: typeKey,
@@ -106,7 +106,7 @@ export function useFinanceActions({ budget, playerDoc }) {
         matureAt: matureAt.toISOString(),
       })
 
-      batch.set(doc(db, 'players', 'player1'), {
+      batch.set(doc(db, 'players', auth.currentUser.uid), {
         finance: { balance: budget - amount }
       }, { merge: true })
 
@@ -122,8 +122,8 @@ export function useFinanceActions({ budget, playerDoc }) {
     if (!window.confirm(`Zerwać lokatę? Odsetki przepadną — odzyskasz tylko kapitał: ${amount.toLocaleString()} PLN.`)) return false
     try {
       const batch = writeBatch(db)
-      batch.delete(doc(db, 'players/player1/deposits', depositId))
-      batch.set(doc(db, 'players', 'player1'), {
+      batch.delete(doc(db, `players/${auth.currentUser.uid}/deposits`, depositId))
+      batch.set(doc(db, 'players', auth.currentUser.uid), {
         finance: { balance: budget + amount }
       }, { merge: true })
       await batch.commit()
@@ -150,7 +150,7 @@ export function useFinanceActions({ budget, playerDoc }) {
     }
 
     try {
-      await setDoc(doc(db, 'players', 'player1'), {
+      await setDoc(doc(db, 'players', auth.currentUser.uid), {
         company: {
           totalShares: newTotalShares,
           playerShares,
@@ -169,3 +169,4 @@ export function useFinanceActions({ budget, playerDoc }) {
 
   return { takeLoan, openCreditLine, openDeposit, breakDeposit, emitShares }
 }
+;
