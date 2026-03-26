@@ -2,8 +2,13 @@ import { useState, useEffect, useMemo, Fragment } from 'react'
 import { collection, query, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore'
 import { db, auth } from '../../firebase/config'
 import styles from './ReportsMenu.module.css'
+import { useGame } from '../../context/GameContext'
+
+const _SALARIES = { maszynista: 9000, kierownik: 7000, pomocnik: 6000, konduktor: 5000, barman: 4500 }
+const _INTERN_SALARY = 4300
 
 export default function ReportsMenu() {
+  const { employees } = useGame()
   const [activeTab, setActiveTab] = useState('daily') // daily, weekly, monthly, yearly, trends
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
@@ -847,6 +852,46 @@ export default function ReportsMenu() {
             </select>
           </div>
           {renderSummary(monthlyData)}
+          {(() => {
+            const monthlySalaryTotal = (employees || []).reduce((sum, e) =>
+              sum + (e.isIntern ? _INTERN_SALARY : (e.monthlySalary ?? _SALARIES[e.role] ?? 0)), 0)
+            if (monthlySalaryTotal === 0) return null
+            const byRole = (employees || []).reduce((acc, e) => {
+              const roleLabel = { maszynista: 'Maszyniści', kierownik: 'Kierownicy', pomocnik: 'Pomocnicy', konduktor: 'Konduktorzy', barman: 'Barmani' }[e.role] || e.role
+              if (!acc[roleLabel]) acc[roleLabel] = { count: 0, total: 0 }
+              const sal = e.isIntern ? _INTERN_SALARY : (e.monthlySalary ?? _SALARIES[e.role] ?? 0)
+              acc[roleLabel].count += 1
+              acc[roleLabel].total += sal
+              return acc
+            }, {})
+            const monthlyRevenue = monthlyData?.revenue ?? 0
+            const nettoWithSalary = monthlyRevenue - (monthlyData?.cost ?? 0) - monthlySalaryTotal
+            return (
+              <div style={{ marginTop: 12, background: 'rgba(10,15,10,0.6)', border: '1px solid #2a3a2a', borderRadius: 8, padding: '14px 18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ color: '#8aab8a', fontSize: 12, fontFamily: "'Share Tech Mono', monospace", letterSpacing: 1, textTransform: 'uppercase' }}>Koszty zatrudnienia (miesięczne)</span>
+                  <span style={{ color: '#f0a040', fontWeight: 'bold', fontSize: 15, fontFamily: "'Share Tech Mono', monospace" }}>
+                    −{monthlySalaryTotal.toLocaleString()} PLN
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 10 }}>
+                  {Object.entries(byRole).map(([label, { count, total }]) => (
+                    <div key={label} style={{ fontSize: 11, color: '#6a8a6a', fontFamily: "'Share Tech Mono', monospace" }}>
+                      <span style={{ color: '#8aab8a' }}>{label}</span>
+                      <span style={{ color: '#555', marginLeft: 4 }}>({count}×)</span>
+                      <span style={{ color: '#f0a040', marginLeft: 4 }}>{total.toLocaleString()} PLN</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ borderTop: '1px solid #1a2a1a', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#6a8a6a', fontSize: 11, fontFamily: "'Share Tech Mono', monospace" }}>Wynik netto z kosztami zatrudnienia:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: 14, color: nettoWithSalary >= 0 ? '#4caf50' : '#e74c3c', fontFamily: "'Share Tech Mono', monospace" }}>
+                    {nettoWithSalary >= 0 ? '+' : ''}{Math.round(nettoWithSalary).toLocaleString()} PLN
+                  </span>
+                </div>
+              </div>
+            )
+          })()}
           <h3 style={{marginTop: 32}}>📋 Wyniki składów (miesiąc)</h3>
           {renderPeriodTable(monthlyData)}
         </section>

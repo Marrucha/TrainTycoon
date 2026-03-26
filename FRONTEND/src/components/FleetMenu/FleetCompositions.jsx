@@ -51,6 +51,27 @@ export default function FleetCompositions() {
         return lines.join('\n')
     }
 
+    // Tooltip stażysty przypisanego do danego pracownika (mentora)
+    const internTooltip = (mentorId) => {
+        const intern = employees?.find(e => e.isIntern && e.mentorId === mentorId)
+        if (!intern) return null
+        const lines = [`Stażysta: ${intern.name}`]
+        if (intern.dateOfBirth) {
+            const b = new Date(intern.dateOfBirth), now = new Date()
+            let age = now.getFullYear() - b.getFullYear()
+            const mo = now.getMonth() - b.getMonth()
+            if (mo < 0 || (mo === 0 && now.getDate() < b.getDate())) age--
+            lines.push(`Wiek: ${age} l.`)
+        }
+        if (intern.hiredAt) {
+            const months = Math.floor((Date.now() - new Date(intern.hiredAt).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+            lines.push(`Na stażu: ${months < 12 ? `${months} mies.` : `${Math.floor(months/12)} l. ${months%12} mies.`}`)
+        }
+        if (intern.mentorId && intern.internGraduatesAt) lines.push(`Uprawnienia: ${intern.internGraduatesAt}`)
+        lines.push(`Pensja: 4 300 PLN/mies.`)
+        return lines.join('\n')
+    }
+
     const toggleCollapse = (id) => setCollapsedCards(prev => ({ ...prev, [id]: !prev[id] }))
     const allCollapsed = trainsSets?.length > 0 && trainsSets.every(ts => collapsedCards[ts.id])
     const toggleAll = () => {
@@ -245,14 +266,26 @@ export default function FleetCompositions() {
                                                     { label: 'Kierownik',          id: crew.kierownik,          required: true  },
                                                     { label: 'Pomocnik masz.',     id: crew.pomocnikMaszynisty, required: false },
                                                     { label: 'Barman',             id: crew.barman,             required: false },
-                                                ].map(({ label, id, required }) => (
-                                                    <span key={label} className={styles.crewItem} title={id ? empTooltip(id) : ''}>
+                                                ].map(({ label, id, required }) => {
+                                                    const iTooltip = id ? internTooltip(id) : null
+                                                    return (
+                                                    <span key={label} className={styles.crewItem}>
                                                         {label}
-                                                        <span className={id ? styles.crewBadgeOk : required ? styles.crewBadgeMissing : styles.crewBadgeOpt}>
+                                                        <span
+                                                            className={id ? styles.crewBadgeOk : required ? styles.crewBadgeMissing : styles.crewBadgeOpt}
+                                                            title={id ? empTooltip(id) : ''}
+                                                        >
                                                             {id ? '✔' : '✘'}
                                                         </span>
+                                                        {iTooltip && (
+                                                            <span
+                                                                title={iTooltip}
+                                                                style={{ fontSize: 10, color: '#e67e22', cursor: 'help', marginLeft: 2, fontWeight: 'bold' }}
+                                                            >[S]</span>
+                                                        )}
                                                     </span>
-                                                ))}
+                                                    )
+                                                })}
                                                 <span className={styles.crewItem}>
                                                     Konduktorzy <span className={nCond > 0 ? styles.crewBadgeOk : styles.crewBadgeOpt}>{nCond > 0 ? nCond : '✘'}</span>
                                                 </span>

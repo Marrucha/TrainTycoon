@@ -101,6 +101,75 @@ function ExpBar({ value }) {
   )
 }
 
+function MentorPickModal({ intern, employees, onAssign, onUnassign, onClose }) {
+  // Mentors who already have an intern (excluding current intern's mentor)
+  const busyMentorIds = new Set(
+    (employees || [])
+      .filter(e => e.isIntern && e.mentorId && e.id !== intern.id)
+      .map(e => e.mentorId)
+  )
+  const mentors = (employees || []).filter(
+    e => e.role === intern.role && !e.isIntern && e.id !== intern.id && !busyMentorIds.has(e.id)
+  )
+  const currentMentor = (employees || []).find(e => e.id === intern.mentorId)
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#111', border: '1px solid #333', borderRadius: 8, padding: 20, minWidth: 360, maxWidth: 480 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <span style={{ fontWeight: 'bold', color: '#eee' }}>Mentor dla: {intern.name}</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 16 }}>✕</button>
+        </div>
+        <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>
+          Rola: <span style={{ color: '#f1c40f' }}>{ROLE_LABELS[intern.role] || intern.role}</span>
+          {' — '}stażysta zawsze podąża za mentorem
+        </div>
+        {currentMentor && (
+          <div style={{ marginBottom: 12, padding: '8px 10px', background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#2ecc71' }}>Mentor: {currentMentor.name}</div>
+              {currentMentor.assignedTo && <div style={{ fontSize: 11, color: '#888' }}>Skład: {currentMentor.assignedTo}</div>}
+            </div>
+            <button
+              onClick={onUnassign}
+              style={{ background: 'none', border: '1px solid #c0392b', color: '#c0392b', borderRadius: 4, padding: '3px 10px', fontSize: 11, cursor: 'pointer' }}
+            >
+              Odpisz
+            </button>
+          </div>
+        )}
+        {mentors.length === 0 && (
+          <div style={{ color: '#888', fontSize: 12, padding: '12px 0' }}>
+            Brak wykwalifikowanych pracowników roli {ROLE_LABELS[intern.role] || intern.role}.
+          </div>
+        )}
+        {mentors.map(mentor => (
+          <div key={mentor.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #222' }}>
+            <div>
+              <div style={{ color: '#ddd', fontSize: 13 }}>{mentor.name}</div>
+              <div style={{ fontSize: 11, color: '#888' }}>
+                exp: {Math.round(mentor.experience ?? 0)}
+                {mentor.assignedTo ? <span style={{ color: '#666', marginLeft: 6 }}>• {mentor.assignedTo}</span> : <span style={{ color: '#444', marginLeft: 6 }}>• wolny</span>}
+              </div>
+            </div>
+            <button
+              onClick={() => onAssign(mentor.id)}
+              style={{
+                background: intern.mentorId === mentor.id ? '#1a3a1a' : '#0a1a0a',
+                border: `1px solid ${intern.mentorId === mentor.id ? '#2ecc71' : '#2a4a2a'}`,
+                color: intern.mentorId === mentor.id ? '#2ecc71' : '#8aab8a',
+                borderRadius: 4, padding: '4px 10px', fontSize: 11, cursor: 'pointer'
+              }}
+            >
+              {intern.mentorId === mentor.id ? '✔ Mentor' : 'Wybierz'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function AgencyModal({ role, agencyList, onHire, onClose }) {
   const candidates = (agencyList || []).filter(c => c.role === role)
   const salary     = SALARIES[role] ?? 5000
@@ -142,10 +211,11 @@ function AgencyModal({ role, agencyList, onHire, onClose }) {
 }
 
 export default function HRSection() {
-  const { employees, trainsSets, playerDoc, hireFromAgency, hireIntern, fireEmployee } = useGame()
+  const { employees, trainsSets, playerDoc, hireFromAgency, hireIntern, fireEmployee, assignInternToMentor, unassignInternFromMentor } = useGame()
   const [activeRole, setActiveRole] = useState('maszynista')
   const [showAgency, setShowAgency] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [internAssignFor, setInternAssignFor] = useState(null) // intern emp object
 
   async function handleGenerateAgencyList() {
     setGenerating(true)
@@ -167,8 +237,9 @@ export default function HRSection() {
     return sum + (e.isIntern ? INTERN_SALARY : (e.monthlySalary ?? SALARIES[e.role] ?? 0))
   }, 0)
 
-  // Employees for the active role tab
-  const filtered = employees.filter(e => e.role === activeRole)
+  // Employees for the active role tab (non-interns + their interns listed below)
+  const filtered = employees.filter(e => e.role === activeRole && !e.isIntern)
+  const internsForRole = employees.filter(e => e.role === activeRole && e.isIntern)
 
   // TrainSet name lookup
   const tsName = (tsId) => trainsSets?.find(t => t.id === tsId)?.name || tsId
@@ -193,8 +264,27 @@ export default function HRSection() {
     await fireEmployee(emp.id, emp)
   }
 
+  async function handleInternAssign(mentorId) {
+    await assignInternToMentor(internAssignFor.id, mentorId)
+    setInternAssignFor(null)
+  }
+
+  async function handleInternUnassign() {
+    await unassignInternFromMentor(internAssignFor.id)
+    setInternAssignFor(null)
+  }
+
   return (
     <>
+      {internAssignFor && (
+        <MentorPickModal
+          intern={internAssignFor}
+          employees={employees}
+          onAssign={handleInternAssign}
+          onUnassign={handleInternUnassign}
+          onClose={() => setInternAssignFor(null)}
+        />
+      )}
       {showAgency && (
         <AgencyModal
           role={activeRole}
@@ -239,60 +329,117 @@ export default function HRSection() {
 
       {/* Employee list */}
       <section className={styles.card} style={{ marginBottom: 12 }}>
-        {filtered.length === 0 && (
+        {filtered.length === 0 && internsForRole.length === 0 && (
           <div style={{ color: '#666', fontSize: 12, padding: '8px 0' }}>Brak pracowników w tej kategorii.</div>
         )}
         {filtered.map(emp => {
           const age       = calcAge(emp.dateOfBirth)
           const preRetire = age !== null && age >= 63
           const retDate   = retirementDate(emp.dateOfBirth)
+          const myIntern  = internsForRole.find(i => i.mentorId === emp.id)
 
           return (
-          <div key={emp.id} style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '8px 6px', borderBottom: '1px solid #1a1a1a',
-            borderLeft: preRetire ? '3px solid #e74c3c' : '3px solid transparent',
-            borderRadius: preRetire ? '2px' : 0,
-          }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <EmpTooltip emp={emp} />
-                {emp.isIntern && <span style={{ color: '#e67e22', fontSize: 11 }}>[stażysta]</span>}
-                {emp.isIntern && emp.internGraduatesAt && (
-                  <span style={{ fontSize: 11, color: '#888' }}>→ {emp.internGraduatesAt.slice(0, 7)}</span>
-                )}
-                {preRetire && (
-                  <span style={{ fontSize: 10, color: '#e74c3c', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>
-                    Emerytura {retDate ? retDate.toLocaleDateString('pl-PL') : ''}
+          <div key={emp.id}>
+            {/* Karta mentora */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 6px', borderBottom: myIntern ? 'none' : '1px solid #1a1a1a',
+              borderLeft: preRetire ? '3px solid #e74c3c' : '3px solid transparent',
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <EmpTooltip emp={emp} />
+                  {preRetire && (
+                    <span style={{ fontSize: 10, color: '#e74c3c', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>
+                      Emerytura {retDate ? retDate.toLocaleDateString('pl-PL') : ''}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3 }}>
+                  <span style={{ fontSize: 11, color: '#666' }}>exp:</span>
+                  <ExpBar value={emp.experience ?? 0} />
+                  <span style={{ fontSize: 11, color: '#666' }}>
+                    {emp.assignedTo
+                      ? <span>Przyp.: <span style={{ color: '#aaa' }}>{tsName(emp.assignedTo)}</span></span>
+                      : <span style={{ color: '#555' }}>Wolny</span>
+                    }
                   </span>
-                )}
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3 }}>
-                {!emp.isIntern && (
-                  <>
-                    <span style={{ fontSize: 11, color: '#666' }}>exp:</span>
-                    <ExpBar value={emp.experience ?? 0} />
-                  </>
-                )}
-                <span style={{ fontSize: 11, color: '#666' }}>
-                  {emp.assignedTo
-                    ? <span>Przyp.: <span style={{ color: '#aaa' }}>{tsName(emp.assignedTo)}</span></span>
-                    : <span style={{ color: '#555' }}>Wolny</span>
-                  }
-                </span>
-              </div>
+              <button
+                onClick={() => !preRetire && handleFire(emp)}
+                disabled={preRetire}
+                title={preRetire ? 'Pracownik w wieku przedemerytalnym (63+)' : ''}
+                style={{ background: 'none', border: '1px solid #555', color: preRetire ? '#555' : '#c0392b', borderRadius: 3, padding: '3px 8px', fontSize: 11, cursor: preRetire ? 'not-allowed' : 'pointer', opacity: preRetire ? 0.4 : 1, flexShrink: 0 }}
+              >
+                Zwolnij
+              </button>
             </div>
-            <button
-              onClick={() => !preRetire && handleFire(emp)}
-              disabled={preRetire}
-              title={preRetire ? 'Pracownik w wieku przedemerytalnym (63+)' : ''}
-              style={{ background: 'none', border: '1px solid #555', color: preRetire ? '#555' : '#c0392b', borderRadius: 3, padding: '3px 8px', fontSize: 11, cursor: preRetire ? 'not-allowed' : 'pointer', flexShrink: 0, opacity: preRetire ? 0.4 : 1 }}
-            >
-              Zwolnij
-            </button>
+            {/* Karta stażysty pod mentorem */}
+            {myIntern && (
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '5px 6px 8px 18px', borderBottom: '1px solid #1a1a1a',
+                borderLeft: '3px solid #e67e22', background: 'rgba(230,126,34,0.04)',
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ color: '#e67e22', fontSize: 10 }}>└ stażysta:</span>
+                    <EmpTooltip emp={myIntern} />
+                    {myIntern.internGraduatesAt && (
+                      <span style={{ fontSize: 11, color: '#888' }}>uprawn.: {formatDate(myIntern.internGraduatesAt)}</span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  <button
+                    onClick={() => setInternAssignFor(myIntern)}
+                    style={{ background: 'none', border: '1px solid #2980b9', color: '#2980b9', borderRadius: 3, padding: '2px 7px', fontSize: 10, cursor: 'pointer' }}
+                  >
+                    Zmień
+                  </button>
+                  <button
+                    onClick={() => handleFire(myIntern)}
+                    style={{ background: 'none', border: '1px solid #555', color: '#c0392b', borderRadius: 3, padding: '2px 7px', fontSize: 10, cursor: 'pointer' }}
+                  >
+                    Zwolnij
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           )
         })}
+        {/* Stażyści bez mentora */}
+        {internsForRole.filter(i => !i.mentorId).map(intern => (
+          <div key={intern.id} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '8px 6px', borderBottom: '1px solid #1a1a1a',
+            borderLeft: '3px solid #888', background: 'rgba(255,255,255,0.02)',
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ color: '#888', fontSize: 10 }}>stażysta (bez mentora):</span>
+                <EmpTooltip emp={intern} />
+                <span style={{ fontSize: 11, color: '#666', fontStyle: 'italic' }}>czas nie biegnie</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+              <button
+                onClick={() => setInternAssignFor(intern)}
+                style={{ background: 'none', border: '1px solid #2980b9', color: '#2980b9', borderRadius: 3, padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}
+              >
+                Przypisz mentora
+              </button>
+              <button
+                onClick={() => handleFire(intern)}
+                style={{ background: 'none', border: '1px solid #555', color: '#c0392b', borderRadius: 3, padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}
+              >
+                Zwolnij
+              </button>
+            </div>
+          </div>
+        ))}
 
         {/* Hire buttons */}
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>

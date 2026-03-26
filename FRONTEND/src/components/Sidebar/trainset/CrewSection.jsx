@@ -88,6 +88,7 @@ export default function CrewSection({ ts }) {
     if (!empId) return null
     const e = empById[empId]
     if (!e) return empId.slice(-6)
+    if (e.isIntern) return `${e.name} [staż. ${e.role}]`
     return `${e.name} (${Math.round(e.experience ?? 0)})`
   }
 

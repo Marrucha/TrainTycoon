@@ -124,7 +124,7 @@ export function GameProvider({ children }) {
   const trainActions = useTrainActions({ baseTrains, budget })
   const financeActions = useFinanceActions({ budget, playerDoc })
   const scheduleActions = useScheduleActions({ cities, trainsSets, setSelectedRoute: selection.setSelectedRoute })
-  const hrActions = useHRActions({ budget, trainsSets })
+  const hrActions = useHRActions({ budget, trainsSets, employees })
 
   function getTrainById(id) {
     return trains.find(t => t.id === id) || null

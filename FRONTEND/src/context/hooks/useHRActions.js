@@ -1,4 +1,4 @@
-import { doc, setDoc, addDoc, deleteDoc, updateDoc, collection, arrayUnion, arrayRemove } from 'firebase/firestore'
+import { doc, setDoc, addDoc, deleteDoc, updateDoc, collection, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore'
 import { db, auth } from '../../firebase/config'
 
 const _FIRST_NAMES = [
@@ -62,7 +62,7 @@ const ROLE_KEY_MAP = {
   barman:            'barman',
 }
 
-export function useHRActions({ budget, trainsSets }) {
+export function useHRActions({ budget, trainsSets, employees }) {
   // ─── Hire from agency ──────────────────────────────────────────────────────
 
   async function hireFromAgency(candidateData) {
@@ -74,8 +74,9 @@ export function useHRActions({ budget, trainsSets }) {
       return false
     }
     try {
+      const uid     = auth.currentUser.uid
       const hiredAt = new Date().toISOString().slice(0, 10)
-      await addDoc(collection(db, `players/${auth.currentUser.uid}/kadry`), {
+      await addDoc(collection(db, `players/${uid}/kadry`), {
         name,
         role,
         experience:    parseFloat(experience),
@@ -86,8 +87,18 @@ export function useHRActions({ budget, trainsSets }) {
         assignedTo:    null,
         dateOfBirth:   candidateData.dateOfBirth ?? null,
       })
-      await setDoc(doc(db, 'players', auth.currentUser.uid), {
-        finance: { balance: budget - fee },
+
+      // Remove hired candidate from agencyList
+      const playerRef  = doc(db, 'players', uid)
+      const playerSnap = await getDoc(playerRef)
+      const currentList = playerSnap.data()?.agencyList || []
+      const updatedList = currentList.filter(c =>
+        !(c.name === name && c.role === role && String(c.experience) === String(experience))
+      )
+
+      await setDoc(playerRef, {
+        finance:    { balance: budget - fee },
+        agencyList: updatedList,
       }, { merge: true })
       return true
     } catch (e) {
@@ -101,9 +112,6 @@ export function useHRActions({ budget, trainsSets }) {
   async function hireIntern(role) {
     try {
       const hiredAt = new Date()
-      const graduatesAt = new Date(hiredAt)
-      graduatesAt.setFullYear(graduatesAt.getFullYear() + 1)
-
       await addDoc(collection(db, `players/${auth.currentUser.uid}/kadry`), {
         name:              _randomName(),
         role,
@@ -111,7 +119,8 @@ export function useHRActions({ budget, trainsSets }) {
         monthlySalary:     INTERN_SALARY,
         hiredAt:           hiredAt.toISOString().slice(0, 10),
         isIntern:          true,
-        internGraduatesAt: graduatesAt.toISOString().slice(0, 10),
+        internGraduatesAt: null,   // set when mentor is assigned
+        mentorId:          null,
         assignedTo:        null,
         dateOfBirth:       _randomDob(20, 24),
       })
@@ -133,7 +142,13 @@ export function useHRActions({ budget, trainsSets }) {
     }
     const hiredDate = hiredAt ? new Date(hiredAt) : new Date()
     const monthsEmployed = Math.floor((Date.now() - hiredDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44))
-    const severance = isIntern ? 0 : (monthsEmployed > 36 ? 3 * monthlySalary : monthlySalary)
+    // Severance tiers (hiredAt counts from start of internship):
+    // < 12 months → 1×, 12–36 months → 2×, > 36 months → 3×
+    // Interns (still in training) get 0 severance
+    const severance = isIntern ? 0
+      : monthsEmployed > 36 ? 3 * monthlySalary
+      : monthsEmployed >= 12 ? 2 * monthlySalary
+      : monthlySalary
 
     const confirmMsg = severance > 0
       ? `Zwolnić pracownika? Odprawa: ${severance.toLocaleString()} PLN.`
@@ -174,29 +189,95 @@ export function useHRActions({ budget, trainsSets }) {
     }
   }
 
+  // ─── Intern helpers ────────────────────────────────────────────────────────
+
+  // Finds all interns whose mentor is empId and moves them to newTsId (or null)
+  async function _syncInterns(empId, newTsId, oldTsId) {
+    const uid = auth.currentUser.uid
+    const interns = (employees || []).filter(e => e.isIntern && e.mentorId === empId)
+    await Promise.all(interns.map(async intern => {
+      const internRef = doc(db, `players/${uid}/kadry`, intern.id)
+      const ops = [updateDoc(internRef, { assignedTo: newTsId ?? null })]
+      if (oldTsId) ops.push(updateDoc(doc(db, `players/${uid}/trainSet`, oldTsId), { 'crew.stazysci': arrayRemove(intern.id) }))
+      if (newTsId) ops.push(updateDoc(doc(db, `players/${uid}/trainSet`, newTsId), { 'crew.stazysci': arrayUnion(intern.id) }))
+      await Promise.all(ops)
+    }))
+  }
+
+  // ─── Assign intern to mentor ────────────────────────────────────────────────
+
+  async function assignInternToMentor(internId, mentorEmpId) {
+    const uid = auth.currentUser.uid
+    try {
+      const currentIntern = (employees || []).find(e => e.id === internId)
+      const mentorEmp     = (employees || []).find(e => e.id === mentorEmpId)
+      const mentorTsId    = mentorEmp?.assignedTo ?? null
+      const oldTsId       = currentIntern?.assignedTo ?? null
+
+      // Graduation = 1 year from today (mentor assigned)
+      const graduatesAt = new Date()
+      graduatesAt.setFullYear(graduatesAt.getFullYear() + 1)
+
+      const internRef = doc(db, `players/${uid}/kadry`, internId)
+      const ops = [updateDoc(internRef, {
+        mentorId: mentorEmpId,
+        assignedTo: mentorTsId,
+        internGraduatesAt: graduatesAt.toISOString().slice(0, 10),
+      })]
+      if (oldTsId) ops.push(updateDoc(doc(db, `players/${uid}/trainSet`, oldTsId), { 'crew.stazysci': arrayRemove(internId) }))
+      if (mentorTsId) ops.push(updateDoc(doc(db, `players/${uid}/trainSet`, mentorTsId), { 'crew.stazysci': arrayUnion(internId) }))
+      await Promise.all(ops)
+      return true
+    } catch (e) {
+      console.error('Błąd przypisywania stażysty do mentora:', e)
+      return false
+    }
+  }
+
+  // ─── Unassign intern from mentor ────────────────────────────────────────────
+
+  async function unassignInternFromMentor(internId) {
+    const uid = auth.currentUser.uid
+    try {
+      const currentIntern = (employees || []).find(e => e.id === internId)
+      const oldTsId = currentIntern?.assignedTo ?? null
+      const internRef = doc(db, `players/${uid}/kadry`, internId)
+      const ops = [updateDoc(internRef, { mentorId: null, assignedTo: null, internGraduatesAt: null })]
+      if (oldTsId) ops.push(updateDoc(doc(db, `players/${uid}/trainSet`, oldTsId), { 'crew.stazysci': arrayRemove(internId) }))
+      await Promise.all(ops)
+      return true
+    } catch (e) {
+      console.error('Błąd odpinania stażysty od mentora:', e)
+      return false
+    }
+  }
+
   // ─── Assign crew ───────────────────────────────────────────────────────────
 
   async function assignCrew(tsId, role, empId) {
     const crewKey = ROLE_KEY_MAP[role] ?? role
     const isArray = ARRAY_ROLES.includes(crewKey)
+    const uid = auth.currentUser.uid
     try {
-      const tsRef  = doc(db, `players/${auth.currentUser.uid}/trainSet`, tsId)
-      const empRef = doc(db, `players/${auth.currentUser.uid}/kadry`, empId)
+      const tsRef  = doc(db, `players/${uid}/trainSet`, tsId)
+      const empRef = doc(db, `players/${uid}/kadry`, empId)
 
       const crewUpdate = isArray
         ? { [`crew.${crewKey}`]: arrayUnion(empId) }
         : { [`crew.${crewKey}`]: empId }
 
-      // Recalculate effectiveMaxSpeed when assigning pomocnik
       if (crewKey === 'pomocnikMaszynisty') {
         const ts = trainsSets?.find(t => t.id === tsId)
         if (ts) crewUpdate.effectiveMaxSpeed = ts.maxSpeed ?? 160
       }
 
+      const oldTsId = (employees || []).find(e => e.id === empId)?.assignedTo ?? null
       await Promise.all([
         updateDoc(tsRef,  crewUpdate),
         updateDoc(empRef, { assignedTo: tsId }),
       ])
+      // Move interns along with their mentor
+      await _syncInterns(empId, tsId, oldTsId !== tsId ? oldTsId : null)
       return true
     } catch (e) {
       console.error('Błąd przypisywania obsady:', e)
@@ -209,15 +290,15 @@ export function useHRActions({ budget, trainsSets }) {
   async function unassignCrew(tsId, role, empId) {
     const crewKey = ROLE_KEY_MAP[role] ?? role
     const isArray = ARRAY_ROLES.includes(crewKey)
+    const uid = auth.currentUser.uid
     try {
-      const tsRef  = doc(db, `players/${auth.currentUser.uid}/trainSet`, tsId)
-      const empRef = doc(db, `players/${auth.currentUser.uid}/kadry`, empId)
+      const tsRef  = doc(db, `players/${uid}/trainSet`, tsId)
+      const empRef = doc(db, `players/${uid}/kadry`, empId)
 
       const crewUpdate = isArray
         ? { [`crew.${crewKey}`]: arrayRemove(empId) }
         : { [`crew.${crewKey}`]: null }
 
-      // Cap speed at 130 when unassigning pomocnik
       if (crewKey === 'pomocnikMaszynisty') {
         const ts = trainsSets?.find(t => t.id === tsId)
         if (ts) crewUpdate.effectiveMaxSpeed = Math.min(ts.maxSpeed ?? 160, 130)
@@ -227,6 +308,8 @@ export function useHRActions({ budget, trainsSets }) {
         updateDoc(tsRef,  crewUpdate),
         updateDoc(empRef, { assignedTo: null }),
       ])
+      // Unassign interns when mentor leaves the trainSet
+      await _syncInterns(empId, null, tsId)
       return true
     } catch (e) {
       console.error('Błąd usuwania obsady:', e)
@@ -234,6 +317,6 @@ export function useHRActions({ budget, trainsSets }) {
     }
   }
 
-  return { hireFromAgency, hireIntern, fireEmployee, assignCrew, unassignCrew }
+  return { hireFromAgency, hireIntern, fireEmployee, assignCrew, unassignCrew, assignInternToMentor, unassignInternFromMentor }
 }
 ;

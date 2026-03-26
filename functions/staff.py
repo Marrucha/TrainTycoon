@@ -213,8 +213,16 @@ def calc_evaluation_salary(role: str, experience: float) -> int:
 
 
 def calc_severance(months: int, salary: float) -> float:
-    """Severance pay: 3 salaries if employed > 3 years, else 1 salary."""
-    return 3.0 * salary if months > 36 else salary
+    """Severance pay tiers (tenure counted from hiredAt, including internship):
+      < 12 months  → 1 × salary
+      12–36 months → 2 × salary
+      > 36 months  → 3 × salary
+    """
+    if months > 36:
+        return 3.0 * salary
+    if months >= 12:
+        return 2.0 * salary
+    return salary
 
 
 def generate_candidate_exp() -> int:
@@ -259,6 +267,7 @@ def run_daily_staff(db):
     """Dispatch all daily staff-related tasks."""
     _update_gapowicze(db)
     _generate_agency_lists(db)
+    _advance_intern_experience(db)
     _update_intern_status(db)
     _check_retirements(db)
 
@@ -379,6 +388,42 @@ def _generate_agency_lists(db):
         p_doc.reference.update({'agencyList': candidates})
 
 
+def _advance_intern_experience(db):
+    """Daily: grow intern experience based on mentor's experience.
+
+    Formula: daily_gain = mentor.experience / 5 / 365
+    This means after 1 year: intern.experience = mentor.experience / 5
+    (e.g. mentor exp=100 → intern gains 20; mentor exp=10 → intern gains 2)
+    Only applies when intern has a mentorId set.
+    """
+    for p_doc in db.collection('players').stream():
+        pid = p_doc.id
+        if pid == 'samorządowy':
+            continue
+
+        # Build mentor exp lookup
+        emp_docs = list(db.collection(f'players/{pid}/kadry').stream())
+        mentor_exp = {
+            d.id: (d.to_dict() or {}).get('experience', 0.0)
+            for d in emp_docs
+            if not (d.to_dict() or {}).get('isIntern')
+        }
+
+        for emp_doc in emp_docs:
+            e = emp_doc.to_dict() or {}
+            if not e.get('isIntern'):
+                continue
+            mentor_id = e.get('mentorId')
+            if not mentor_id:
+                continue   # no mentor → time doesn't count
+            m_exp = mentor_exp.get(mentor_id, 0.0)
+            daily_gain = m_exp / 5.0 / 365.0
+            if daily_gain <= 0:
+                continue
+            new_exp = round(e.get('experience', 0.0) + daily_gain, 4)
+            emp_doc.reference.update({'experience': new_exp})
+
+
 def _update_intern_status(db):
     """Daily: graduate interns who have completed their 1-year training."""
     today = dt.date.today()
@@ -395,13 +440,20 @@ def _update_intern_status(db):
                 continue
             grad_date = dt.date.fromisoformat(grad_str[:10])
             if today >= grad_date:
-                role = e.get('role', 'konduktor')
+                role      = e.get('role', 'konduktor')
+                ts_id     = e.get('assignedTo')
                 emp_doc.reference.update({
                     'isIntern':          False,
-                    'experience':        0.0,
                     'monthlySalary':     SALARIES.get(role, 5000),
                     'internGraduatesAt': None,
+                    'mentorId':          None,
+                    'assignedTo':        None,   # free to be properly assigned to a role
                 })
+                # Remove from crew.stazysci of their trainSet
+                if ts_id:
+                    from google.cloud.firestore_v1 import ArrayRemove
+                    ts_ref = db.collection(f'players/{pid}/trainSet').document(ts_id)
+                    ts_ref.update({'crew.stazysci': ArrayRemove([emp_doc.id])})
 
 
 def _accrue_staff_salaries(db, today=None):
@@ -429,6 +481,14 @@ def _accrue_staff_salaries(db, today=None):
             p_data  = p_doc.to_dict() or {}
             balance = (p_data.get('finance') or {}).get('balance', 0)
             p_doc.reference.update({'finance.balance': balance - total_salary})
+
+            # Record salary cost in financeLedger for this day
+            n_emp = len(employees)
+            ledger_ref = db.collection(f'players/{pid}/financeLedger').document(today.isoformat())
+            ledger_ref.set({
+                'oneTimeCosts': [{'type': 'salaries', 'amount': total_salary,
+                                  'desc': f'Pensje pracowników ({n_emp} os.)'}],
+            }, merge=True)
 
 
 def _advance_experience_all(db, today=None):

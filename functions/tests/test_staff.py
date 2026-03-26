@@ -291,24 +291,22 @@ class TestRawComfort:
 # ---------------------------------------------------------------------------
 
 class TestSeverance:
-    def test_short_tenure(self):
-        # ≤ 3 years → 1 salary
-        assert calc_severance(months=24, salary=5000) == pytest.approx(5000)
+    def test_under_1_year(self):
+        # < 12 months → 1× salary
+        assert calc_severance(months=6,  salary=5000) == pytest.approx(5000)
+        assert calc_severance(months=11, salary=5000) == pytest.approx(5000)
+        assert calc_severance(months=0,  salary=9000) == pytest.approx(9000)
 
-    def test_long_tenure(self):
-        # > 3 years → 3 salaries
-        assert calc_severance(months=48, salary=5000) == pytest.approx(15000)
+    def test_1_to_3_years(self):
+        # 12–36 months → 2× salary (post-internship tier)
+        assert calc_severance(months=12, salary=5000) == pytest.approx(10000)
+        assert calc_severance(months=24, salary=5000) == pytest.approx(10000)
+        assert calc_severance(months=36, salary=5000) == pytest.approx(10000)
 
-    def test_exactly_36_months(self):
-        # exactly 36 months (3 years) → 1 salary (not > 36)
-        assert calc_severance(months=36, salary=5000) == pytest.approx(5000)
-
-    def test_37_months(self):
-        # 37 months → > 36 → 3 salaries
+    def test_over_3_years(self):
+        # > 36 months → 3× salary
         assert calc_severance(months=37, salary=5000) == pytest.approx(15000)
-
-    def test_zero_tenure(self):
-        assert calc_severance(months=0, salary=9000) == pytest.approx(9000)
+        assert calc_severance(months=48, salary=5000) == pytest.approx(15000)
 
 
 # ---------------------------------------------------------------------------
