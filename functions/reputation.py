@@ -47,9 +47,12 @@ def update_reputation_metrics(db):
         # Clear dailyActions after calculation
         _clear_daily_actions(db, pid)
         
-        # --- E. PUNCTUALITY PLACEHOLDER ---
-        raw_punct = old_details.get('punctualityScore', 10.0)
-        new_details['punctualityScore'] = _apply_ema(old_details.get('punctualityScore'), raw_punct)
+        # --- E. PUNCTUALITY ---
+        raw_punct = _calc_raw_punctuality_score(db, pid, date_str, now_waw)
+        if raw_punct is None:
+            new_details['punctualityScore'] = old_details.get('punctualityScore', 10.0)
+        else:
+            new_details['punctualityScore'] = _apply_ema(old_details.get('punctualityScore'), raw_punct)
 
         # --- F. SPEED REPUTATION (RAW, max 10) ---
         raw_speed = _calc_raw_speed_score(db, pid, date_str, now_waw, sam_data.get('speedKmh', 80))
@@ -185,6 +188,47 @@ def _calc_raw_fill_rate_score(db, pid, date_str, now_waw):
     perc = (total_tr / total_dm) * 100
     score = 20 - ((100 - perc) / 4.5)
     return max(0, min(20, score)), perc
+
+def _calc_raw_punctuality_score(db, pid, date_str, now_waw):
+    """
+    Per kurs:
+      delay <= 0 min  →  +0.5  (punktualny)
+      delay > 0 min   →  -floor(delay / 5) * 0.5  (kara za każde pełne 5 min)
+
+    avg_indicator = mean(scores)
+    modifier = (avg_indicator + 0.5) * 20, clamp [0, 20]
+      avg=+0.5 (wszystkie punktualne) → 20 pkt
+      avg=-0.5                        →  0 pkt
+      avg=-1.0 (śr. 10 min spóźn.)   → -10 (EMA ciągnie w dół)
+
+    Zwraca None gdy brak danych → stary wynik bez zmian.
+    """
+    report_snap = db.collection(f'players/{pid}/Raporty').document(date_str).get()
+    if not report_snap.exists:
+        yst_str = (now_waw - timedelta(days=1)).strftime('%Y-%m-%d')
+        report_snap = db.collection(f'players/{pid}/Raporty').document(yst_str).get()
+    if not report_snap.exists:
+        return None
+
+    ts_agg = report_snap.to_dict().get('trainSets') or {}
+    scores = []
+    for ts in ts_agg.values():
+        for kurs in ts.get('kursy', {}).values():
+            delay = kurs.get('delayMin')
+            if delay is None:
+                continue
+            if delay <= 0:
+                scores.append(0.5)
+            else:
+                scores.append(-math.floor(delay / 5) * 0.5)
+
+    if not scores:
+        return None
+
+    avg_indicator = sum(scores) / len(scores)
+    modifier = (avg_indicator + 0.5) * 20
+    return max(0.0, min(20.0, modifier))
+
 
 def _calc_raw_speed_score(db, pid, date_str, now_waw, sam_speed_kmh):
     report_snap = db.collection(f'players/{pid}/Raporty').document(date_str).get()
