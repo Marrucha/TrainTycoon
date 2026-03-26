@@ -76,6 +76,13 @@ export default function TrainSetPanel() {
     ? Math.round((totalTransferred / (totalSeats * coursesCount)) * 100)
     : null
 
+  const totalFineRevenue = Object.values(dailyTransfer).reduce((s, d) => s + (d.fineRevenue || 0), 0) || null
+  const totalWarsRevenue = Object.values(dailyTransfer).reduce((s, d) => s + (d.warsRevenue || 0), 0) || null
+  const avgInspectionIndex = (() => {
+    const vals = Object.values(dailyTransfer).map(d => d.inspectionIndex).filter(v => v != null)
+    return vals.length > 0 ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 100) : null
+  })()
+
   const stopOrder = {}
   ;(ts.routeStops || []).forEach((cityId, idx) => {
     stopOrder[cityId] = idx
@@ -279,7 +286,7 @@ export default function TrainSetPanel() {
           kursRevenue={kursRevenue} totalDailyRevenue={totalDailyRevenue}
           totalSeats={totalSeats} stopOrder={stopOrder}
         />
-        <TrafficStats totalDailyPassengers={totalDailyPassengers} totalTransferred={totalTransferred} avgOccupancy={avgOccupancy} />
+        <TrafficStats totalDailyPassengers={totalDailyPassengers} totalTransferred={totalTransferred} avgOccupancy={avgOccupancy} gapowiczeRate={ts.gapowiczeRate} avgInspectionIndex={avgInspectionIndex} totalFineRevenue={totalFineRevenue} totalWarsRevenue={totalWarsRevenue} />
         <DemandMatrix mergedOD={mergedOD} stopOrder={stopOrder} cities={cities} dailyDemand={dailyDemand} currentTransfer={ts.currentTransfer} />
       </div>
     </div>

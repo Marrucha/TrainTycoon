@@ -2,7 +2,8 @@ import { useState } from 'react'
 import styles from '../RoutePanel.module.css'
 
 export default function TrafficStats({
-  totalDailyPassengers, totalTransferred, avgOccupancy
+  totalDailyPassengers, totalTransferred, avgOccupancy,
+  gapowiczeRate, avgInspectionIndex, totalFineRevenue, totalWarsRevenue
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -40,15 +41,27 @@ export default function TrafficStats({
           </div>
           <div className={styles.statRow}>
             <span className={styles.statLabel}>Gapowicze</span>
-            <span className={styles.statValue}>— (brak danych)</span>
+            <span className={styles.statValue}>
+              {gapowiczeRate != null ? `${Math.round(gapowiczeRate * 100)}%` : '— (brak danych)'}
+            </span>
           </div>
           <div className={styles.statRow}>
-            <span className={styles.statLabel}>Kontrole biletów</span>
-            <span className={styles.statValue}>— (brak danych)</span>
+            <span className={styles.statLabel}>Pokrycie kontrolą</span>
+            <span className={styles.statValue}>
+              {avgInspectionIndex != null ? `${avgInspectionIndex}%` : '— (brak danych)'}
+            </span>
           </div>
           <div className={styles.statRow}>
-            <span className={styles.statLabel}>Zebrane kary</span>
-            <span className={styles.statValue}>— (brak danych)</span>
+            <span className={styles.statLabel}>Zebrane kary / dobę</span>
+            <span className={styles.statValue} style={{ color: totalFineRevenue ? '#4fc3f7' : undefined }}>
+              {totalFineRevenue != null ? `${totalFineRevenue.toLocaleString('pl-PL')} PLN` : '— (brak danych)'}
+            </span>
+          </div>
+          <div className={styles.statRow}>
+            <span className={styles.statLabel}>Wars / dobę</span>
+            <span className={styles.statValue} style={{ color: totalWarsRevenue ? '#4fc3f7' : undefined }}>
+              {totalWarsRevenue != null ? `${totalWarsRevenue.toLocaleString('pl-PL')} PLN` : '— (brak danych)'}
+            </span>
           </div>
         </div>
       )}
