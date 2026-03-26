@@ -142,7 +142,7 @@ export function useMapData({ trainsSets, routes, cities, currentMin, trains }) {
                 const tDep = timeToMin(s.odjazd)
                 return {
                     cityId: city?.id,
-                    time: tDep >= 0 ? tDep : tArr
+                    time: tArr >= 0 ? tArr : tDep
                 }
             }).filter(s => s.cityId && s.time >= 0)
                 .sort((a, b) => a.time - b.time)

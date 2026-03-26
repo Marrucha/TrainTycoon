@@ -135,3 +135,12 @@ export function getDemand(cityA, cityB) {
 
   return Math.round(baseDemand * multiplier)
 }
+
+const _HDM_RAW = [
+  0.008, 0.004, 0.003, 0.003, 0.007, 0.018,
+  0.045, 0.082, 0.078, 0.055, 0.042, 0.045,
+  0.052, 0.050, 0.048, 0.050, 0.058, 0.075,
+  0.082, 0.062, 0.048, 0.032, 0.018, 0.010,
+]
+const _hdmTotal = _HDM_RAW.reduce((s, v) => s + v, 0)
+export const HOUR_DEMAND_MAP = _HDM_RAW.map(v => v / _hdmTotal)

@@ -7,6 +7,7 @@ import styles from './PolandMap.module.css'
 
 // Modules
 import { getBezierCP, quadBezierPoint, quadBezierAngle, getCurvedPath, timeToMin } from './modules/MapUtils'
+import { getDemand, HOUR_DEMAND_MAP } from '../../data/demand'
 import { useMapData } from './modules/useMapData'
 import { MapTooltips } from './modules/MapTooltips'
 import { MapControls } from './modules/MapControls'
@@ -86,22 +87,16 @@ function MapOverlay() {
       })
     })
 
-    // Second pass: for each row, compute total demand from hoveredCity to its forwardIds
-    // across ALL our trainSets/kursy (general market demand on those OD pairs)
+    // Second pass: kursTotal = total market demand (all carriers) from hoveredCity
+    // to forward stops of this kurs, for the specific departure hour
     rows.forEach(row => {
-      let totalFromCityToForward = 0
-      trainsSets.forEach(ts => {
-        if (!ts.dailyDemand) return
-        Object.values(ts.dailyDemand).forEach(kd => {
-          if (!kd?.od) return
-          Object.entries(kd.od).forEach(([key, val]) => {
-            const [fId, tId] = key.split(':')
-            if (fId === cityId && row.forwardIds.has(tId))
-              totalFromCityToForward += (val.class1 || 0) + (val.class2 || 0)
-          })
-        })
+      let kursTotal = 0
+      row.forwardIds.forEach(fwdId => {
+        const fwdCity = cities.find(c => c.id === fwdId)
+        if (!fwdCity) return
+        kursTotal += getDemand(hoveredCity, fwdCity) * HOUR_DEMAND_MAP[currentHour]
       })
-      row.kursTotal = totalFromCityToForward
+      row.kursTotal = Math.round(kursTotal)
     })
 
     rows.sort((a, b) => b.demand - a.demand)

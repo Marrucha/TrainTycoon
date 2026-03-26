@@ -100,7 +100,7 @@ export function GameProvider({ children }) {
       const stops = ts.rozklad
         .map(s => ({
           cityId: resolveCityId(s.miasto),
-          time: timeToMin(s.odjazd) >= 0 ? timeToMin(s.odjazd) : timeToMin(s.przyjazd),
+          time: timeToMin(s.przyjazd) >= 0 ? timeToMin(s.przyjazd) : timeToMin(s.odjazd),
         }))
         .filter(s => s.cityId && s.time >= 0)
         .sort((a, b) => a.time - b.time)
