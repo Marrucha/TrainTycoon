@@ -347,11 +347,20 @@ export function useHRActions({ budget, trainsSets, employees }) {
           crewUpdate.currentTransfer = {}
           if (lastCityId) crewUpdate.noCrewCityId = lastCityId
 
-          if (compensation > 0) {
-            await setDoc(doc(db, 'players', uid), {
-              finance: { balance: budget - compensation },
-            }, { merge: true })
+          // Deduct compensation + penalize punctuality reputation
+          const playerRef = doc(db, 'players', uid)
+          const playerSnap = await getDoc(playerRef)
+          const playerData = playerSnap.data() || {}
+          const oldPunct = playerData.reputationDetails?.punctualityScore ?? 10.0
+          const newPunct = Math.max(0, oldPunct - 0.5)
+
+          const playerUpdate = {
+            'reputationDetails.punctualityScore': newPunct,
           }
+          if (compensation > 0) {
+            playerUpdate['finance.balance'] = (playerData.finance?.balance ?? budget) - compensation
+          }
+          await updateDoc(playerRef, playerUpdate)
         } else {
           // Train was already stopped — just set alert without passenger check
           crewUpdate.noCrewAlert = true
