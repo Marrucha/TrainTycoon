@@ -70,6 +70,7 @@ function AssignModal({ role, roleLabel, tsId, excludeIds, onAssign, onClose }) {
 export default function CrewSection({ ts }) {
   const { employees, assignCrew, unassignCrew } = useGame()
   const [assignRole, setAssignRole] = useState(null)
+  const [open, setOpen] = useState(false)
 
   const crew = ts.crew || {}
 
@@ -118,83 +119,90 @@ export default function CrewSection({ ts }) {
         />
       )}
 
-      <div className={styles.sectionTitle}>Obsada</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+        <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>OBSADA</span>
+        <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+      </div>
 
-      {ts.noCrewAlert && (
-        <div style={{
-          background: 'rgba(230,126,34,0.15)', border: '1px solid #e67e22',
-          borderRadius: 6, padding: '8px 10px', marginBottom: 8,
-          display: 'flex', alignItems: 'flex-start', gap: 8
-        }}>
-          <span style={{ fontSize: 14, lineHeight: 1 }}>⚠️</span>
-          <div>
-            <div style={{ color: '#e67e22', fontWeight: 'bold', fontSize: 11, marginBottom: 2 }}>
-              POCIĄG UNIERUCHOMIONY
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          {ts.noCrewAlert && (
+            <div style={{
+              background: 'rgba(230,126,34,0.15)', border: '1px solid #e67e22',
+              borderRadius: 6, padding: '8px 10px', marginBottom: 8,
+              display: 'flex', alignItems: 'flex-start', gap: 8
+            }}>
+              <span style={{ fontSize: 14, lineHeight: 1 }}>⚠️</span>
+              <div>
+                <div style={{ color: '#e67e22', fontWeight: 'bold', fontSize: 11, marginBottom: 2 }}>
+                  POCIĄG UNIERUCHOMIONY
+                </div>
+                <div style={{ color: '#b0804a', fontSize: 10 }}>
+                  Brak wymaganej obsady. Przypisz maszynistę i kierownika, aby wznowić kursy.
+                </div>
+              </div>
             </div>
-            <div style={{ color: '#b0804a', fontSize: 10 }}>
-              Brak wymaganej obsady. Przypisz maszynistę i kierownika, aby wznowić kursy.
+          )}
+
+          {CREW_ROLES.map(({ key, label, array, required }) => {
+            const val = crew[key]
+            const ids = array ? (val || []) : (val ? [val] : [])
+
+            return (
+              <div key={key} style={{ padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, color: required && ids.length === 0 ? '#e74c3c' : '#888', minWidth: 110 }}>
+                    {label}{required && ids.length === 0 ? ' !' : ''}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    {ids.length === 0 && (
+                      <span style={{ fontSize: 11, color: '#444', marginRight: 4 }}>Nieprzypisany</span>
+                    )}
+                    {ids.map(id => (
+                      <span key={id} style={{ fontSize: 11, color: '#ccc', marginRight: 4 }}>{empLabel(id)}</span>
+                    ))}
+                    <button
+                      onClick={() => setAssignRole(key)}
+                      style={{ background: 'none', border: '1px solid #333', color: '#888', borderRadius: 3, padding: '2px 6px', fontSize: 10, cursor: 'pointer' }}
+                    >
+                      {ids.length === 0 ? 'Przypisz' : '+'}
+                    </button>
+                    {ids.map(id => (
+                      <button
+                        key={`rm-${id}`}
+                        onClick={() => handleUnassign(key, id)}
+                        style={{ background: 'none', border: '1px solid #422', color: '#c0392b', borderRadius: 3, padding: '2px 6px', fontSize: 10, cursor: 'pointer' }}
+                      >
+                        −
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {/* Summary stats */}
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: '#888' }}>Gapowicze</span>
+              <GapBar rate={ts.gapowiczeRate} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 11, color: '#888' }}>Max prędkość</span>
+              <span style={{ fontSize: 11, color: hasHelper ? '#2ecc71' : '#f39c12' }}>
+                {effectiveMax} km/h{!hasHelper ? ' (bez pomocnika)' : ''}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 11, color: '#888' }}>Wars</span>
+              <span style={{ fontSize: 11, color: hasBarman ? '#2ecc71' : '#555' }}>
+                {hasBarman ? 'aktywny' : 'brak barmana'}
+              </span>
             </div>
           </div>
         </div>
       )}
-
-      {CREW_ROLES.map(({ key, label, array, required }) => {
-        const val = crew[key]
-        const ids = array ? (val || []) : (val ? [val] : [])
-
-        return (
-          <div key={key} style={{ padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, color: required && ids.length === 0 ? '#e74c3c' : '#888', minWidth: 110 }}>
-                {label}{required && ids.length === 0 ? ' !' : ''}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                {ids.length === 0 && (
-                  <span style={{ fontSize: 11, color: '#444', marginRight: 4 }}>Nieprzypisany</span>
-                )}
-                {ids.map(id => (
-                  <span key={id} style={{ fontSize: 11, color: '#ccc', marginRight: 4 }}>{empLabel(id)}</span>
-                ))}
-                <button
-                  onClick={() => setAssignRole(key)}
-                  style={{ background: 'none', border: '1px solid #333', color: '#888', borderRadius: 3, padding: '2px 6px', fontSize: 10, cursor: 'pointer' }}
-                >
-                  {ids.length === 0 ? 'Przypisz' : '+'}
-                </button>
-                {ids.map(id => (
-                  <button
-                    key={`rm-${id}`}
-                    onClick={() => handleUnassign(key, id)}
-                    style={{ background: 'none', border: '1px solid #422', color: '#c0392b', borderRadius: 3, padding: '2px 6px', fontSize: 10, cursor: 'pointer' }}
-                  >
-                    −
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )
-      })}
-
-      {/* Summary stats */}
-      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#888' }}>Gapowicze</span>
-          <GapBar rate={ts.gapowiczeRate} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 11, color: '#888' }}>Max prędkość</span>
-          <span style={{ fontSize: 11, color: hasHelper ? '#2ecc71' : '#f39c12' }}>
-            {effectiveMax} km/h{!hasHelper ? ' (bez pomocnika)' : ''}
-          </span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 11, color: '#888' }}>Wars</span>
-          <span style={{ fontSize: 11, color: hasBarman ? '#2ecc71' : '#555' }}>
-            {hasBarman ? 'aktywny' : 'brak barmana'}
-          </span>
-        </div>
-      </div>
     </div>
   )
 }

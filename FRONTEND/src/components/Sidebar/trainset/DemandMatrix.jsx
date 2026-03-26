@@ -1,12 +1,17 @@
+import { useState } from 'react'
 import styles from '../RoutePanel.module.css'
 
 export default function DemandMatrix({ mergedOD, stopOrder, cities }) {
+  const [open, setOpen] = useState(false)
   if (Object.keys(mergedOD).length === 0) return null
 
   return (
     <section className={styles.section}>
-      <div className={styles.sectionLabel}>POPYT OD (pary miast / dobę)</div>
-      <div className={styles.stats}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+        <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>POPYT OD (pary miast / dobę)</span>
+        <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+      </div>
+      {open && <div className={styles.stats} style={{ marginTop: 10 }}>
         {Object.entries(mergedOD)
           .sort((a, b) => {
             const [af, at_] = a[0].split(':')
@@ -49,7 +54,7 @@ export default function DemandMatrix({ mergedOD, stopOrder, cities }) {
               </div>
             )
           })}
-      </div>
+      </div>}
     </section>
   )
 }

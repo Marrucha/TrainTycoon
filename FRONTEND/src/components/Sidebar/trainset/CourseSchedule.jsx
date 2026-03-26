@@ -26,14 +26,19 @@ export default function CourseSchedule({
   totalSeats,
   stopOrder
 }) {
+  const [open, setOpen] = useState(false)
+
   if (firstStops.length === 0) {
     return (
       <section className={styles.section}>
-        <div className={styles.sectionLabelRow}>
-          <span className={styles.sectionLabel}>ROZKŁAD KURSÓW</span>
-          <span className={styles.depCount}>{coursesCount} kursów / dobę</span>
+        <div className={styles.sectionLabelRow} style={{ cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+          <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>ROZKŁAD KURSÓW</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className={styles.depCount}>{coursesCount} kursów / dobę</span>
+            <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+          </div>
         </div>
-        <div className={styles.emptySchedule}>Brak rozkładu jazdy</div>
+        {open && <div className={styles.emptySchedule} style={{ marginTop: 10 }}>Brak rozkładu jazdy</div>}
       </section>
     )
   }
@@ -44,11 +49,14 @@ export default function CourseSchedule({
 
   return (
     <section className={styles.section}>
-      <div className={styles.sectionLabelRow}>
-        <span className={styles.sectionLabel}>ROZKŁAD KURSÓW</span>
-        <span className={styles.depCount}>{coursesCount} kursów / dobę</span>
+      <div className={styles.sectionLabelRow} style={{ cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+        <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>ROZKŁAD KURSÓW</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className={styles.depCount}>{coursesCount} kursów / dobę</span>
+          <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
+        </div>
       </div>
-      <div className={styles.stats}>
+      {open && <div className={styles.stats} style={{ marginTop: 10 }}>
         <div style={{ paddingBottom: '6px', marginBottom: '6px', borderBottom: '1px solid #1a2a1a', display: 'flex', gap: '12px', color: '#888', fontSize: 10 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e74c3c' }}></span>W TRAKCIE JAZDY</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f0c040' }}></span>ZAKOŃCZYLI</span>
@@ -354,7 +362,7 @@ export default function CourseSchedule({
             </div>
           )
         })()}
-      </div>
+      </div>}
     </section>
   )
 }
