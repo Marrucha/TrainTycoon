@@ -45,38 +45,40 @@ function MapOverlay() {
     const currentHour = Math.floor(currentMin / 60)
     const cityName = hoveredCity.name
     const rows = []
-    let totalHourlyDemand = 0
 
     trainsSets.forEach(ts => {
       if (!ts.rozklad || !ts.dailyDemand) return
       const byKurs = {}
       ts.rozklad.forEach(s => { if (!byKurs[s.kurs]) byKurs[s.kurs] = []; byKurs[s.kurs].push(s) })
       Object.entries(byKurs).forEach(([kursId, stops]) => {
-        // Find the stop at hoveredCity
         const cityStop = stops.find(s => s.miasto === cityName || s.miasto === cityId)
         if (!cityStop?.odjazd) return
         const depMin = timeToMin(cityStop.odjazd)
         if (depMin < 0 || Math.floor(depMin / 60) !== currentHour) return
 
         const demand = ts.dailyDemand[kursId]
-        if (!demand) return
+        if (!demand?.od) return
 
-        // Total demand of this kurs (all origins) counts toward hourly total
-        const kursTotal = (demand.total ?? 0) ||
-          Object.values(demand.od ?? {}).reduce((s, v) => s + (v.class1 || 0) + (v.class2 || 0), 0)
-        totalHourlyDemand += kursTotal
+        // Total demand of THIS kurs (all stop-origins) = denominator for this row
+        const kursTotal = Object.entries(demand.od).reduce((s, [key, val]) => {
+          // Only count origins that are actual stops of this kurs
+          const fromId = key.split(':')[0]
+          const isStop = stops.some(st => st.miasto === fromId ||
+            cities.find(c => c.id === fromId)?.name === st.miasto)
+          return isStop ? s + (val.class1 || 0) + (val.class2 || 0) : s
+        }, 0)
 
-        // Demand specifically originating from this city
+        // Demand originating from hoveredCity on this kurs
         let fromCity = 0
-        Object.entries(demand.od ?? {}).forEach(([key, val]) => {
+        Object.entries(demand.od).forEach(([key, val]) => {
           if (key.split(':')[0] === cityId) fromCity += (val.class1 || 0) + (val.class2 || 0)
         })
-        if (fromCity > 0) rows.push({ tsName: ts.name, departure: cityStop.odjazd, demand: fromCity })
+        if (fromCity > 0) rows.push({ tsName: ts.name, departure: cityStop.odjazd, demand: fromCity, kursTotal })
       })
     })
 
     rows.sort((a, b) => b.demand - a.demand)
-    return { rows, totalHourlyDemand }
+    return { rows }
   }, [hoveredCity, trainsSets, currentMin, cities])
 
   useMapEvents({

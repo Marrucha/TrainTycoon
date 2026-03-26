@@ -47,8 +47,8 @@ export function MapTooltips({
                                         Popyt godz. {gameTime?.split(':')[0]}:xx
                                     </span>
                                     {cityDemandInfo.rows.map((row, i) => {
-                                        const pct = cityDemandInfo.totalHourlyDemand > 0
-                                            ? Math.round((row.demand / cityDemandInfo.totalHourlyDemand) * 1000) / 10
+                                        const pct = row.kursTotal > 0
+                                            ? Math.round((row.demand / row.kursTotal) * 1000) / 10
                                             : 0
                                         return (
                                             <span key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
