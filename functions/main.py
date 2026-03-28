@@ -11,6 +11,7 @@ from boarding_sim import run_boarding_tick, rebuild_schedule_table, rebuild_sche
 from reports import save_daily_report, _calc_ticket_price, DEFAULT_PRICING
 from reputation import update_reputation_metrics
 from staff import run_daily_staff, run_monthly_staff, _generate_agency_lists
+from hall_of_fame import update_hall_of_fame
 
 initialize_app()
 
@@ -134,6 +135,7 @@ def calc_daily_demand(event: scheduler_fn.ScheduledEvent) -> None:
     run_daily_staff(db)
     run_monthly_staff(db)
     update_reputation_metrics(db)
+    update_hall_of_fame(db)
 
 
 @scheduler_fn.on_schedule(schedule='* * * * *', timezone='Europe/Warsaw')
@@ -180,6 +182,13 @@ def manual_update_reputation(req: https_fn.Request) -> https_fn.Response:
     db = firestore.client()
     update_reputation_metrics(db)
     return https_fn.Response("Reputation updated successfully.\n", status=200)
+
+
+@https_fn.on_request()
+def manual_update_hall_of_fame(req: https_fn.Request) -> https_fn.Response:
+    db = firestore.client()
+    update_hall_of_fame(db)
+    return https_fn.Response("Hall of Fame updated successfully.\n", status=200)
 
 
 @https_fn.on_request()

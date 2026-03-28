@@ -7,6 +7,7 @@ import HRSection from './sections/HRSection';
 import FinanceSection from './sections/FinanceSection';
 import FleetSection from './sections/FleetSection';
 import ShopSection from './sections/ShopSection';
+import HallOfFame from './sections/HallOfFame';
 import PolandMap from '../Map/PolandMap';
 import Sidebar from '../Sidebar/Sidebar';
 import FleetAssets from '../FleetMenu/FleetAssets';
@@ -14,23 +15,24 @@ import FleetCompositions from '../FleetMenu/FleetCompositions';
 import ReportsMenu from '../Reports/ReportsMenu';
 
 const NAV = [
-  { id: 'policy',  label: 'Firma',       icon: '📋' },
-  { id: '__sep__', label: '',            icon: '' },
-  { id: 'map',     label: 'Mapa Sieci', icon: '🗺️' },
+  { id: 'policy', label: 'Firma', icon: '📋' },
+  { id: '__sep__', label: '', icon: '' },
+  { id: 'map', label: 'Mapa Sieci', icon: '🗺️' },
   {
     id: 'fleet-group', label: 'Flota Pociągów', icon: '🚃',
     children: [
-      { id: 'fleet',              label: 'Stan Taboru',      icon: '🔧' },
-      { id: 'fleet-assets',       label: 'Elementy Floty',   icon: '🚂' },
+      { id: 'fleet', label: 'Stan Taboru', icon: '🔧' },
+      { id: 'fleet-assets', label: 'Elementy Floty', icon: '🚂' },
       { id: 'fleet-compositions', label: 'Zarządzanie flotą', icon: '🔗' },
     ],
   },
-  { id: 'reports',  label: 'Raporty',  icon: '📊' },
-  { id: '__sep2__', label: '',         icon: '' },
-  { id: 'finance',  label: 'Finanse', icon: '💰' },
-  { id: 'hr',       label: 'Kadry',   icon: '👥' },
-  { id: '__sep3__', label: '',        icon: '' },
-  { id: 'shop',     label: 'Sklep Premium', icon: '🛒' },
+  { id: 'reports', label: 'Raporty', icon: '📊' },
+  { id: '__sep2__', label: '', icon: '' },
+  { id: 'finance', label: 'Finanse', icon: '💰' },
+  { id: 'hr', label: 'Kadry', icon: '👥' },
+  { id: '__sep3__', label: '', icon: '' },
+  { id: 'shop', label: 'Sklep Premium', icon: '🛒' },
+  { id: 'hall-of-fame', label: 'Hall of Fame', icon: '🏆' },
 ]
 
 export default function CompanyMenu() {
@@ -79,13 +81,14 @@ export default function CompanyMenu() {
     return url;
   };
 
-  const lokomotywowniaUrl    = useMemo(() => getBackgroundUrl('Lokomotywownia'),         [pictures, isLandscape]);
+  const lokomotywowniaUrl = useMemo(() => getBackgroundUrl('Lokomotywownia'), [pictures, isLandscape]);
   const lokomotywowniaWnUrl = useMemo(() => getBackgroundUrl('Lokomotywownia_wnetrze'), [pictures, isLandscape]);
-  const bankUrl              = useMemo(() => getBackgroundUrl('Bank'),                   [pictures, isLandscape]);
-  const kadryUrl             = useMemo(() => getBackgroundUrl('Kadry'),                  [pictures, isLandscape]);
-  const salonUrl             = useMemo(() => getBackgroundUrl('Salon'),                  [pictures, isLandscape]);
-  const raportyUrl           = useMemo(() => getBackgroundUrl('Raporty'),                [pictures, isLandscape]);
-  const tloUrl               = useMemo(() => getBackgroundUrl('Tlo'),                    [pictures, isLandscape]);
+  const bankUrl = useMemo(() => getBackgroundUrl('Bank'), [pictures, isLandscape]);
+  const kadryUrl = useMemo(() => getBackgroundUrl('Kadry'), [pictures, isLandscape]);
+  const salonUrl = useMemo(() => getBackgroundUrl('Salon'), [pictures, isLandscape]);
+  const raportyUrl = useMemo(() => getBackgroundUrl('Raporty'), [pictures, isLandscape]);
+  const hallOfFameUrl = useMemo(() => getBackgroundUrl('HallOfFame'), [pictures, isLandscape]);
+  const tloUrl = useMemo(() => getBackgroundUrl('Tlo'), [pictures, isLandscape]);
 
   const toggleGroup = (groupId) =>
     setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -144,14 +147,15 @@ export default function CompanyMenu() {
 
   const bgImage = (() => {
     const url =
-      activeTab === 'fleet'               ? lokomotywowniaUrl :
-      activeTab === 'fleet-compositions'  ? lokomotywowniaWnUrl :
-      activeTab === 'finance'             ? bankUrl :
-      activeTab === 'hr'                  ? kadryUrl :
-      activeTab === 'fleet-assets'        ? salonUrl :
-      activeTab === 'reports'             ? raportyUrl :
-      activeTab === 'shop'                ? bankUrl :
-      activeTab === 'policy'              ? tloUrl : null;
+      activeTab === 'fleet' ? lokomotywowniaUrl :
+        activeTab === 'fleet-compositions' ? lokomotywowniaWnUrl :
+          activeTab === 'finance' ? bankUrl :
+            activeTab === 'hr' ? kadryUrl :
+              activeTab === 'fleet-assets' ? salonUrl :
+                activeTab === 'reports' ? raportyUrl :
+                  activeTab === 'shop' ? bankUrl :
+                    activeTab === 'hall-of-fame' ? hallOfFameUrl :
+                      activeTab === 'policy' ? tloUrl : null;
     if (!url) return 'none';
     return `linear-gradient(rgba(6, 15, 6, 0.45), rgba(6, 15, 6, 0.45)), url("${url}")`;
   })();
@@ -170,7 +174,7 @@ export default function CompanyMenu() {
       }}
     >
       {/* ── Sidebar ── */}
-        <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${Object.values(openGroups).some(v => v) ? (collapsed ? styles.sidebarCollapsedWide : styles.sidebarWide) : ''}`}>
+      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${Object.values(openGroups).some(v => v) ? (collapsed ? styles.sidebarCollapsedWide : styles.sidebarWide) : ''}`}>
         <div className={styles.sidebarHeader}>
           {!collapsed && <span className={styles.sidebarTitle}>Menu Managera</span>}
           <button className={styles.collapseBtn} onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Rozwiń menu' : 'Zwiń menu'}>
@@ -227,13 +231,14 @@ export default function CompanyMenu() {
 
       {/* ── Content ── */}
       <div className={isFullTab ? styles.contentFull : styles.content}>
-        {activeTab === 'map'               && <><section className={styles.mapSection}><PolandMap /></section><Sidebar /></>}
-        {activeTab === 'fleet-assets'      && <FleetAssets />}
-        {activeTab === 'fleet-compositions'&& <FleetCompositions />}
-        {activeTab === 'reports'           && <ReportsMenu />}
-        {activeTab === 'shop'              && <ShopSection />}
-        {activeTab === 'policy'  && <PolicySection companyName={companyName} defaultPricing={defaultPricing} reputation={reputation} playerDoc={playerDoc} />}
-        {activeTab === 'hr'      && <HRSection />}
+        {activeTab === 'map' && <><section className={styles.mapSection}><PolandMap /></section><Sidebar /></>}
+        {activeTab === 'fleet-assets' && <FleetAssets />}
+        {activeTab === 'fleet-compositions' && <FleetCompositions />}
+        {activeTab === 'reports' && <ReportsMenu />}
+        {activeTab === 'shop' && <ShopSection />}
+        {activeTab === 'hall-of-fame' && <HallOfFame />}
+        {activeTab === 'policy' && <PolicySection companyName={companyName} defaultPricing={defaultPricing} reputation={reputation} playerDoc={playerDoc} />}
+        {activeTab === 'hr' && <HRSection />}
         {activeTab === 'finance' && (
           <FinanceSection
             budget={budget} reputation={reputation} playerDoc={playerDoc}
