@@ -50,5 +50,39 @@ export function useTrainActions({ baseTrains, budget }) {
     }
   }
 
-  return { buyTrain, performMaintenance }
+  async function disbandTrainSet(trainSetId, allEmployees) {
+    try {
+      const batch = writeBatch(db)
+
+      if (allEmployees) {
+        allEmployees.forEach(emp => {
+          if (emp.assignedTo === trainSetId) {
+            batch.update(doc(db, `players/${auth.currentUser.uid}/kadry/${emp.id}`), {
+              assignedTo: null
+            })
+          }
+        })
+      }
+
+      const tsRef = doc(db, `players/${auth.currentUser.uid}/trainSet/${trainSetId}`)
+      batch.update(tsRef, {
+        trainIds: [],
+        crew: {},
+        totalSeats: 0,
+        totalCostPerKm: 0,
+        maxSpeed: 0,
+        effectiveMaxSpeed: 0,
+        gapowiczeRate: 0,
+        noCrewAlert: false
+      })
+
+      await batch.commit()
+      return true
+    } catch (e) {
+      console.error('Błąd podczas rozwiązywania składu:', e)
+      return false
+    }
+  }
+
+  return { buyTrain, performMaintenance, disbandTrainSet }
 }

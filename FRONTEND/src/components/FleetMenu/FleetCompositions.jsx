@@ -10,7 +10,7 @@ import styles from './FleetCompositions.module.css'
 
 export default function FleetCompositions() {
     // Pobieramy całą flotę (trains), wygenerowane składy (trainsSets) i opublikowane trasy (routes)
-    const { trainsSets, trains, routes, cities, defaultPricing, updateTicketPrice, updateDefaultPricing, updateCitySchedules, employees } = useGame()
+    const { trainsSets, trains, routes, cities, defaultPricing, updateTicketPrice, updateDefaultPricing, updateCitySchedules, employees, disbandTrainSet } = useGame()
     const [isComposing, setIsComposing] = useState(false)
     const [editingTrainSet, setEditingTrainSet] = useState(null)
     const [pricingOpenFor, setPricingOpenFor] = useState(null) // id składu z otwartym cennikiem
@@ -323,7 +323,7 @@ export default function FleetCompositions() {
                                                     </button>
                                                 )}
                                                 <button
-                                                    className={`${styles.pricingBtn} ${crewOpenFor === trainSet.id ? styles.crewBtnActive : styles.crewBtn}`}
+                                                    className={styles.pricingBtn}
                                                     onClick={() => setCrewOpenFor(crewOpenFor === trainSet.id ? null : trainSet.id)}
                                                 >
                                                     {crewOpenFor === trainSet.id ? '▲ Kadry' : '▼ Kadry'}
@@ -360,7 +360,17 @@ export default function FleetCompositions() {
                                                         Edytuj Skład
                                                     </button>
                                                 )}
-                                                <button className={styles.compActionBtn}>Rozwiąż</button>
+                                                <button 
+                                                    className={`${styles.pricingBtn} ${styles.disbandBtn}`}
+                                                    onClick={() => {
+                                                        if (window.confirm('Czy na pewno chcesz rozwiązać ten pociąg? Lokomotywa, wagony i załoga wrócą do rezerwy. Zapisane trasy, rozkład jazdy i cennik zostaną nienaruszone - będzie je można przypisać przywracając fizyczne maszyny.')) {
+                                                            if (isPublished) updateCitySchedules(trainSet.id, [], {});
+                                                            disbandTrainSet(trainSet.id, employees);
+                                                        }
+                                                    }}
+                                                >
+                                                    Rozwiąż
+                                                </button>
                                             </div>
                                         </div>
                                         )
