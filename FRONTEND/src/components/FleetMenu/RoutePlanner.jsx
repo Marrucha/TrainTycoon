@@ -124,7 +124,7 @@ function RoutePlannerMapOverlay({ selectedStops, currentPathEdges, onCityClick, 
 }
 
 export default function RoutePlanner({ trainSet, onClose }) {
-    const { routes, cities, getCityById, updateCitySchedules, saveTrainRoute } = useGame()
+    const { routes, cities, getCityById, updateCitySchedules, saveTrainRoute, trainsSets } = useGame()
 
     const [selectedStops, setSelectedStops] = useState(trainSet.routeStops || [])
     const [calcMode, setCalcMode] = useState('fastest') // 'fastest' | 'cheapest'
@@ -146,13 +146,20 @@ export default function RoutePlanner({ trainSet, onClose }) {
 
     // Pobieranie konkurencji na danym segmencie
     const getCompetitionForSegment = (cityAId, cityBId) => {
-        // todo: logic to map existing routes/schedules that pass through this
         const segmentRoute = routes.find(r =>
             (r.from === cityAId && r.to === cityBId) ||
             (r.to === cityAId && r.from === cityBId)
         )
-        if (!segmentRoute || !segmentRoute.trainId) return []
-        return [segmentRoute.trainId] // Uproszczone z INITIAL_ROUTES (tylko demo)
+        if (!segmentRoute || !trainsSets) return []
+        
+        const routeId = segmentRoute.id || `${segmentRoute.from}-${segmentRoute.to}`
+        const altRouteId = `${segmentRoute.to}-${segmentRoute.from}`
+        
+        return trainsSets.filter(ts => 
+            ts.id !== trainSet.id && 
+            ts.routes && 
+            (ts.routes.includes(routeId) || ts.routes.includes(altRouteId))
+        ).map(ts => ts.id)
     }
 
     const handleCityClick = (city) => {

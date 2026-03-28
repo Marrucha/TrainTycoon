@@ -9,254 +9,23 @@ Firestore functions (called from main.py daily scheduler):
   run_daily_staff(db)        — dispatches all daily staff tasks
   run_monthly_staff(db)      — dispatches all monthly staff tasks (day==1)
   _update_gapowicze(db)
-  _generate_agency_lists(db)
+  _generate_agency_lists(db, consts)
   _accrue_staff_salaries(db)
   _advance_experience_all(db)
   _write_daily_ledger(db, pid, date_str, revenues, costs, one_time)
   _aggregate_monthly_ledger(db)
 """
 
-import math
-import random
 import datetime as dt
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-SALARIES = {
-    'maszynista': 9000,
-    'kierownik':  7000,
-    'pomocnik':   6000,
-    'konduktor':  5000,
-    'barman':     4500,
-}
-# PLN earned per 1 point of experience above base salary (monthly evaluation)
-EXP_SALARY_RATES = {
-    'maszynista': 100,
-    'pomocnik':   80,
-    'kierownik':  70,
-    'konduktor':  60,
-    'barman':     50,
-}
-INTERN_SALARY  = 4300   # PLN/month – minimum wage
-BASE_WARS_RATE = 20     # PLN per passenger (Wars wagon baseline)
-
-# Agency candidate experience distribution (cumulative probabilities)
-_EXP_BUCKETS = [
-    (0.50, 10, 25),
-    (0.80, 25, 40),
-    (0.95, 40, 55),
-    (1.00, 55, 75),
-]
-
-ROLES = list(SALARIES.keys())
-
-_FIRST_NAMES = [
-    'Adam', 'Piotr', 'Marek', 'Tomasz', 'Andrzej', 'Krzysztof', 'Michał',
-    'Paweł', 'Łukasz', 'Grzegorz', 'Jan', 'Robert', 'Mariusz', 'Kamil',
-    'Bartosz', 'Marcin', 'Jarosław', 'Dariusz', 'Mateusz', 'Rafał',
-    'Anna', 'Katarzyna', 'Małgorzata', 'Agnieszka', 'Barbara', 'Ewa',
-    'Maria', 'Monika', 'Joanna', 'Beata',
-]
-_LAST_NAMES = [
-    'Kowalski', 'Nowak', 'Wiśniewski', 'Wójcik', 'Kowalczyk', 'Kamiński',
-    'Lewandowski', 'Zieliński', 'Szymański', 'Woźniak', 'Dąbrowski',
-    'Kozłowski', 'Jankowski', 'Mazur', 'Kwiatkowski', 'Krawczyk',
-    'Grabowski', 'Nowakowski', 'Pawlak', 'Michalski', 'Adamczyk',
-    'Dudek', 'Zając', 'Wieczorek', 'Jabłoński', 'Kaczmarek', 'Sobczak',
-    'Czajkowski', 'Baran', 'Zawadzki',
-]
-
-# ---------------------------------------------------------------------------
-# Pure helper functions (no Firestore dependency – fully unit-testable)
-# ---------------------------------------------------------------------------
-
-def advance_exp(exp: float) -> float:
-    """Advance employee experience by one month: exp += (100-exp)*0.05."""
-    return min(100.0, exp + (100.0 - exp) * 0.05)
-
-
-def effective_exp(worker_exp: float, kierownik_exp: float) -> float:
-    """Return experience boosted by kierownik (train manager) multiplier."""
-    return min(100.0, worker_exp * (1.0 + kierownik_exp / 100.0))
-
-
-def calc_gapowicze_delta(
-    rate: float,
-    n_kursy: int,
-    n_cond: int,
-    n_wagons: int,
-    cond_exps=None,
-    kierownik_exp: float = 0.0,
-) -> float:
-    """Calculate the daily change in gapowicze (fare evasion) rate.
-
-    Args:
-        rate:         current gapowicze rate  (0.0 – 0.5)
-        n_kursy:      number of daily courses
-        n_cond:       conductors assigned
-        n_wagons:     wagons in the trainSet
-        cond_exps:    list of conductor raw experience values  (0-100)
-        kierownik_exp: kierownik experience (boosts conductor effectiveness)
-
-    Returns:
-        delta to add to current rate (can be negative = improvement)
-    """
-    if rate < 0.10:
-        base = 0.005
-    elif rate < 0.20:
-        base = 0.004
-    elif rate < 0.30:
-        base = 0.003
-    else:
-        base = 0.001
-
-    growth = base * n_kursy
-
-    # Each conductor reduces gapowicze; each successive one is half as effective.
-    # Experience (boosted by kierownik) multiplies the reduction.
-    reduction = 0.0
-    for i in range(n_cond):
-        exp_i = float(cond_exps[i]) if cond_exps and i < len(cond_exps) else 0.0
-        eff = effective_exp(exp_i, kierownik_exp)
-        reduction += (1.0 / (2 ** i)) * base * n_kursy * (1.0 + eff / 100.0)
-
-    # Wagons not covered by any conductor generate extra gapowicze.
-    uncovered = 0.0
-    if n_wagons > 0:
-        raw = (n_wagons - 6 * n_cond) / n_wagons
-        uncovered = max(raw, 0.0) * base * n_kursy
-
-    return growth - reduction + uncovered
-
-
-def apply_gapowicze(rate: float, delta: float) -> float:
-    """Apply delta and clamp rate to [0.0, 0.5]."""
-    return max(0.0, min(0.5, rate + delta))
-
-
-def calc_fine_revenue(
-    passengers: int,
-    rate: float,
-    n_cond: int,
-    duration_min: int,
-    penalty_min: int,
-    fine_multiplier: int,
-    min_segment_price: float,
-) -> float:
-    """Revenue from fines issued during a single course.
-
-    One conductor can issue 1 fine per `penalty_min` minutes of the course.
-    """
-    max_fines = n_cond * int(duration_min / penalty_min)
-    evaders = round(passengers * rate)
-    actual_fines = min(evaders, max_fines)
-    return actual_fines * fine_multiplier * min_segment_price
-
-
-def calc_wars_revenue(
-    passengers: int,
-    barmans_exp: list,
-    base_rate: float,
-) -> float:
-    """Wars (restaurant car) revenue.
-
-    Efficiency drops linearly from 1.0 (empty) to 0.5 (at max capacity).
-    Passengers beyond total capacity generate no revenue.
-
-    Args:
-        passengers:  total passengers on the course
-        barmans_exp: list of effective experience values (0-100) per barman
-        base_rate:   PLN per served passenger at full efficiency
-    """
-    if not barmans_exp:
-        return 0.0
-    total_capacity = sum(500.0 * (1.0 + exp / 100.0) for exp in barmans_exp)
-    served = min(float(passengers), total_capacity)
-    load_ratio = served / total_capacity
-    efficiency = 1.0 - 0.5 * load_ratio   # 1.0 at empty, 0.5 at full
-    return served * base_rate * efficiency
-
-
-def calc_inspection_index(
-    n_cond: int,
-    passengers: int,
-    hours: float,
-    cap_per_hour: int,
-) -> float:
-    """Inspection coverage index: conductor capacity / actual passengers.
-
-    < 1  → under-inspected (good for passenger comfort)
-    = 1  → neutral
-    > 1  → over-inspected (bad for comfort)
-    """
-    conductor_cap = n_cond * cap_per_hour * hours
-    return conductor_cap / max(passengers, 1)
-
-
-def calc_raw_comfort(avg_idx: float) -> float:
-    """Convert average inspection index to raw comfort score (0 – 10).
-
-    idx=0  → 10 pts (no inspections, max comfort)
-    idx=1  →  5 pts (neutral)
-    idx≥2  →  0 pts (over-inspected, min comfort)
-    """
-    return max(0.0, min(10.0, 5.0 * (2.0 - avg_idx)))
-
-
-def calc_evaluation_salary(role: str, experience: float) -> int:
-    """Calculate monthly salary after evaluation: base + floor(exp) * rate."""
-    base = SALARIES.get(role, 5000)
-    rate = EXP_SALARY_RATES.get(role, 0)
-    return base + int(math.floor(experience)) * rate
-
-
-def calc_severance(months: int, salary: float) -> float:
-    """Severance pay tiers (tenure counted from hiredAt, including internship):
-      < 12 months  → 1 × salary
-      12–36 months → 2 × salary
-      > 36 months  → 3 × salary
-    """
-    if months > 36:
-        return 3.0 * salary
-    if months >= 12:
-        return 2.0 * salary
-    return salary
-
-
-def generate_candidate_exp() -> int:
-    """Generate a candidate's experience using the weighted 4-bucket distribution."""
-    r = random.random()
-    for cum_prob, lo, hi in _EXP_BUCKETS:
-        if r < cum_prob:
-            return random.randint(lo, hi)
-    return random.randint(55, 75)
-
-
-def generate_candidate(role: str) -> dict:
-    """Generate a random agency candidate for the given role."""
-    first  = random.choice(_FIRST_NAMES)
-    last   = random.choice(_LAST_NAMES)
-    exp    = generate_candidate_exp()
-    salary = SALARIES.get(role, 5000)
-
-    today     = dt.date.today()
-    min_age   = max(25, 20 + int(exp * 0.35))
-    max_age   = min(62, min_age + 12)
-    age       = random.randint(min_age, max_age)
-    dob_year  = today.year - age
-    dob_month = random.randint(1, 12)
-    dob_day   = random.randint(1, 28)
-    date_of_birth = f'{dob_year}-{dob_month:02d}-{dob_day:02d}'
-
-    return {
-        'name':          f'{first} {last}',
-        'role':          role,
-        'experience':    float(exp),
-        'monthlySalary': salary,
-        'dateOfBirth':   date_of_birth,
-    }
+from staff_core import (
+    ROLES,
+    advance_exp, effective_exp, calc_gapowicze_delta, apply_gapowicze,
+    calc_fine_revenue, calc_wars_revenue, calc_inspection_index,
+    calc_raw_comfort, calc_evaluation_salary, calc_severance,
+    generate_candidate_exp, generate_candidate
+)
+from staff_finance import _write_daily_ledger, _aggregate_monthly_ledger
 
 
 # ---------------------------------------------------------------------------
@@ -264,24 +33,28 @@ def generate_candidate(role: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_daily_staff(db):
+    c_snap = db.collection('gameConfig').document('constants').get()
+    consts = c_snap.to_dict() or {} if c_snap.exists else {}
     """Dispatch all daily staff-related tasks."""
     _update_gapowicze(db)
-    _generate_agency_lists(db)
+    _generate_agency_lists(db, consts)
     _advance_intern_experience(db)
     _update_intern_status(db)
     _check_retirements(db)
 
 
 def run_monthly_staff(db, today=None):
+    c_snap = db.collection('gameConfig').document('constants').get()
+    consts = c_snap.to_dict() or {} if c_snap.exists else {}
     """Dispatch monthly staff tasks (only executes on the 1st of the month)."""
     if today is None:
         today = dt.date.today()
     if today.day != 1:
         return
-    _accrue_staff_salaries(db, today)
+    _accrue_staff_salaries(db, today, consts)
     _advance_experience_all(db, today)
     _monthly_evaluation(db, today)
-    _aggregate_monthly_ledger(db, today)
+    _aggregate_monthly_ledger(db, today, consts)
 
 
 # --------------- Internal Firestore helpers --------------------------------
@@ -369,7 +142,7 @@ def _update_gapowicze(db):
         batch.commit()
 
 
-def _generate_agency_lists(db):
+def _generate_agency_lists(db, consts):
     """Daily: generate ~12 fresh agency candidates per player."""
     for p_doc in db.collection('players').stream():
         pid = p_doc.id
@@ -531,89 +304,4 @@ def _monthly_evaluation(db, today=None):
             emp_doc.reference.update({'monthlySalary': new_salary})
 
 
-def _write_daily_ledger(db, pid: str, date_str: str, revenues: dict, costs: dict, one_time=None):
-    """Write (or merge) a daily financial ledger entry.
 
-    Args:
-        revenues:  {'courses': int, 'wars': int, 'fines': int}
-        costs:     {'operational': int, 'trackFees': int, 'creditInterest': int}
-        one_time:  list of {'type': str, 'amount': int, 'desc': str}
-    """
-    if one_time is None:
-        one_time = []
-
-    p_snap  = db.collection('players').document(pid).get()
-    balance = ((p_snap.to_dict() or {}).get('finance') or {}).get('balance', 0)
-
-    doc_ref = db.collection(f'players/{pid}/financeLedger').document(date_str)
-    # Use set with merge so concurrent one-time cost writes don't overwrite each other
-    doc_ref.set({
-        'date':         date_str,
-        'revenues':     revenues,
-        'costs':        costs,
-        'oneTimeCosts': one_time,
-        'balanceEnd':   balance,
-    })
-
-
-def _aggregate_monthly_ledger(db, today=None):
-    """1st of month: aggregate previous month's daily records into a monthly summary."""
-    if today is None:
-        today = dt.date.today()
-    if today.day != 1:
-        return
-
-    first_of_this = today.replace(day=1)
-    last_month_end = first_of_this - dt.timedelta(days=1)
-    month_str = last_month_end.strftime('%Y-%m')
-
-    for p_doc in db.collection('players').stream():
-        pid = p_doc.id
-        if pid == 'samorządowy':
-            continue
-
-        ledger_ref = db.collection(f'players/{pid}/financeLedger')
-        docs = list(
-            ledger_ref
-            .where('date', '>=', month_str + '-01')
-            .where('date', '<=', month_str + '-31')
-            .stream()
-        )
-
-        agg_rev   = {'courses': 0, 'wars': 0, 'fines': 0}
-        agg_costs = {
-            'operational': 0, 'trackFees': 0, 'creditInterest': 0,
-            'salaries': 0, 'loanPayments': 0, 'oneTime': 0,
-        }
-
-        for doc in docs:
-            d = doc.to_dict() or {}
-            for k in agg_rev:
-                agg_rev[k] += int((d.get('revenues') or {}).get(k, 0))
-            for k in ('operational', 'trackFees', 'creditInterest'):
-                agg_costs[k] += int((d.get('costs') or {}).get(k, 0))
-            for ot in (d.get('oneTimeCosts') or []):
-                agg_costs['oneTime'] += int(ot.get('amount', 0))
-
-        # Monthly salaries for current employees
-        monthly_salary = sum(
-            INTERN_SALARY if (e.to_dict() or {}).get('isIntern')
-            else (e.to_dict() or {}).get('monthlySalary', 0)
-            for e in db.collection(f'players/{pid}/kadry').stream()
-        )
-        agg_costs['salaries'] = monthly_salary
-
-        total_rev   = sum(agg_rev.values())
-        total_costs = sum(agg_costs.values())
-        net         = total_rev - total_costs
-
-        p_data  = p_doc.to_dict() or {}
-        balance = (p_data.get('finance') or {}).get('balance', 0)
-
-        ledger_ref.document(f'monthly-{month_str}').set({
-            'month':      month_str,
-            'revenues':   {**agg_rev, 'total': total_rev},
-            'costs':      {**agg_costs, 'total': total_costs},
-            'netResult':  net,
-            'balanceEnd': balance,
-        })

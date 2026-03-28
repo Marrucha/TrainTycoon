@@ -22,7 +22,7 @@ export const DEFAULT_PRICE_CONFIG = {
 
 export function GameProvider({ children }) {
   const firestoreData = useFirestoreData()
-  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, loading } = firestoreData
+  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, loading, hallOfFame, gameConstants } = firestoreData
 
   const selection = useSelectionState()
   const { selectedCity, selectedRoute, selectedTrainSet, selectCity, selectRoute, selectTrainSet } = selection
@@ -41,6 +41,23 @@ export function GameProvider({ children }) {
       setDoc(doc(db, 'gameConfig', 'sunTimes'), sunDataJson).catch(console.error)
     }
   }, [sunTimes])
+
+  // Automatyczne wypełnienie w chmurze domyślnych stałych numerycznych w razie ich braku
+  useEffect(() => {
+    if (gameConstants && Object.keys(gameConstants).length === 0 && auth.currentUser) {
+      const defaultConstants = {
+        SALARIES: { maszynista: 9000, kierownik: 7000, pomocnik: 6000, konduktor: 5000, barman: 4500 },
+        EXP_SALARY_RATES: { maszynista: 100, pomocnik: 80, kierownik: 70, konduktor: 60, barman: 50 },
+        INTERN_SALARY: 4300,
+        AGENCY_FEE_MULTIPLIER: 6,
+        ANNUAL_RATE: 0.06,
+        COMMITMENT_RATE: 0.01,
+        CLASS2_PER_100KM: 6,
+        BASE_WARS_RATE: 20
+      }
+      setDoc(doc(db, 'gameConfig', 'constants'), defaultConstants, { merge: true }).catch(console.error)
+    }
+  }, [gameConstants])
 
   const budget = playerDoc.finance?.balance ?? INITIAL_BUDGET
   const companyName = playerDoc.companyName ?? ''
@@ -130,9 +147,9 @@ export function GameProvider({ children }) {
   }, [trainsSets, cities, gameTime])
 
   const trainActions = useTrainActions({ baseTrains, budget })
-  const financeActions = useFinanceActions({ budget, playerDoc })
+  const financeActions = useFinanceActions({ budget, playerDoc, gameConstants })
   const scheduleActions = useScheduleActions({ cities, trainsSets, setSelectedRoute: selection.setSelectedRoute })
-  const hrActions = useHRActions({ budget, trainsSets, employees })
+  const hrActions = useHRActions({ budget, trainsSets, employees, gameConstants })
 
   function getTrainById(id) {
     return trains.find(t => t.id === id) || null
@@ -202,7 +219,7 @@ export function GameProvider({ children }) {
       // Dane
       budget, trains, trainsSets, routes, cities, loading, gameTime,
       baseTrains, gameSettings, pictures, playerDoc,
-      deposits, depositRates,
+      deposits, depositRates, gameConstants,
       employees, financeLedger,
       // Pochodne
       dailyRevenue, activeTrainsCount, defaultPricing, trainSetsByCity,

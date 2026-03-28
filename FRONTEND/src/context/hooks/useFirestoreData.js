@@ -17,6 +17,7 @@ export function useFirestoreData() {
   const [financeLedger, setFinanceLedger] = useState([])
   const [sunTimes, setSunTimes] = useState(null)
   const [hallOfFame, setHallOfFame] = useState({})
+  const [gameConstants, setGameConstants] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -66,6 +67,9 @@ export function useFirestoreData() {
     const unsubFame = onSnapshot(doc(db, 'globalStats', 'hallOfFame'), (snap) => {
       setHallOfFame(snap.exists() ? snap.data() : {})
     })
+    const unsubConstants = onSnapshot(doc(db, 'gameConfig', 'constants'), (snap) => {
+      setGameConstants(snap.exists() ? snap.data() : {})
+    })
 
     // Lokaty i oprocentowanie — nie blokują głównego loadingu
     const unsubDeposits = onSnapshot(collection(db, `players/${auth.currentUser.uid}/deposits`), (snap) => {
@@ -106,9 +110,10 @@ export function useFirestoreData() {
       unsubLedger()
       unsubSun()
       unsubFame()
+      unsubConstants()
     }
   }, [])
 
-  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, hallOfFame, loading }
+  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, hallOfFame, gameConstants, loading }
 }
 ;

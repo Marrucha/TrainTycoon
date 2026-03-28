@@ -42,16 +42,6 @@ function _calcAge(dateOfBirth) {
   return age
 }
 
-export const SALARIES = {
-  maszynista: 9000,
-  kierownik:  7000,
-  pomocnik:   6000,
-  konduktor:  5000,
-  barman:     4500,
-}
-export const INTERN_SALARY = 4300
-export const AGENCY_FEE_MULTIPLIER = 6  // 6× monthly salary
-
 const ARRAY_ROLES = ['konduktorzy', 'stazysci']
 const ROLE_KEY_MAP = {
   maszynista:        'maszynista',
@@ -62,7 +52,11 @@ const ROLE_KEY_MAP = {
   barman:            'barman',
 }
 
-export function useHRActions({ budget, trainsSets, employees }) {
+export function useHRActions({ budget, trainsSets, employees, gameConstants }) {
+  const SALARIES = gameConstants?.SALARIES ?? { maszynista: 9000, kierownik: 7000, pomocnik: 6000, konduktor: 5000, barman: 4500 }
+  const INTERN_SALARY = gameConstants?.INTERN_SALARY ?? 4300
+  const AGENCY_FEE_MULTIPLIER = gameConstants?.AGENCY_FEE_MULTIPLIER ?? 6
+
   // ─── Hire from agency ──────────────────────────────────────────────────────
 
   async function hireFromAgency(candidateData) {

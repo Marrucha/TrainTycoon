@@ -5,11 +5,10 @@ import { useReportsData, coverageDate, MONTH_NAMES_PL } from './useReportsData'
 import { DailyTable, PeriodTable } from './TrainSetTable'
 import TrendsTab from './TrendsTab'
 
-const _SALARIES = { maszynista: 9000, kierownik: 7000, pomocnik: 6000, konduktor: 5000, barman: 4500 }
-const _INTERN_SALARY = 4300
-
 export default function ReportsMenu() {
-  const { employees } = useGame()
+  const { employees, gameConstants } = useGame()
+  const _SALARIES = gameConstants?.SALARIES ?? { maszynista: 9000, kierownik: 7000, pomocnik: 6000, konduktor: 5000, barman: 4500 }
+  const _INTERN_SALARY = gameConstants?.INTERN_SALARY ?? 4300
   const [activeTab, setActiveTab] = useState('daily')
   const [expandedTS, setExpandedTS] = useState(null)
   const [trendView, setTrendView] = useState('monthly')

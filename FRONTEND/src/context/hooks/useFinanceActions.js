@@ -15,7 +15,7 @@ export const DEFAULT_DEPOSIT_RATES = Object.fromEntries(
   DEPOSIT_TYPES.map(t => [t.key, t.defaultRate])
 )
 
-export function useFinanceActions({ budget, playerDoc }) {
+export function useFinanceActions({ budget, playerDoc, gameConstants }) {
   async function takeLoan(amount, months = 12) {
     try {
       const batch = writeBatch(db)
@@ -53,8 +53,8 @@ export function useFinanceActions({ budget, playerDoc }) {
   }
 
   async function openCreditLine(limit) {
-    const ANNUAL_RATE = 0.06
-    const COMMITMENT_RATE = 0.01
+    const ANNUAL_RATE = gameConstants?.ANNUAL_RATE ?? 0.06
+    const COMMITMENT_RATE = gameConstants?.COMMITMENT_RATE ?? 0.01
     const monthlyCommitment = Math.round(limit * COMMITMENT_RATE / 12)
     try {
       await setDoc(doc(db, 'players', auth.currentUser.uid), {

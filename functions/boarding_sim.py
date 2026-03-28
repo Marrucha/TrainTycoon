@@ -42,176 +42,8 @@ from staff import calc_wars_revenue, calc_fine_revenue, calc_inspection_index
 _DEFAULT_FINE_MULTIPLIER   = 20
 _DEFAULT_PENALTY_MIN       = 15
 _DEFAULT_COND_CAP_PER_HOUR = 100
-_DEFAULT_CLASS2_PER_100KM  = 6
-
-
-# ---------------------------------------------------------------------------
-# Geometry / pricing helpers
-# ---------------------------------------------------------------------------
-
-def _haversine_km(lat1, lon1, lat2, lon2):
-    R = 6371.0
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = (math.sin(dlat / 2) ** 2
-         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2)
-    return R * 2 * math.asin(math.sqrt(a))
-
-
-def _time_diff_minutes(t1, t2):
-    """Minutes from t1 to t2 (HH:MM), handling overnight wrap."""
-    if not t1 or not t2 or t1 == '—' or t2 == '—':
-        return 0
-    h1, m1 = map(int, t1.split(':'))
-    h2, m2 = map(int, t2.split(':'))
-    diff = (h2 * 60 + m2) - (h1 * 60 + m1)
-    return diff if diff >= 0 else diff + 24 * 60
-
-
-def _calc_min_segment_price(stops, cities, per_100km=_DEFAULT_CLASS2_PER_100KM):
-    """Minimum class-2 ticket price over all consecutive stop pairs."""
-    min_price = None
-    for i in range(len(stops) - 1):
-        c1 = cities.get(stops[i]['city_id'], {})
-        c2 = cities.get(stops[i + 1]['city_id'], {})
-        lat1, lon1 = c1.get('lat'), c1.get('lon')
-        lat2, lon2 = c2.get('lat'), c2.get('lon')
-        if lat1 is None or lat2 is None:
-            continue
-        dist = _haversine_km(lat1, lon1, lat2, lon2)
-        price = max(1, round(dist * per_100km / 100))
-        min_price = price if min_price is None else min(min_price, price)
-    return min_price or 1
-
-
-# ---------------------------------------------------------------------------
-# Schedule table builder — full rebuild and per-trainSet partial rebuild
-# ---------------------------------------------------------------------------
-
-def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
-    """Rebuild rozkłady records for a single trainSet.
-
-    Called by the Firestore trigger on_trainset_written.
-    Deletes all existing records for (pid, ts_id) using deterministic IDs
-    and writes new ones — one document per kurs.
-    If ts_data is None (document deleted), only the deletion happens.
-
-    Returns number of kurs documents written.
-    """
-    cities = {d.id: d.to_dict() for d in db.collection('cities').stream()}
-
-    def resolve(miasto):
-        _, cid = _find_city(cities, miasto)
-        return cid if cid else miasto
-
-    sched_ref = db.collection('rozkłady')
-
-    # Delete existing kurs docs for this (pid, ts_id) via deterministic IDs.
-    # We can't know which kurs_ids existed, so fall back to a query.
-    existing = list(
-        sched_ref
-        .where('player_id', '==', pid)
-        .where('ts_id', '==', ts_id)
-        .stream()
-    )
-    if existing:
-        del_batch = db.batch()
-        for doc in existing:
-            del_batch.delete(doc.reference)
-        del_batch.commit()
-
-    if not ts_data:
-        return 0  # trainSet deleted — nothing to rebuild
-
-    rozklad = ts_data.get('rozklad') or []
-    if not rozklad:
-        return 0
-
-    by_kurs = _group_by_kurs_raw(rozklad)
-    batch   = db.batch()
-    written = 0
-
-    for kurs_id, raw_stops in by_kurs.items():
-        resolved = [resolve(s.get('miasto', '')) for s in raw_stops]
-        n = len(raw_stops)
-
-        stops = []
-        departure_times = []
-        arrival_times   = []
-
-        for i, (stop, city_id) in enumerate(zip(raw_stops, resolved)):
-            odjazd   = stop.get('odjazd') or None
-            przyjazd = stop.get('przyjazd') or None
-            is_last  = (i == n - 1)
-            is_first = (i == 0)
-
-            if is_last and not odjazd and przyjazd:
-                odjazd = przyjazd   # terminal stop: use arrival as event time
-
-            if odjazd:
-                departure_times.append(odjazd)
-            if przyjazd and przyjazd != odjazd:
-                arrival_times.append(przyjazd)
-
-            stops.append({
-                'stop_index':  i,
-                'city_id':     city_id,
-                'odjazd':      odjazd,
-                'przyjazd':    przyjazd,
-                'is_first':    is_first,
-                'is_last':     is_last,
-                'forward_ids': resolved[i + 1:],
-            })
-
-        # Kurs duration from first departure to last arrival
-        first_dep = stops[0].get('odjazd') if stops else None
-        last_arr  = stops[-1].get('przyjazd') if stops else None
-        kurs_duration_min = _time_diff_minutes(first_dep, last_arr) if first_dep and last_arr else 0
-
-        doc_id = f'{pid}__{ts_id}__{kurs_id}'
-        batch.set(sched_ref.document(doc_id), {
-            'player_id':         pid,
-            'ts_id':             ts_id,
-            'kurs_id':           kurs_id,
-            'departure_times':   departure_times,
-            'arrival_times':     arrival_times,
-            'stops':             stops,
-            'kurs_duration_min': kurs_duration_min,
-        })
-        written += 1
-
-        if written % 499 == 0:
-            batch.commit()
-            batch = db.batch()
-
-    batch.commit()
-    print(f'Schedule rebuilt for {pid}/{ts_id}: {written} kurs doc(s).')
-    return written
-
-
-def rebuild_schedule_table(db):
-    """Rebuild the entire `rozkłady` collection for all players.
-
-    Called once per day after calc_demand_for_train_sets(), and available
-    as an HTTP trigger for manual full rebuilds.
-    Delegates per-trainSet work to rebuild_schedule_for_trainset().
-    """
-    total = 0
-    for p_doc in db.collection('players').stream():
-        pid = p_doc.id
-        if pid == 'samorządowy':
-            continue
-        for ts_doc in db.collection(f'players/{pid}/trainSet').stream():
-            total += rebuild_schedule_for_trainset(db, pid, ts_doc.id, ts_doc.to_dict())
-
-    print(f'Full schedule table rebuild: {total} kurs doc(s) total.')
-    return total
-
-
-# ---------------------------------------------------------------------------
-# Boarding tick
-# ---------------------------------------------------------------------------
-
+from schedule_builder import rebuild_schedule_for_trainset, rebuild_schedule_table
+from tickets_pricing import _calc_min_segment_price, _DEFAULT_CLASS2_PER_100KM
 def run_boarding_tick(db, now_str=None):
     """Process all boarding/alighting events at the current minute.
 
@@ -233,9 +65,11 @@ def run_boarding_tick(db, now_str=None):
     # Load gameConfig for fine/inspection parameters
     config_snap = db.collection('gameSettings').document('config').get()
     game_config = config_snap.to_dict() or {} if config_snap.exists else {}
-    fine_multiplier   = int(game_config.get('fineMultiplier',   _DEFAULT_FINE_MULTIPLIER))
-    penalty_min       = int(game_config.get('finePenaltyMinutes', _DEFAULT_PENALTY_MIN))
-    cond_cap_per_hour = int(game_config.get('conductorPassengersPerHour', _DEFAULT_COND_CAP_PER_HOUR))
+    fine_multiplier   = int(game_config.get('fineMultiplier', 20))
+    penalty_min       = int(game_config.get('finePenaltyMinutes', 15))
+    cond_cap_per_hour = int(game_config.get('conductorPassengersPerHour', 100))
+    c_snap = db.collection('gameConfig').document('constants').get()
+    consts = c_snap.to_dict() or {} if c_snap.exists else {}
 
     # Cache employees per player (loaded on first encounter)
     emp_cache = {}   # pid → {emp_id: emp_dict}
@@ -516,19 +350,6 @@ def _process_stop_event(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _group_by_kurs_raw(rozklad):
-    """Group raw rozklad stops by kurs, maintaining their original order."""
-    by_kurs = {}
-    for stop in rozklad:
-        k = stop.get('kurs')
-        if k is None:
-            continue
-        by_kurs.setdefault(str(k), []).append(stop)
-    # Removed time-string sorting because it completely destroys the sequence
-    # of overnight trains (e.g. 23:38 gets pushed to the very end past 02:00).
-    return by_kurs
-
 
 def _calc_total_seats(ts, player_trains, base_trains):
     caps = {'class1': 0, 'class2': 0}
