@@ -44,7 +44,7 @@ export function MapTooltips({
                             {cityDemandInfo?.rows?.length > 0 && (
                                 <span style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4, borderTop: '1px solid #2a4a2a', paddingTop: 4 }}>
                                     <span style={{ color: '#8aab8a', fontSize: 10, marginBottom: 1 }}>
-                                        Popyt godz. {gameTime?.split(':')[0]}:xx
+                                        Odjazdy w godz. {gameTime?.split(':')[0]}:xx
                                     </span>
                                     {cityDemandInfo.rows.map((row, i) => {
                                         const pct = row.kursTotal > 0
@@ -55,7 +55,7 @@ export function MapTooltips({
                                                 <span style={{ color: '#f0c040', fontFamily: 'Share Tech Mono, monospace', fontSize: 10, flexShrink: 0 }}>{row.departure}</span>
                                                 <span style={{ color: '#c0d0c0', fontSize: 10, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.tsName}</span>
                                                 <span style={{ color: '#4caf50', fontSize: 10, flexShrink: 0 }}>{row.demand}</span>
-                                                <span style={{ color: '#6a8a6a', fontSize: 10, flexShrink: 0 }}>{pct}%</span>
+                                                <span style={{ color: '#6a8a6a', fontSize: 10, flexShrink: 0 }}>{pct}% dob.</span>
                                             </span>
                                         )
                                     })}

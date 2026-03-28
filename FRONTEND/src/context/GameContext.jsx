@@ -10,6 +10,7 @@ import { useFinanceActions } from './hooks/useFinanceActions'
 import { useScheduleActions } from './hooks/useScheduleActions'
 import { useHRActions } from './hooks/useHRActions'
 import Onboarding from '../components/Onboarding/Onboarding'
+import sunDataJson from '../data/sunTimes.json'
 
 const GameContext = createContext(null)
 
@@ -21,7 +22,7 @@ export const DEFAULT_PRICE_CONFIG = {
 
 export function GameProvider({ children }) {
   const firestoreData = useFirestoreData()
-  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, loading } = firestoreData
+  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, loading } = firestoreData
 
   const selection = useSelectionState()
   const { selectedCity, selectedRoute, selectedTrainSet, selectCity, selectRoute, selectTrainSet } = selection
@@ -33,6 +34,13 @@ export function GameProvider({ children }) {
     return () => clearInterval(id)
   }, [])
   const gameTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+  // Tymczasowy upload danych słonecznych wygenerowanych w Pythonie skryptowo
+  useEffect(() => {
+    if (sunTimes && Object.keys(sunTimes).length === 0 && auth.currentUser) {
+      setDoc(doc(db, 'gameConfig', 'sunTimes'), sunDataJson).catch(console.error)
+    }
+  }, [sunTimes])
 
   const budget = playerDoc.finance?.balance ?? INITIAL_BUDGET
   const companyName = playerDoc.companyName ?? ''
@@ -213,6 +221,8 @@ export function GameProvider({ children }) {
       // Helpery
       getTrainById, getCityById, getDemandForRoute,
       getTicketPrice, updateDefaultPricing, getDeparturesForCity,
+      // Słońce
+      sunTimes,
     }}>
       {children}
     </GameContext.Provider>

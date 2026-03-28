@@ -16,6 +16,7 @@ function MapOverlay() {
   const {
     cities, routes, trains, trainsSets, loading,
     selectedCity, selectCity,
+    selectedRoute, selectRoute,
     selectedTrainSet, selectTrainSet,
     getCityById, getTrainById,
     gameTime
@@ -88,13 +89,13 @@ function MapOverlay() {
     })
 
     // Second pass: kursTotal = total market demand (all carriers) from hoveredCity
-    // to forward stops of this kurs, for the specific departure hour
+    // to forward stops of this kurs, for the *whole day*
     rows.forEach(row => {
       let kursTotal = 0
       row.forwardIds.forEach(fwdId => {
         const fwdCity = cities.find(c => c.id === fwdId)
         if (!fwdCity) return
-        kursTotal += getDemand(hoveredCity, fwdCity) * HOUR_DEMAND_MAP[currentHour]
+        kursTotal += getDemand(hoveredCity, fwdCity)
       })
       row.kursTotal = Math.round(kursTotal)
     })
@@ -171,8 +172,6 @@ function MapOverlay() {
     return false
   }
 
-  const selectedRoute = null // Placeholder for now
-
   return createPortal(
     <>
       <svg className={styles.svgOverlay} style={{ width: size.x, height: size.y }}>
@@ -187,17 +186,28 @@ function MapOverlay() {
             const isDimmed = isRouteDimmed(route)
 
             return (
-              <path
-                key={route.id}
-                d={getCurvedPath(fp.x, fp.y, tp.x, tp.y, route.id)}
-                stroke={getRouteColor(route)}
-                strokeWidth={getRouteWidth(route)}
-                fill="none"
-                opacity={isDimmed ? 0.1 : 1}
-                style={{ pointerEvents: 'stroke', cursor: 'pointer', transition: 'stroke 0.2s, stroke-width 0.2s' }}
-                onMouseEnter={() => !hoveredCity && setHoveredRoute(route)}
-                onMouseLeave={() => setHoveredRoute(null)}
-              />
+              <g key={route.id}>
+                {/* Widoczna ścieżka (renderowanie graficzne) */}
+                <path
+                  d={getCurvedPath(fp.x, fp.y, tp.x, tp.y, route.id)}
+                  stroke={getRouteColor(route)}
+                  strokeWidth={getRouteWidth(route)}
+                  fill="none"
+                  opacity={isDimmed ? 0.1 : 1}
+                  style={{ pointerEvents: 'none', transition: 'stroke 0.2s, stroke-width 0.2s' }}
+                />
+                {/* Niewidoczna, gruba ścieżka (obszar ułatwionego klikania) */}
+                <path
+                  d={getCurvedPath(fp.x, fp.y, tp.x, tp.y, route.id)}
+                  stroke="transparent"
+                  strokeWidth={14}
+                  fill="none"
+                  style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                  onMouseEnter={() => !hoveredCity && setHoveredRoute(route)}
+                  onMouseLeave={() => setHoveredRoute(null)}
+                  onClick={() => { selectRoute(route); selectCity(null); selectTrainSet(null); }}
+                />
+              </g>
             )
           })}
         </g>

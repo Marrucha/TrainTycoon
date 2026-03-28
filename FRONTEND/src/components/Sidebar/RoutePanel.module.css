@@ -203,3 +203,119 @@
   color: #40c840;
   font-weight: bold;
 }
+
+.timelineContainer {
+  margin-top: 6px;
+  position: relative;
+  height: 24px;
+  margin-bottom: 24px;
+}
+
+.timelineTrack {
+  position: absolute;
+  top: 11px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #2a3a2a;
+}
+
+.timelineBlock {
+  position: absolute;
+  top: 8px;
+  height: 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  opacity: 0.95;
+  transition: opacity 0.15s, transform 0.15s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.timelineBlock:hover {
+  opacity: 1;
+  transform: scaleY(1.4);
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+}
+
+.timelineScale {
+  position: absolute;
+  top: 24px;
+  left: 0;
+  right: 0;
+  height: 10px;
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  background: #3a4a3a;
+  transform: translateX(-50%);
+}
+
+.tickLabel {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  color: #5a7a5a;
+}
+
+.timelineLabel {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #6a8a6a;
+  margin-bottom: 8px;
+}
+
+.tooltipBox {
+  position: absolute;
+  background: #0f1a0f;
+  border: 1px solid #f0c040;
+  padding: 8px 12px;
+  z-index: 50;
+  pointer-events: none;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+}
+
+.tooltipTrainName {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: bold;
+  font-size: 15px;
+  color: #f0c040;
+  margin-bottom: 2px;
+}
+
+.tooltipRelation {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: #c0d0c0;
+}
+
+.timelineDaylight {
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  background: rgba(240, 192, 64, 0.05);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.currentTimeLine {
+  position: absolute;
+  top: -4px;
+  bottom: 6px;
+  width: 2px;
+  background: rgba(255, 50, 50, 0.8);
+  box-shadow: 0 0 4px rgba(255, 50, 50, 0.5);
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+}

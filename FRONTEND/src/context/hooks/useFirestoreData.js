@@ -15,6 +15,7 @@ export function useFirestoreData() {
   const [depositRates, setDepositRates] = useState({})
   const [employees, setEmployees] = useState([])
   const [financeLedger, setFinanceLedger] = useState([])
+  const [sunTimes, setSunTimes] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -58,6 +59,9 @@ export function useFirestoreData() {
       setPictures(snap.exists() ? snap.data() : {})
       markLoaded()
     })
+    const unsubSun = onSnapshot(doc(db, 'gameConfig', 'sunTimes'), (snap) => {
+      setSunTimes(snap.exists() ? snap.data() : {})
+    })
 
     // Lokaty i oprocentowanie — nie blokują głównego loadingu
     const unsubDeposits = onSnapshot(collection(db, `players/${auth.currentUser.uid}/deposits`), (snap) => {
@@ -96,9 +100,10 @@ export function useFirestoreData() {
       unsubDepositRates()
       unsubEmployees()
       unsubLedger()
+      unsubSun()
     }
   }, [])
 
-  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, loading }
+  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, loading }
 }
 ;
