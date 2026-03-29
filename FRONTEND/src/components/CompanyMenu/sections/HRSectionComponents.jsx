@@ -19,13 +19,13 @@ export const ROLE_LABELS = {
 }
 
 export function EmpTooltip({ emp }) {
-  const { gameConstants } = useGame()
+  const { gameConstants, gameDate } = useGame()
   const SALARIES = gameConstants?.SALARIES ?? { maszynista: 9000, kierownik: 7000, pomocnik: 6000, konduktor: 5000, barman: 4500 }
   const INTERN_SALARY = gameConstants?.INTERN_SALARY ?? 4300
 
   const [show, setShow] = useState(false)
-  const age     = calcAge(emp.dateOfBirth)
-  const tenure  = calcTenure(emp.hiredAt)
+  const age     = calcAge(emp.dateOfBirth, gameDate)
+  const tenure  = calcTenure(emp.hiredAt, gameDate)
   const salary  = emp.isIntern ? INTERN_SALARY : (emp.monthlySalary ?? SALARIES[emp.role] ?? 0)
   const retDate = retirementDate(emp.dateOfBirth)
 

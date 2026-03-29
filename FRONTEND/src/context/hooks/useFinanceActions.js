@@ -34,7 +34,7 @@ export function useFinanceActions({ budget, playerDoc, gameConstants }) {
         totalToRepay,
         monthlyPayment,
         remainingMonths: months,
-        takenAt: new Date().toISOString(),
+        takenAt: gameDate.toISOString(),
       }
 
       const currentLoans = playerDoc.finance?.loans || []
@@ -64,7 +64,7 @@ export function useFinanceActions({ budget, playerDoc, gameConstants }) {
             limit,
             annualRate: ANNUAL_RATE,
             commitmentRate: COMMITMENT_RATE,
-            openedAt: new Date().toISOString(),
+            openedAt: gameDate.toISOString(),
           },
         },
       }, { merge: true })
@@ -91,7 +91,7 @@ export function useFinanceActions({ budget, playerDoc, gameConstants }) {
     try {
       const batch = writeBatch(db)
       const depositId = `dep_${Date.now()}`
-      const createdAt = new Date()
+      const createdAt = gameDate
       const matureAt = new Date(createdAt.getTime() + type.days * 24 * 60 * 60 * 1000)
 
       batch.set(doc(db, `players/${auth.currentUser.uid}/deposits`, depositId), {
@@ -143,7 +143,7 @@ export function useFinanceActions({ budget, playerDoc, gameConstants }) {
 
     const emission = {
       id: `em_${Date.now()}`,
-      date: new Date().toISOString(),
+      date: gameDate.toISOString(),
       sharesIssued: newShares,
       pricePerShare: stockPrice,
       buyers: [],

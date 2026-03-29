@@ -17,11 +17,7 @@ export default function TrainSetPanel() {
   const [openKurs, setOpenKurs] = useState(null)
   const [openTimetable, setOpenTimetable] = useState(null)
 
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 10000) // update every 10s
-    return () => clearInterval(id)
-  }, [])
+  const { gameDate: now } = useGame()
 
   if (!selectedTrainSet) return null
 

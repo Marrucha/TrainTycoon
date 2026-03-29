@@ -49,8 +49,7 @@ def run_monthly_staff(db, today=None):
     """Dispatch monthly staff tasks (only executes on the 1st of the month)."""
     if today is None:
         today = dt.date.today()
-    if today.day != 1:
-        return
+    
     _accrue_staff_salaries(db, today, consts)
     _advance_experience_all(db, today)
     _monthly_evaluation(db, today)
@@ -233,8 +232,7 @@ def _accrue_staff_salaries(db, today=None):
     """1st of month: deduct all employee salaries from player balance."""
     if today is None:
         today = dt.date.today()
-    if today.day != 1:
-        return
+    
 
     for p_doc in db.collection('players').stream():
         pid = p_doc.id
@@ -268,8 +266,7 @@ def _advance_experience_all(db, today=None):
     """1st of month: advance experience for all active (non-intern) employees."""
     if today is None:
         today = dt.date.today()
-    if today.day != 1:
-        return
+    
 
     for p_doc in db.collection('players').stream():
         pid = p_doc.id
@@ -287,8 +284,7 @@ def _monthly_evaluation(db, today=None):
     """1st of month: update monthlySalary based on accumulated experience."""
     if today is None:
         today = dt.date.today()
-    if today.day != 1:
-        return
+    
 
     for p_doc in db.collection('players').stream():
         pid = p_doc.id

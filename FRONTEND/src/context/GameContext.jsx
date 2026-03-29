@@ -28,12 +28,19 @@ export function GameProvider({ children }) {
   const { selectedCity, selectedRoute, selectedTrainSet, selectCity, selectRoute, selectTrainSet } = selection
 
 
-  const [now, setNow] = useState(() => new Date())
+  const REAL_START_TIME_MS = gameConstants?.REAL_START_TIME_MS || Date.now()
+  const GAME_START_TIME_MS = gameConstants?.GAME_START_TIME_MS || Date.now()
+  const TIME_MULTIPLIER = gameConstants?.TIME_MULTIPLIER || 30
+
+  const [realNow, setRealNow] = useState(Date.now())
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000)
+    const id = setInterval(() => setRealNow(Date.now()), 100)
     return () => clearInterval(id)
   }, [])
-  const gameTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+  const virtualNowMs = GAME_START_TIME_MS + (realNow - REAL_START_TIME_MS) * TIME_MULTIPLIER
+  const gameDate = useMemo(() => new Date(virtualNowMs), [virtualNowMs])
+  const gameTime = `${String(gameDate.getHours()).padStart(2, '0')}:${String(gameDate.getMinutes()).padStart(2, '0')}`
 
   // Tymczasowy upload danych słonecznych wygenerowanych w Pythonie skryptowo
   useEffect(() => {
@@ -42,7 +49,17 @@ export function GameProvider({ children }) {
     }
   }, [sunTimes])
 
-  // Automatyczne wypełnienie w chmurze domyślnych stałych numerycznych w razie ich braku
+  // Automatyczna naprawa jeśli brakuje parametrów czasu w Constants
+  useEffect(() => {
+    if (gameConstants && auth.currentUser && !gameConstants.REAL_START_TIME_MS) {
+      const nowMs = Date.now()
+      setDoc(doc(db, 'gameConfig', 'constants'), {
+        REAL_START_TIME_MS: nowMs,
+        GAME_START_TIME_MS: nowMs,
+        TIME_MULTIPLIER: 30
+      }, { merge: true }).catch(console.error)
+    }
+  }, [gameConstants])
   useEffect(() => {
     if (gameConstants && Object.keys(gameConstants).length === 0 && auth.currentUser) {
       const defaultConstants = {
@@ -146,10 +163,10 @@ export function GameProvider({ children }) {
     return result
   }, [trainsSets, cities, gameTime])
 
-  const trainActions = useTrainActions({ baseTrains, budget })
-  const financeActions = useFinanceActions({ budget, playerDoc, gameConstants })
+  const trainActions = useTrainActions({ baseTrains, budget, gameDate })
+  const financeActions = useFinanceActions({ budget, playerDoc, gameConstants, gameDate })
   const scheduleActions = useScheduleActions({ cities, trainsSets, setSelectedRoute: selection.setSelectedRoute })
-  const hrActions = useHRActions({ budget, trainsSets, employees, gameConstants })
+  const hrActions = useHRActions({ budget, trainsSets, employees, gameConstants, gameDate })
 
   function getTrainById(id) {
     return trains.find(t => t.id === id) || null
@@ -217,7 +234,7 @@ export function GameProvider({ children }) {
   return (
     <GameContext.Provider value={{
       // Dane
-      budget, trains, trainsSets, routes, cities, loading, gameTime,
+      budget, trains, trainsSets, routes, cities, loading, gameTime, gameDate,
       baseTrains, gameSettings, pictures, playerDoc,
       deposits, depositRates, gameConstants,
       employees, financeLedger,

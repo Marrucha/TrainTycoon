@@ -14,7 +14,7 @@ const getTrainColor = (str) => {
 
 export default function RouteSegmentPanel() {
   const { selectedRoute, selectRoute, trainsSets, getCityById, cities, sunTimes } = useGame()
-  const [now, setNow] = useState(() => new Date())
+  const { gameDate: now } = useGame()
   const [tooltip, setTooltip] = useState(null)
 
   const getDayOfYear = (date) => {
@@ -27,10 +27,6 @@ export default function RouteSegmentPanel() {
   const todaySun = sunTimes?.[dayOfYear] || { sunrise: 360, sunset: 1080 }
   const nowMin = now.getHours() * 60 + now.getMinutes()
   
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60000)
-    return () => clearInterval(id)
-  }, [])
 
   if (!selectedRoute) return null
 

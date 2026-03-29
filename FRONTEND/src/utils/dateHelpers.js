@@ -1,13 +1,13 @@
-export function calcAge(dob) {
+export function calcAge(dob, referenceDate = new Date()) {
   if (!dob) return null
-  const b = new Date(dob), now = new Date()
+  const b = new Date(dob), now = referenceDate
   let a = now.getFullYear() - b.getFullYear()
   const m = now.getMonth() - b.getMonth()
   if (m < 0 || (m === 0 && now.getDate() < b.getDate())) a--
   return a
 }
 
-export function calcTenure(hiredAt) {
+export function calcTenure(hiredAt, referenceDate = new Date()) {
   if (!hiredAt) return '—'
   const months = Math.floor((Date.now() - new Date(hiredAt).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
   if (months < 1)  return '< 1 mies.'

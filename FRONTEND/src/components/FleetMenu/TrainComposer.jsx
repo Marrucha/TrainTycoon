@@ -7,7 +7,7 @@ import { findShortestPath } from '../../utils/dijkstra'
 import styles from './TrainComposer.module.css'
 
 export default function TrainComposer({ onCancel, editTrainSet = null }) {
-    const { trains, trainsSets, routes } = useGame()
+    const { trains, trainsSets, routes, gameConstants } = useGame()
 
     const [trainName, setTrainName] = useState(editTrainSet?.name ?? 'Nowy Skład')
     const [composition, setComposition] = useState(() => {
@@ -119,6 +119,18 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
         setSaving(true)
 
         try {
+            const next3AM = new Date()
+            next3AM.setHours(3, 0, 0, 0)
+            if (next3AM.getTime() <= Date.now()) {
+                next3AM.setDate(next3AM.getDate() + 1)
+            }
+            let dispatchMs = null
+            if (gameConstants?.REAL_START_TIME_MS) {
+                dispatchMs = gameConstants.GAME_START_TIME_MS + (next3AM.getTime() - gameConstants.REAL_START_TIME_MS) * (gameConstants.TIME_MULTIPLIER || 30)
+            } else {
+                dispatchMs = next3AM.getTime()
+            }
+
             if (isEditing) {
                 await updateDoc(doc(db, `players/${auth.currentUser.uid}/trainSet`, editTrainSet.id), {
                     name: trainName,
@@ -135,6 +147,7 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
                 await setDoc(doc(db, `players/${auth.currentUser.uid}/trainSet`, setId), {
                     id: setId,
                     name: trainName,
+                    dispatchDate: dispatchMs,
                     type: composition[0]?.type || 'Zwykły',
                     trainIds: composition.map(c => c.id),
                     maxSpeed: minComponentSpeed === 100000 ? 0 : minComponentSpeed,

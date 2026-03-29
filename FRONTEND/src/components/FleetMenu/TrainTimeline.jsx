@@ -8,21 +8,6 @@ function tM(t) {
     return h * 60 + m
 }
 
-function useNowMins() {
-    const [mins, setMins] = useState(() => {
-        const d = new Date()
-        return d.getHours() * 60 + d.getMinutes()
-    })
-    useEffect(() => {
-        const id = setInterval(() => {
-            const d = new Date()
-            setMins(d.getHours() * 60 + d.getMinutes())
-        }, 30000)
-        return () => clearInterval(id)
-    }, [])
-    return mins
-}
-
 function buildSegments(rozklad) {
     const byKurs = {}
     rozklad.forEach(r => {
@@ -192,8 +177,11 @@ const STATUS_LABEL = {
     idle:    'Postój',
 }
 
+import { useGame } from '../../context/GameContext'
 export default function TrainTimeline({ rozklad }) {
-    const nowMins = useNowMins()
+    const { gameDate } = useGame()
+    if (!gameDate) return null
+    const nowMins = gameDate.getHours() * 60 + gameDate.getMinutes()
 
     if (!rozklad || rozklad.length === 0) return null
 

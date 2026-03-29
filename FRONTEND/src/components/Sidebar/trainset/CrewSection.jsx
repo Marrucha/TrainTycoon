@@ -26,7 +26,6 @@ function GapBar({ rate }) {
 
 export default function CrewSection({ ts }) {
   const { employees } = useGame()
-  const [open, setOpen] = useState(false)
 
   const crew = ts.crew || {}
   const empById = Object.fromEntries(employees.map(e => [e.id, e]))
@@ -45,25 +44,11 @@ export default function CrewSection({ ts }) {
 
   return (
     <div className={styles.section}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
-        <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>OBSADA</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {!open && (
-            <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 10, color: crew.maszynista ? '#6a9a6a' : '#c0392b' }}>
-              M:{crew.maszynista ? '✓' : '✗'}
-            </span>
-          )}
-          {!open && (
-            <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 10, color: crew.kierownik ? '#6a9a6a' : '#c0392b' }}>
-              K:{crew.kierownik ? '✓' : '✗'}
-            </span>
-          )}
-          <span style={{ color: '#6a8a6a', fontSize: 14 }}>{open ? '▾' : '▸'}</span>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>OBSADA ZESPOŁU KADROWEGO</span>
       </div>
 
-      {open && (
-        <div style={{ marginTop: 10 }}>
+      <div>
           {ts.noCrewAlert && (
             <div style={{
               background: 'rgba(230,126,34,0.15)', border: '1px solid #e67e22',
@@ -117,8 +102,8 @@ export default function CrewSection({ ts }) {
               </span>
             </div>
           </div>
-        </div>
-      )}
+      </div>
+
     </div>
   )
 }

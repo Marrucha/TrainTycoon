@@ -44,6 +44,7 @@ export default function CompanyMenu() {
     openCreditLine, takeLoan,
     deposits, depositRates, openDeposit, breakDeposit,
     emitShares,
+    gameDate: now,
   } = useGame();
 
   const [activeTab, setActiveTab] = useState('policy');
@@ -95,10 +96,9 @@ export default function CompanyMenu() {
 
   const fleetData = useMemo(() => {
     const analyzedTrains = trains.map(t => {
-      const purchaseDate = t.purchasedAt ? new Date(t.purchasedAt) : new Date();
+      const purchaseDate = t.purchasedAt ? new Date(t.purchasedAt) : now;
       const lastMainDate = t.lastMaintenance ? new Date(t.lastMaintenance) : purchaseDate;
       const lastOverDate = t.lastOverhaul ? new Date(t.lastOverhaul) : purchaseDate;
-      const now = new Date();
       const ageYears = (now - purchaseDate) / (1000 * 60 * 60 * 24 * 365);
       const timeSinceMainDays = (now - lastMainDate) / (1000 * 60 * 60 * 24);
       const timeSinceOverYears = (now - lastOverDate) / (1000 * 60 * 60 * 24 * 365);

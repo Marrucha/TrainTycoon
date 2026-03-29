@@ -291,12 +291,9 @@ export default function DepartureBoard() {
 }
 
 function Clock() {
-  const [time, setTime] = useState(new Date())
+  const { gameDate } = useGame()
+  const time = gameDate
 
-  useEffect(() => {
-    const t = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(t)
-  }, [])
 
   return (
     <span className={styles.clock}>

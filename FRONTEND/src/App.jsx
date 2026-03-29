@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { GameProvider } from './context/GameContext'
+import { GameProvider, useGame } from './context/GameContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import ResourceBar from './components/ResourceBar/ResourceBar'
 import CompanyMenu from './components/CompanyMenu/CompanyMenu'
@@ -7,19 +7,23 @@ import Login from './components/Login/Login'
 import styles from './App.module.css'
 
 function Clock() {
-  const [time, setTime] = useState(() => new Date())
-
-  useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
+  const { gameDate } = useGame()
+  if (!gameDate) return null
+  const time = gameDate
 
   const hh = String(time.getHours()).padStart(2, '0')
   const mm = String(time.getMinutes()).padStart(2, '0')
   const ss = String(time.getSeconds()).padStart(2, '0')
 
+  const dd = String(time.getDate()).padStart(2, '0')
+  const MM = String(time.getMonth() + 1).padStart(2, '0')
+  const yyyy = time.getFullYear()
+
   return (
     <div className={styles.clock}>
+      <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 16, color: '#8aab8a', marginRight: 8, letterSpacing: '1px' }}>
+        {dd}.{MM}.{yyyy}
+      </span>
       <span className={styles.clockTime}>{hh}:{mm}</span>
       <span className={styles.clockSec}>{ss}</span>
     </div>

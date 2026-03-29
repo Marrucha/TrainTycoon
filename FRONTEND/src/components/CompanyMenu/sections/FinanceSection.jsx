@@ -21,7 +21,7 @@ const FinanceSection = ({
     breakDeposit,
     emitShares,
 }) => {
-    const { financeLedger = [] } = useGame();
+    const { financeLedger = [], gameDate } = useGame();
     const [depositAmount, setDepositAmount] = useState('');
     const [balanceExpanded, setBalanceExpanded] = useState(false);
     const [plExpanded, setPlExpanded] = useState(false);
@@ -47,9 +47,9 @@ const FinanceSection = ({
                     const base = baseTrains.find(b => b.id === t.parent_id)
                     if (!base) return sum
                     const basePrice = base.price || (base.speed || 100) * (base.seats || 50) * 100
-                    const purchaseDate = t.purchasedAt ? new Date(t.purchasedAt) : new Date()
+                    const purchaseDate = t.purchasedAt ? new Date(t.purchasedAt) : gameDate
                     const lastOverDate = t.lastOverhaul ? new Date(t.lastOverhaul) : purchaseDate
-                    const ageYears = (new Date() - lastOverDate) / (1000 * 60 * 60 * 24 * 365)
+                    const ageYears = (gameDate - lastOverDate) / (1000 * 60 * 60 * 24 * 365)
                     const condition = Math.max(0, 100 - (ageYears / 10) * 40) / 100
                     return sum + Math.round(basePrice * condition)
                 }, 0)
@@ -408,7 +408,7 @@ const FinanceSection = ({
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 {deposits.map((dep, idx) => {
                                     const matureDate = new Date(dep.matureAt);
-                                    const isMatured = matureDate <= new Date();
+                                    const isMatured = matureDate <= gameDate;
                                     const interest = Math.round(dep.amount * dep.rate);
                                     const annualLabel = dep.annualRate != null ? ` (${(dep.annualRate * 100).toFixed(1)}% p.a.)` : '';
                                     return (

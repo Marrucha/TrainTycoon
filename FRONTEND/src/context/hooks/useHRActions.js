@@ -24,7 +24,7 @@ function _randomName() {
 }
 
 function _randomDob(minAge, maxAge) {
-  const now = new Date()
+  const now = gameDate
   const age = minAge + Math.floor(Math.random() * (maxAge - minAge + 1))
   const y   = now.getFullYear() - age
   const m   = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')
@@ -35,7 +35,7 @@ function _randomDob(minAge, maxAge) {
 function _calcAge(dateOfBirth) {
   if (!dateOfBirth) return null
   const birth = new Date(dateOfBirth)
-  const now   = new Date()
+  const now = gameDate
   let age = now.getFullYear() - birth.getFullYear()
   const m = now.getMonth() - birth.getMonth()
   if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--
@@ -69,7 +69,7 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants }) {
     }
     try {
       const uid     = auth.currentUser.uid
-      const hiredAt = new Date().toISOString().slice(0, 10)
+      const hiredAt = gameDate.toISOString().slice(0, 10)
       await addDoc(collection(db, `players/${uid}/kadry`), {
         name,
         role,
@@ -134,7 +134,7 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants }) {
       alert('Pracownik w wieku przedemerytalnym (63+) nie może zostać zwolniony.')
       return false
     }
-    const hiredDate = hiredAt ? new Date(hiredAt) : new Date()
+    const hiredDate = hiredAt ? new Date(hiredAt) : gameDate
     const monthsEmployed = Math.floor((Date.now() - hiredDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44))
     // Severance tiers (hiredAt counts from start of internship):
     // < 12 months → 1×, 12–36 months → 2×, > 36 months → 3×
@@ -209,7 +209,7 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants }) {
       const oldTsId       = currentIntern?.assignedTo ?? null
 
       // Graduation = 1 year from today (mentor assigned)
-      const graduatesAt = new Date()
+      const graduatesAt = gameDate
       graduatesAt.setFullYear(graduatesAt.getFullYear() + 1)
 
       const internRef = doc(db, `players/${uid}/kadry`, internId)

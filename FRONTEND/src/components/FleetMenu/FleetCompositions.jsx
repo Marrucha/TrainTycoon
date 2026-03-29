@@ -258,38 +258,7 @@ export default function FleetCompositions() {
                                         const crewMissing = !crew.maszynista || !crew.kierownik
                                         return (
                                         <div className={styles.cardFooter}>
-                                            {/* Linia obsady */}
-                                            <div className={styles.crewRow}>
-                                                <span className={styles.crewLabel}>Obsada:</span>
-                                                {[
-                                                    { label: 'Maszynista',         id: crew.maszynista,         required: true  },
-                                                    { label: 'Kierownik',          id: crew.kierownik,          required: true  },
-                                                    { label: 'Pomocnik masz.',     id: crew.pomocnikMaszynisty, required: false },
-                                                    { label: 'Barman',             id: crew.barman,             required: false },
-                                                ].map(({ label, id, required }) => {
-                                                    const iTooltip = id ? internTooltip(id) : null
-                                                    return (
-                                                    <span key={label} className={styles.crewItem}>
-                                                        {label}
-                                                        <span
-                                                            className={id ? styles.crewBadgeOk : required ? styles.crewBadgeMissing : styles.crewBadgeOpt}
-                                                            title={id ? empTooltip(id) : ''}
-                                                        >
-                                                            {id ? '✔' : '✘'}
-                                                        </span>
-                                                        {iTooltip && (
-                                                            <span
-                                                                title={iTooltip}
-                                                                style={{ fontSize: 10, color: '#e67e22', cursor: 'help', marginLeft: 2, fontWeight: 'bold' }}
-                                                            >[S]</span>
-                                                        )}
-                                                    </span>
-                                                    )
-                                                })}
-                                                <span className={styles.crewItem}>
-                                                    Konduktorzy <span className={nCond > 0 ? styles.crewBadgeOk : styles.crewBadgeOpt}>{nCond > 0 ? nCond : '✘'}</span>
-                                                </span>
-                                            </div>
+
                                             {/* Linia statystyk */}
                                             <div className={styles.statsRow}>
                                                 <span>Miejsca: <strong>{trainSet.totalSeats}</strong></span>

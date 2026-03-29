@@ -16,7 +16,7 @@ export function useTrainActions({ baseTrains, budget }) {
     try {
       const batch = writeBatch(db)
       const newTrainId = `pt_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`
-      const purchasedAt = new Date().toISOString()
+      const purchasedAt = gameDate.toISOString()
 
       batch.set(doc(db, `players/${auth.currentUser.uid}/trains/${newTrainId}`), {
         id: newTrainId,
@@ -41,7 +41,7 @@ export function useTrainActions({ baseTrains, budget }) {
   async function performMaintenance(trainId) {
     try {
       await updateDoc(doc(db, `players/${auth.currentUser.uid}/trains/${trainId}`), {
-        lastMaintenance: new Date().toISOString(),
+        lastMaintenance: gameDate.toISOString(),
       })
       return true
     } catch (e) {
