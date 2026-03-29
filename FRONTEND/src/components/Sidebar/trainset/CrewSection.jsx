@@ -44,10 +44,6 @@ export default function CrewSection({ ts }) {
 
   return (
     <div className={styles.section}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <span className={styles.sectionLabel} style={{ marginBottom: 0, borderBottom: 'none' }}>OBSADA ZESPOŁU KADROWEGO</span>
-      </div>
-
       <div>
           {ts.noCrewAlert && (
             <div style={{

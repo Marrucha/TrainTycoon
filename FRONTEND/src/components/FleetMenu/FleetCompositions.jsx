@@ -7,6 +7,7 @@ import SchedulePlanner from './SchedulePlanner'
 import TrainTimeline from './TrainTimeline'
 import CrewSection from '../Sidebar/trainset/CrewSection'
 import styles from './FleetCompositions.module.css'
+import pricingStyles from './PricingPanel.module.css'
 
 export default function FleetCompositions() {
     // Pobieramy całą flotę (trains), wygenerowane składy (trainsSets) i opublikowane trasy (routes)
@@ -346,8 +347,14 @@ export default function FleetCompositions() {
                                     })()}
 
                                     {!isCollapsed && crewOpenFor === trainSet.id && (
-                                        <div className={styles.crewPanel}>
-                                            <CrewSection ts={trainSet} />
+                                        <div className={pricingStyles.panel}>
+                                            <div className={pricingStyles.panelHeader}>
+                                                <span className={pricingStyles.panelTitle}>KADRY — {trainSet.name}</span>
+                                                <button className={pricingStyles.closeBtn} onClick={() => setCrewOpenFor(null)}>✕</button>
+                                            </div>
+                                            <div className={styles.crewPanel}>
+                                                <CrewSection ts={trainSet} />
+                                            </div>
                                         </div>
                                     )}
 
