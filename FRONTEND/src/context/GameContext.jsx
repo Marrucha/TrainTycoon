@@ -28,8 +28,8 @@ export function GameProvider({ children }) {
   const { selectedCity, selectedRoute, selectedTrainSet, selectCity, selectRoute, selectTrainSet } = selection
 
 
-  const REAL_START_TIME_MS = gameConstants?.REAL_START_TIME_MS || Date.now()
-  const GAME_START_TIME_MS = gameConstants?.GAME_START_TIME_MS || Date.now()
+  const REAL_START_TIME_MS = gameConstants?.REAL_START_TIME_MS
+  const GAME_START_TIME_MS = gameConstants?.GAME_START_TIME_MS
   const TIME_MULTIPLIER = gameConstants?.TIME_MULTIPLIER || 30
 
   const [realNow, setRealNow] = useState(Date.now())
@@ -38,9 +38,14 @@ export function GameProvider({ children }) {
     return () => clearInterval(id)
   }, [])
 
-  const virtualNowMs = GAME_START_TIME_MS + (realNow - REAL_START_TIME_MS) * TIME_MULTIPLIER
-  const gameDate = useMemo(() => new Date(virtualNowMs), [virtualNowMs])
-  const gameTime = `${String(gameDate.getHours()).padStart(2, '0')}:${String(gameDate.getMinutes()).padStart(2, '0')}`
+  const virtualNowMs = (REAL_START_TIME_MS && GAME_START_TIME_MS) 
+    ? GAME_START_TIME_MS + (realNow - REAL_START_TIME_MS) * TIME_MULTIPLIER
+    : null
+
+  const gameDate = useMemo(() => virtualNowMs ? new Date(virtualNowMs) : null, [virtualNowMs])
+  
+  // Bezpieczny fallback The Time (wymagany the The The the loading)
+  const gameTime = gameDate ? `${String(gameDate.getHours()).padStart(2, '0')}:${String(gameDate.getMinutes()).padStart(2, '0')}` : '--:--'
 
   // Tymczasowy upload danych słonecznych wygenerowanych w Pythonie skryptowo
   useEffect(() => {

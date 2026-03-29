@@ -17,7 +17,7 @@ export function useFirestoreData() {
   const [financeLedger, setFinanceLedger] = useState([])
   const [sunTimes, setSunTimes] = useState(null)
   const [hallOfFame, setHallOfFame] = useState({})
-  const [gameConstants, setGameConstants] = useState({})
+  const [gameConstants, setGameConstants] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
