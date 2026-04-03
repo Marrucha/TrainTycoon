@@ -133,8 +133,8 @@ const FleetSection = ({
                                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                                             <span style={{ fontSize: '13px', fontWeight: '600', color: '#eee' }}>{m.name}</span>
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '3px' }}>
-                                                <span style={{ fontSize: '11px', background: '#060f06', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', color: '#f0c040' }}>
-                                                    {m.ageYears} lat
+                                                <span style={{ fontSize: '11px', background: '#060f06', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', color: m.ageYears != null ? '#f0c040' : '#555' }}>
+                                                    {m.ageYears != null ? `${m.ageYears} lat` : 'wiek nieznany'}
                                                 </span>
                                                 <span style={{ fontSize: '11px', color: '#8aab8a' }}>| Typ: {m.type}</span>
                                             </div>

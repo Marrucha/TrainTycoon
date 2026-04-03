@@ -96,7 +96,7 @@ export function GameProvider({ children }) {
   const trains = useMemo(() => {
     return playerTrains.map(pt => {
       const baseModel = baseTrains.find(bt => bt.id === pt.parent_id) || {}
-      return { ...baseModel, id: pt.id, parent_id: pt.parent_id }
+      return { ...baseModel, ...pt }
     })
   }, [baseTrains, playerTrains])
 

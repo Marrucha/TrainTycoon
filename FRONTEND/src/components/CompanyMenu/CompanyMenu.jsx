@@ -94,21 +94,25 @@ export default function CompanyMenu() {
   const toggleGroup = (groupId) =>
     setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
 
+  // Zaokrąglenie do pełnej godziny gry — memo przelicza się raz/godzinę gry, nie co sekundę
+  const nowMs = now ? Math.floor(now.getTime() / (3600 * 1000)) * (3600 * 1000) : null
+
   const fleetData = useMemo(() => {
+    if (!nowMs) return []
     const analyzedTrains = trains.map(t => {
-      const purchaseDate = t.purchasedAt ? new Date(t.purchasedAt) : now;
-      const lastMainDate = t.lastMaintenance ? new Date(t.lastMaintenance) : purchaseDate;
-      const lastOverDate = t.lastOverhaul ? new Date(t.lastOverhaul) : purchaseDate;
-      const ageYears = (now - purchaseDate) / (1000 * 60 * 60 * 24 * 365);
-      const timeSinceMainDays = (now - lastMainDate) / (1000 * 60 * 60 * 24);
-      const timeSinceOverYears = (now - lastOverDate) / (1000 * 60 * 60 * 24 * 365);
+      const purchaseMs   = t.purchasedAt   ? new Date(t.purchasedAt).getTime()   : null
+      const lastMainMs   = t.lastMaintenance ? new Date(t.lastMaintenance).getTime() : purchaseMs
+      const lastOverMs   = t.lastOverhaul   ? new Date(t.lastOverhaul).getTime()   : purchaseMs
+      const ageYears     = purchaseMs != null ? (nowMs - purchaseMs)   / (1000 * 60 * 60 * 24 * 365) : null
+      const timeSinceMainDays  = lastMainMs != null ? (nowMs - lastMainMs) / (1000 * 60 * 60 * 24)        : 0
+      const timeSinceOverYears = lastOverMs != null ? (nowMs - lastOverMs) / (1000 * 60 * 60 * 24 * 365) : 0
       const isMaintenance = timeSinceMainDays >= 365 && timeSinceMainDays < 368;
       const isOverhaul = timeSinceOverYears >= 10 && timeSinceOverYears < 10.083;
       let status = 'READY';
       if (isOverhaul) status = 'OVERHAUL';
       else if (isMaintenance) status = 'MAINTENANCE';
       const condition = Math.round(Math.max(0, 100 - (timeSinceOverYears / 10) * 40));
-      return { ...t, ageYears: ageYears.toFixed(1), condition, status };
+      return { ...t, ageYears: ageYears != null ? ageYears.toFixed(1) : null, condition, status };
     });
 
     if (groupBy === 'set') {
@@ -143,7 +147,7 @@ export default function CompanyMenu() {
         return { ...g, name: `${g.name} [${g.members.length} szt.]`, condition: avgCondition, minCondition, status: groupStatus, isGroup: true, members: g.members.sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition) };
       }).sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition);
     }
-  }, [trains, trainsSets, sortOrder, groupBy]);
+  }, [trains, trainsSets, sortOrder, groupBy, nowMs]);
 
   const bgImage = (() => {
     const url =
