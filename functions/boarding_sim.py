@@ -165,7 +165,9 @@ def run_boarding_tick(db, now_str=None):
 
             ts = ts_cache[(pid, ts_id)]
             crew = ts.get('crew') or {}
-            pricing = ts.get('pricing') or player_cache[pid].get('defaultPricing') or DEFAULT_PRICING
+            pricing = ts.get('pricing') or player_cache[pid].get('defaultPricing')
+            if not pricing or not pricing.get('class2Per100km') or not pricing.get('class1Per100km'):
+                continue  # brak cennika — skład nie kursuje
 
             if not crew.get('maszynista') or not crew.get('kierownik'):
                 continue

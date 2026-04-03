@@ -136,9 +136,11 @@ def calc_demand_for_train_sets(db):
                 or 'bar' in (player_trains.get(tid, {}).get('type', '') or '').lower()
                 for tid in (ts.get('trainIds') or [])
             )
-            pricing   = ts.get('pricing') or default_pricing or DEFAULT_PRICING
-            p2_per100 = pricing.get('class2Per100km', DEFAULT_PRICING['class2Per100km'])
-            p1_per100 = pricing.get('class1Per100km', DEFAULT_PRICING['class1Per100km'])
+            pricing   = ts.get('pricing') or default_pricing
+            if not pricing or not pricing.get('class2Per100km') or not pricing.get('class1Per100km'):
+                continue  # brak cennika — skład nie kursuje
+            p2_per100 = pricing['class2Per100km']
+            p1_per100 = pricing['class1Per100km']
 
             # Group stops by kurs
             by_kurs = {}

@@ -166,6 +166,10 @@ export default function PricingPanel({
   }
 
   function handleSave() {
+    if (base1 <= 0 || base2 <= 0) {
+      alert('Cena bazowa musi być większa od 0. Składy bez cennika nie mogą kursować.')
+      return
+    }
     // Jeżeli tryb własny, obcinamy tablicę mnożników do faktycznie wymaganej długości
     const finalMultipliers = isCustom ? multipliers.slice(0, requiredMultipliersCount) : multipliers
     const baseConfig = { class1Per100km: base1, class2Per100km: base2, multipliers: finalMultipliers }
