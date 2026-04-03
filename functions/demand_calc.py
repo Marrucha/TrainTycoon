@@ -9,6 +9,7 @@ from demand_model import (
 )
 from public_player import get_public_utility
 from utils import _find_city
+from tickets_pricing import DEFAULT_PRICING
 
 
 # ---------------------------------------------------------------------------
@@ -135,9 +136,9 @@ def calc_demand_for_train_sets(db):
                 or 'bar' in (player_trains.get(tid, {}).get('type', '') or '').lower()
                 for tid in (ts.get('trainIds') or [])
             )
-            pricing   = ts.get('pricing') or default_pricing
-            p2_per100 = pricing.get('class2Per100km', 6)
-            p1_per100 = pricing.get('class1Per100km', 10)
+            pricing   = ts.get('pricing') or default_pricing or DEFAULT_PRICING
+            p2_per100 = pricing.get('class2Per100km', DEFAULT_PRICING['class2Per100km'])
+            p1_per100 = pricing.get('class1Per100km', DEFAULT_PRICING['class1Per100km'])
 
             # Group stops by kurs
             by_kurs = {}
