@@ -1,7 +1,7 @@
 import { doc, writeBatch, updateDoc } from 'firebase/firestore'
 import { db, auth } from '../../firebase/config'
 
-export function useTrainActions({ baseTrains, budget }) {
+export function useTrainActions({ baseTrains, budget, gameDate }) {
   async function buyTrain(baseTrainId) {
     const baseTrain = baseTrains.find((t) => t.id === baseTrainId)
     if (!baseTrain) return false
