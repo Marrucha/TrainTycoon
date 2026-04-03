@@ -112,8 +112,9 @@ def calc_demand_for_train_sets(db):
         if pid == 'samorządowy':
             continue   # public operator is a baseline, not a player
 
-        p_data     = p_doc.to_dict() or {}
-        reputation = p_data.get('reputation', 0.5)
+        p_data          = p_doc.to_dict() or {}
+        reputation      = p_data.get('reputation', 0.5)
+        default_pricing = p_data.get('defaultPricing') or {}
 
         player_trains = {}
         for d in db.collection(f'players/{pid}/trains').stream():
@@ -134,7 +135,7 @@ def calc_demand_for_train_sets(db):
                 or 'bar' in (player_trains.get(tid, {}).get('type', '') or '').lower()
                 for tid in (ts.get('trainIds') or [])
             )
-            pricing   = ts.get('pricing') or {}
+            pricing   = ts.get('pricing') or default_pricing
             p2_per100 = pricing.get('class2Per100km', 6)
             p1_per100 = pricing.get('class1Per100km', 10)
 
@@ -295,3 +296,80 @@ def calc_demand_for_train_sets(db):
     rebuild_schedule_table(db)
 
     return updated
+
+
+def _collect_segments_for_debug(db, pid, ts_id, kurs_id, cfg, cities, base_trains):
+    """Zbiera segmenty OD dla jednego kursu. Zwraca listę dict z utility-ready polami."""
+    p_doc = db.collection('players').document(pid).get()
+    p_data = p_doc.to_dict() or {} if p_doc.exists else {}
+    reputation = p_data.get('reputation', 0.5)
+    default_pricing = p_data.get('defaultPricing') or {}
+
+    player_trains = {}
+    for d in db.collection(f'players/{pid}/trains').stream():
+        data = d.to_dict()
+        base = base_trains.get(data.get('parent_id'), {})
+        player_trains[d.id] = {**base, **data}
+
+    ts_doc = db.collection(f'players/{pid}/trainSet').document(ts_id).get()
+    if not ts_doc.exists:
+        return None, None, f"Nie znaleziono trainSet '{ts_id}'"
+
+    ts = ts_doc.to_dict()
+    rozklad = ts.get('rozklad') or []
+    by_kurs = {}
+    for stop in rozklad:
+        k = stop.get('kurs')
+        if k is not None:
+            by_kurs.setdefault(str(k), []).append(stop)
+
+    stops = by_kurs.get(str(kurs_id))
+    if not stops:
+        return None, None, f"Nie znaleziono kursu '{kurs_id}'. Dostępne: {list(by_kurs.keys())}"
+
+    has_restaurant = any(
+        'restaurant' in (player_trains.get(tid, {}).get('type', '') or '').lower()
+        or 'bar' in (player_trains.get(tid, {}).get('type', '') or '').lower()
+        for tid in (ts.get('trainIds') or [])
+    )
+    pricing   = ts.get('pricing') or default_pricing
+    p2_per100 = pricing.get('class2Per100km', 6)
+    p1_per100 = pricing.get('class1Per100km', 10)
+    drop_rate = cfg['priceDropRate']
+
+    segs = []
+    for i in range(len(stops) - 1):
+        dep_str  = stops[i].get('odjazd', '00:00') or '00:00'
+        dep_hour = int(dep_str.split(':')[0])
+        for j in range(i + 1, len(stops)):
+            city_a, id_a = _find_city(cities, stops[i].get('miasto'))
+            city_b, id_b = _find_city(cities, stops[j].get('miasto'))
+            if not city_a or not city_b:
+                continue
+            dist_km  = haversine(city_a['lat'], city_a['lon'], city_b['lat'], city_b['lon'])
+            arr_key  = 'przyjazd' if 'przyjazd' in stops[j] else 'odjazd'
+            arr_str  = stops[j].get(arr_key, '?')
+            dep_min  = _parse_time_min(stops[i].get('odjazd'))
+            arr_min  = _parse_time_min(stops[j].get(arr_key))
+            time_min = (arr_min - dep_min) if arr_min > dep_min else (arr_min - dep_min + 1440)
+            price2   = calc_price(dist_km, p2_per100, drop_rate)
+            price1   = calc_price(dist_km, p1_per100, drop_rate)
+            segs.append({
+                'od':             f'{id_a}:{id_b}',
+                'from_name':      city_a.get('name', id_a),
+                'to_name':        city_b.get('name', id_b),
+                'dep_hour':       dep_hour,
+                'dep_time':       dep_str,
+                'arr_time':       arr_str,
+                'dist_km':        round(dist_km, 1),
+                'time_min':       time_min,
+                'price2':         round(price2, 2),
+                'price1':         round(price1, 2),
+                'p2_per100':      p2_per100,
+                'p1_per100':      p1_per100,
+                'has_restaurant': has_restaurant,
+                'reputation':     reputation,
+            })
+
+    meta = {'ts_name': ts.get('name', ts_id), 'kurs_id': kurs_id}
+    return segs, meta, None
