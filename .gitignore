@@ -1,4 +1,5 @@
 node_modules/
+functions/config/serviceAccountKey.json
 .claude/
 .vite/
 functions/__pycache__/

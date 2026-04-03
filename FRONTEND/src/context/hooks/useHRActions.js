@@ -127,7 +127,7 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants, gam
 
   // ─── Fire employee ─────────────────────────────────────────────────────────
 
-  async function fireEmployee(empId, empData) {
+  async function fireEmployee(empId, empData, { confirmed = false } = {}) {
     const { monthlySalary = 5000, hiredAt, isIntern, assignedTo, dateOfBirth } = empData
     const age = _calcAge(dateOfBirth)
     if (age !== null && age >= 63) {
@@ -147,7 +147,7 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants, gam
     const confirmMsg = severance > 0
       ? `Zwolnić pracownika? Odprawa: ${severance.toLocaleString()} PLN.`
       : 'Zwolnić stażystę? Brak odprawy.'
-    if (!window.confirm(confirmMsg)) return false
+    if (!confirmed && !window.confirm(confirmMsg)) return false
 
     try {
       // Unassign from crew if assigned
@@ -292,7 +292,7 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants, gam
 
   // ─── Unassign crew ─────────────────────────────────────────────────────────
 
-  async function unassignCrew(tsId, role, empId) {
+  async function unassignCrew(tsId, role, empId, { confirmed = false } = {}) {
     const crewKey = ROLE_KEY_MAP[role] ?? role
     const isArray = ARRAY_ROLES.includes(crewKey)
     const uid = auth.currentUser.uid
@@ -335,7 +335,7 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants, gam
               `Zostaną wyładowani na najbliższej stacji.\n` +
               `Odszkodowanie: ${compensation.toLocaleString()} PLN.\n\nKontynuować?`
             : `Odpiąć ${roleLabel}? Pociąg zostanie unieruchomiony na stacji.`
-          if (!window.confirm(msg)) return false
+          if (!confirmed && !window.confirm(msg)) return false
 
           crewUpdate.noCrewAlert = true
           crewUpdate.currentTransfer = {}

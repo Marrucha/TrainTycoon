@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useGame } from '../../../context/GameContext'
 import styles from '../RoutePanel.module.css'
+import ConfirmButton from '../../common/ConfirmButton'
 
 const CREW_ROLES = [
   { key: 'maszynista',         role: 'maszynista',  label: 'Maszynista',        array: false, required: true  },
@@ -48,7 +49,7 @@ export default function CrewSection({ ts, editable = false }) {
   async function handleUnassign(crewKey, role, empId) {
     if (!empId || busy) return
     setBusy(true)
-    await unassignCrew(ts.id, crewKey, empId)
+    await unassignCrew(ts.id, crewKey, empId, { confirmed: true })
     setBusy(false)
   }
 
@@ -106,14 +107,14 @@ export default function CrewSection({ ts, editable = false }) {
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', paddingBottom: 4 }}>
                   {/* Przyciski odpięcia */}
                   {ids.map(empId => (
-                    <button
+                    <ConfirmButton
                       key={empId}
+                      label={`− ${empLabel(empId)}`}
+                      confirmLabel="Odpiąć?"
+                      onConfirm={() => handleUnassign(key, role, empId)}
                       disabled={busy}
-                      onClick={() => handleUnassign(key, role, empId)}
-                      style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(231,76,60,0.15)', border: '1px solid #c0392b', color: '#e74c3c', borderRadius: 3, cursor: 'pointer' }}
-                    >
-                      − {empLabel(empId)}
-                    </button>
+                      btnStyle={{ fontSize: 10, padding: '2px 6px', background: 'rgba(231,76,60,0.15)', border: '1px solid #c0392b', color: '#e74c3c', borderRadius: 3, cursor: 'pointer' }}
+                    />
                   ))}
                   {/* Dropdown przypisania */}
                   {(array || ids.length === 0) && available.length > 0 && (

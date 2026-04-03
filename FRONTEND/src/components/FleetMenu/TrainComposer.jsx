@@ -147,6 +147,7 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
                 await setDoc(doc(db, `players/${auth.currentUser.uid}/trainSet`, setId), {
                     id: setId,
                     name: trainName,
+                    createdAt: new Date().toISOString(),
                     dispatchDate: dispatchMs,
                     type: composition[0]?.type || 'Zwykły',
                     trainIds: composition.map(c => c.id),

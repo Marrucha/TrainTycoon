@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useGame } from '../../../context/GameContext'
 import styles from '../CompanyMenu.module.css'
+import ConfirmButton from '../../common/ConfirmButton'
 
 const _H = import.meta.env.VITE_FUNCTIONS_HASH
 const fnUrl = (name) => `https://${name}-${_H}-uc.a.run.app`
@@ -61,7 +62,7 @@ export default function HRSection() {
   }
 
   async function handleFire(emp) {
-    await fireEmployee(emp.id, emp)
+    await fireEmployee(emp.id, emp, { confirmed: true })
   }
 
   async function handleInternAssign(mentorId) {
@@ -166,14 +167,13 @@ export default function HRSection() {
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => !preRetire && handleFire(emp)}
+              <ConfirmButton
+                label="Zwolnij"
+                confirmLabel="Zwolnić?"
+                onConfirm={() => handleFire(emp)}
                 disabled={preRetire}
-                title={preRetire ? 'Pracownik w wieku przedemerytalnym (63+)' : ''}
-                style={{ background: 'none', border: '1px solid #555', color: preRetire ? '#555' : '#c0392b', borderRadius: 3, padding: '3px 8px', fontSize: 11, cursor: preRetire ? 'not-allowed' : 'pointer', opacity: preRetire ? 0.4 : 1, flexShrink: 0 }}
-              >
-                Zwolnij
-              </button>
+                btnStyle={{ background: 'none', border: '1px solid #555', color: preRetire ? '#555' : '#c0392b', borderRadius: 3, padding: '3px 8px', fontSize: 11, cursor: preRetire ? 'not-allowed' : 'pointer', opacity: preRetire ? 0.4 : 1, flexShrink: 0 }}
+              />
             </div>
             {/* Karta stażysty pod mentorem */}
             {myIntern && (
@@ -198,12 +198,12 @@ export default function HRSection() {
                   >
                     Zmień
                   </button>
-                  <button
-                    onClick={() => handleFire(myIntern)}
-                    style={{ background: 'none', border: '1px solid #555', color: '#c0392b', borderRadius: 3, padding: '2px 7px', fontSize: 10, cursor: 'pointer' }}
-                  >
-                    Zwolnij
-                  </button>
+                  <ConfirmButton
+                    label="Zwolnij"
+                    confirmLabel="Zwolnić?"
+                    onConfirm={() => handleFire(myIntern)}
+                    btnStyle={{ background: 'none', border: '1px solid #555', color: '#c0392b', borderRadius: 3, padding: '2px 7px', fontSize: 10, cursor: 'pointer' }}
+                  />
                 </div>
               </div>
             )}
@@ -231,12 +231,12 @@ export default function HRSection() {
               >
                 Przypisz mentora
               </button>
-              <button
-                onClick={() => handleFire(intern)}
-                style={{ background: 'none', border: '1px solid #555', color: '#c0392b', borderRadius: 3, padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}
-              >
-                Zwolnij
-              </button>
+              <ConfirmButton
+                label="Zwolnij"
+                confirmLabel="Zwolnić?"
+                onConfirm={() => handleFire(intern)}
+                btnStyle={{ background: 'none', border: '1px solid #555', color: '#c0392b', borderRadius: 3, padding: '3px 8px', fontSize: 11, cursor: 'pointer' }}
+              />
             </div>
           </div>
         ))}

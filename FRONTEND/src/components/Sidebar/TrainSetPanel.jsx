@@ -13,11 +13,18 @@ import DemandMatrix from './trainset/DemandMatrix'
 import CrewSection from './trainset/CrewSection'
 
 export default function TrainSetPanel() {
-  const { selectedTrainSet, selectTrainSet, trains, getCityById, companyName, cities, getTicketPrice } = useGame()
+  const { selectedTrainSet, selectTrainSet, trains, getCityById, companyName, cities, getTicketPrice, gameConstants } = useGame()
   const [openKurs, setOpenKurs] = useState(null)
   const [openTimetable, setOpenTimetable] = useState(null)
 
   const { gameDate: now } = useGame()
+
+  const timeMultiplier = gameConstants?.TIME_MULTIPLIER || 30
+  const oneGameMonthMs = 30 * 24 * 3600 * 1000 / timeMultiplier
+  const newBadgeColor = !selectedTrainSet?.createdAt ? null
+    : !selectedTrainSet.firstRouteAt ? 'red'
+    : (Date.now() - new Date(selectedTrainSet.firstRouteAt).getTime()) < oneGameMonthMs ? 'green'
+    : null
 
   if (!selectedTrainSet) return null
 
@@ -247,9 +254,18 @@ export default function TrainSetPanel() {
       <div className={styles.header}>
         <button className={styles.backBtn} onClick={() => selectTrainSet(ts)}>← wróć</button>
         <div className={styles.routeTitle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span className={styles.trainType}>{companyName || ts.type}</span>
             <span className={styles.cities}>{ts.name}</span>
+            {newBadgeColor && (
+              <span style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                padding: '1px 6px', borderRadius: 3,
+                background: newBadgeColor === 'red' ? 'rgba(231,76,60,0.2)' : 'rgba(46,204,113,0.2)',
+                border: `1px solid ${newBadgeColor === 'red' ? '#e74c3c' : '#2ecc71'}`,
+                color: newBadgeColor === 'red' ? '#e74c3c' : '#2ecc71',
+              }}>NEW</span>
+            )}
             {Object.values(ts.awarie || {}).some(a => a.isAwaria === 1) && (() => {
               const delays = Object.values(ts.awarie).filter(a => a.isAwaria === 1).map(a => a.awariaTime)
               const maxDelay = Math.max(...delays)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useGame } from '../../context/GameContext'
+import ConfirmButton from '../common/ConfirmButton'
 import TrainComposer from './TrainComposer'
 import PricingPanel from './PricingPanel'
 import RoutePlanner from './RoutePlanner'
@@ -11,7 +12,7 @@ import pricingStyles from './PricingPanel.module.css'
 
 export default function FleetCompositions() {
     // Pobieramy całą flotę (trains), wygenerowane składy (trainsSets) i opublikowane trasy (routes)
-    const { trainsSets, trains, routes, cities, defaultPricing, updateTicketPrice, updateDefaultPricing, updateCitySchedules, employees, disbandTrainSet } = useGame()
+    const { trainsSets, trains, routes, cities, defaultPricing, updateTicketPrice, updateDefaultPricing, updateCitySchedules, employees, disbandTrainSet, gameConstants } = useGame()
     const [isComposing, setIsComposing] = useState(false)
     const [editingTrainSet, setEditingTrainSet] = useState(null)
     const [pricingOpenFor, setPricingOpenFor] = useState(null) // id składu z otwartym cennikiem
@@ -204,6 +205,15 @@ export default function FleetCompositions() {
 
                             const isCollapsed = !!collapsedCards[trainSet.id]
 
+                            // Badge "NEW": czerwony przed trasą, zielony w pierwszym miesiącu gry
+                            const timeMultiplier = gameConstants?.TIME_MULTIPLIER || 30
+                            const oneGameMonthMs = 30 * 24 * 3600 * 1000 / timeMultiplier
+                            const now = Date.now()
+                            const newBadge = !trainSet.createdAt ? null
+                                : !trainSet.firstRouteAt ? 'red'
+                                : (now - new Date(trainSet.firstRouteAt).getTime()) < oneGameMonthMs ? 'green'
+                                : null
+
                             return (
                                 <div key={trainSet.id} className={styles.compositionCard}>
                                     <div
@@ -211,7 +221,18 @@ export default function FleetCompositions() {
                                         onClick={() => toggleCollapse(trainSet.id)}
                                         style={{ cursor: 'pointer', userSelect: 'none', borderBottom: isCollapsed ? 'none' : '1px solid #1a331a', paddingBottom: isCollapsed ? 0 : '10px' }}
                                     >
-                                        <h4>{trainSet.name}</h4>
+                                        <h4 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            {trainSet.name}
+                                            {newBadge && (
+                                                <span style={{
+                                                    fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                                                    padding: '1px 6px', borderRadius: 3,
+                                                    background: newBadge === 'red' ? 'rgba(231,76,60,0.2)' : 'rgba(46,204,113,0.2)',
+                                                    border: `1px solid ${newBadge === 'red' ? '#e74c3c' : '#2ecc71'}`,
+                                                    color: newBadge === 'red' ? '#e74c3c' : '#2ecc71',
+                                                }}>NEW</span>
+                                            )}
+                                        </h4>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             {routeLabel ? (
                                                 <div title={formattedSchedule.trim()}>
@@ -330,17 +351,15 @@ export default function FleetCompositions() {
                                                         Edytuj Skład
                                                     </button>
                                                 )}
-                                                <button 
-                                                    className={`${styles.pricingBtn} ${styles.disbandBtn}`}
-                                                    onClick={() => {
-                                                        if (window.confirm('Czy na pewno chcesz rozwiązać ten pociąg? Lokomotywa, wagony i załoga wrócą do rezerwy. Zapisane trasy, rozkład jazdy i cennik zostaną nienaruszone - będzie je można przypisać przywracając fizyczne maszyny.')) {
-                                                            if (isPublished) updateCitySchedules(trainSet.id, [], {});
-                                                            disbandTrainSet(trainSet.id, employees);
-                                                        }
+                                                <ConfirmButton
+                                                    label="Rozwiąż"
+                                                    confirmLabel="Rozwiązać skład?"
+                                                    onConfirm={() => {
+                                                        if (isPublished) updateCitySchedules(trainSet.id, [], {});
+                                                        disbandTrainSet(trainSet.id, employees);
                                                     }}
-                                                >
-                                                    Rozwiąż
-                                                </button>
+                                                    btnClass={`${styles.pricingBtn} ${styles.disbandBtn}`}
+                                                />
                                             </div>
                                         </div>
                                         )

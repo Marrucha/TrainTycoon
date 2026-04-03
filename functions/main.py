@@ -6,7 +6,7 @@ import random
 from firebase_functions import scheduler_fn, https_fn, firestore_fn, tasks_fn, options
 from firebase_admin import initialize_app, firestore, functions as admin_functions
 
-from demand_calc import calc_demand_for_train_sets
+from demand_calc import calc_demand_for_train_sets, _collect_segments_for_debug
 from boarding_sim import run_boarding_tick, rebuild_schedule_table, rebuild_schedule_for_trainset
 from reports import save_daily_report, _calc_ticket_price, DEFAULT_PRICING
 from reputation import update_reputation_metrics
@@ -200,6 +200,136 @@ def on_trainset_written(
     ts_data = event.data.after.to_dict() if event.data.after else None
     db = firestore.client()
     rebuild_schedule_for_trainset(db, pid, ts_id, ts_data)
+
+
+@https_fn.on_request()
+def debug_utility_compare(req: https_fn.Request) -> https_fn.Response:
+    """Porównuje utility dwóch kursów na wspólnych parach O-D.
+
+    Query params: pid, ts1, kurs1, ts2, kurs2, hour (int)
+    Przykład: ?pid=player1&ts1=trainset-moniuszko&kurs1=2&ts2=trainset-1772062501119&kurs2=0&hour=13
+    """
+    headers = {'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json; charset=utf-8'}
+    if req.method == 'OPTIONS':
+        return https_fn.Response('', status=204, headers=headers)
+
+    pid   = req.args.get('pid', 'player1')
+    ts_id1 = req.args.get('ts1')
+    kurs1  = req.args.get('kurs1')
+    ts_id2 = req.args.get('ts2')
+    kurs2  = req.args.get('kurs2')
+    hour   = int(req.args.get('hour', 13))
+
+    if not all([ts_id1, kurs1, ts_id2, kurs2]):
+        # Tryb listowania — zwróć dostępne trainSety
+        db = firestore.client()
+        result = []
+        for doc in db.collection(f'players/{pid}/trainSet').stream():
+            ts = doc.to_dict()
+            kursy = sorted({str(s.get('kurs')) for s in (ts.get('rozklad') or []) if s.get('kurs') is not None})
+            result.append({'id': doc.id, 'name': ts.get('name', '?'), 'kursy': kursy})
+        return https_fn.Response(json.dumps(result, ensure_ascii=False, indent=2), status=200, headers=headers)
+
+    from demand_model import (
+        DEFAULT_CONFIG, get_demand, calc_price, get_beta_price,
+        utility, HOUR_DEMAND_MAP, _circ_dist, _proximity_weight, class_split, haversine,
+    )
+    from public_player import get_public_utility
+
+    db  = firestore.client()
+    cfg_snap = db.collection('gameConfig').document('params').get()
+    cfg = {**DEFAULT_CONFIG, **(cfg_snap.to_dict() if cfg_snap.exists else {})}
+    cities      = {d.id: d.to_dict() for d in db.collection('cities').stream()}
+    base_trains = {d.id: d.to_dict() for d in db.collection('trains').stream()}
+
+    segs1, meta1, err1 = _collect_segments_for_debug(db, pid, ts_id1, kurs1, cfg, cities, base_trains)
+    segs2, meta2, err2 = _collect_segments_for_debug(db, pid, ts_id2, kurs2, cfg, cities, base_trains)
+
+    if err1 or err2:
+        return https_fn.Response(json.dumps({'error': err1 or err2}), status=400, headers=headers)
+
+    od1 = {s['od']: s for s in segs1}
+    od2 = {s['od']: s for s in segs2}
+    common = sorted(set(od1.keys()) & set(od2.keys()))
+
+    output = {
+        'train1': meta1,
+        'train2': meta2,
+        'hour': hour,
+        'all_od_train1': [s['od'] for s in segs1],
+        'all_od_train2': [s['od'] for s in segs2],
+        'common_od': [],
+    }
+
+    for od_key in common:
+        s1, s2 = od1[od_key], od2[od_key]
+        city_ids = od_key.split(':')
+        city_a = cities.get(city_ids[0], {})
+        city_b = cities.get(city_ids[1], {})
+        gravity = get_demand(city_a, city_b) if city_a and city_b else 0
+        pop_max = max(city_a.get('population', 100_000), city_b.get('population', 100_000))
+        hour_demand = gravity * HOUR_DEMAND_MAP[hour]
+
+        avg_p2    = (s1['price2'] + s2['price2']) / 2
+        beta_price = get_beta_price(cfg['elasticity'], avg_p2)
+
+        def seg_utility(s):
+            return utility(
+                s['price2'], s['time_min'], s['reputation'], s['has_restaurant'],
+                beta_price, cfg['betaTime'], cfg['betaRep'],
+            )
+
+        u1, u2 = seg_utility(s1), seg_utility(s2)
+        exp_u1, exp_u2 = math.exp(min(u1, 500)), math.exp(min(u2, 500))
+        circ1, circ2 = _circ_dist(hour, s1['dep_hour']), _circ_dist(hour, s2['dep_hour'])
+        prox1, prox2 = _proximity_weight(circ1), _proximity_weight(circ2)
+        min_dist = min(circ1, circ2)
+        base_w   = _proximity_weight(min_dist)
+        winners  = []
+        if circ1 == min_dist and base_w > 0: winners.append('train1')
+        if circ2 == min_dist and base_w > 0: winners.append('train2')
+
+        exp_pub = math.exp(min(
+            get_public_utility(s1['dist_km'], cfg, beta_price, cfg['betaTime'], cfg['betaRep']),
+            500,
+        ))
+        accessible = hour_demand * base_w
+        exp_sum = exp_pub + sum([exp_u1 if 'train1' in winners else 0,
+                                  exp_u2 if 'train2' in winners else 0])
+
+        pax1 = accessible * (exp_u1 / exp_sum) if 'train1' in winners and exp_sum > 0 else 0
+        pax2 = accessible * (exp_u2 / exp_sum) if 'train2' in winners and exp_sum > 0 else 0
+        pax_pub = accessible * (exp_pub / exp_sum) if exp_sum > 0 else 0
+
+        output['common_od'].append({
+            'od': od_key,
+            'from': s1['from_name'], 'to': s1['to_name'],
+            'gravity': round(gravity, 2),
+            'hour_demand': round(hour_demand, 2),
+            'accessible_demand': round(accessible, 2),
+            'train1': {
+                'dep_time': s1['dep_time'], 'arr_time': s1['arr_time'],
+                'dep_hour': s1['dep_hour'], 'dist_km': s1['dist_km'],
+                'time_min': s1['time_min'], 'price2': s1['price2'],
+                'reputation': s1['reputation'], 'has_restaurant': s1['has_restaurant'],
+                'utility': round(u1, 4), 'exp_u': round(exp_u1, 4),
+                'voronoi_dist': circ1, 'voronoi_wins': 'train1' in winners,
+                'pax_this_hour': round(pax1, 2),
+            },
+            'train2': {
+                'dep_time': s2['dep_time'], 'arr_time': s2['arr_time'],
+                'dep_hour': s2['dep_hour'], 'dist_km': s2['dist_km'],
+                'time_min': s2['time_min'], 'price2': s2['price2'],
+                'reputation': s2['reputation'], 'has_restaurant': s2['has_restaurant'],
+                'utility': round(u2, 4), 'exp_u': round(exp_u2, 4),
+                'voronoi_dist': circ2, 'voronoi_wins': 'train2' in winners,
+                'pax_this_hour': round(pax2, 2),
+            },
+            'public_exp_u': round(exp_pub, 4),
+            'public_pax_this_hour': round(pax_pub, 2),
+        })
+
+    return https_fn.Response(json.dumps(output, ensure_ascii=False, indent=2), status=200, headers=headers)
 
 
 @https_fn.on_request()

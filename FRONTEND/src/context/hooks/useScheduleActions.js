@@ -68,6 +68,16 @@ export function useScheduleActions({ cities, trainsSets, setSelectedRoute }) {
         batch.update(doc(db, 'cities', cityId), { rozklad: [...kept, ...(newCityEntries[cityId] || [])] })
       })
 
+      // Zapisz firstRouteAt przy pierwszym wyjeździe w trasę
+      if (newRozklad?.length > 0) {
+        const ts = trainsSets?.find(t => t.id === trainSetId)
+        if (ts && !ts.firstRouteAt) {
+          batch.update(doc(db, `players/${auth.currentUser.uid}/trainSet`, trainSetId), {
+            firstRouteAt: new Date().toISOString(),
+          })
+        }
+      }
+
       await batch.commit()
     } catch (e) {
       console.error('Błąd aktualizacji rozkładu miast:', e)

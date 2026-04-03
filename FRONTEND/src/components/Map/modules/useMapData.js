@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { timeToMin } from './MapUtils'
+import { findShortestPath } from '../../../utils/dijkstra'
 
 export function useMapData({ trainsSets, routes, cities, currentMin, trains }) {
     // 1. Statystyki aktywnych tras (kto obsługuje dany odcinek)
@@ -43,13 +44,36 @@ export function useMapData({ trainsSets, routes, cities, currentMin, trains }) {
         return counts
     }, [trainsSets, routes, cities])
 
-    // 2. Pozycje pociągów w ruchu (Interpolacja)
+    // 2a. Pre-compute ścieżki dla odcinków rozkładu (stabilne — nie zależy od currentMin)
+    const segmentPaths = useMemo(() => {
+        const cache = {}
+        if (!trainsSets || !cities || !routes) return cache
+        trainsSets.forEach(ts => {
+            if (!ts.rozklad?.length) return
+            if (!ts.dailyDemand || Object.keys(ts.dailyDemand).length === 0) return
+            const byKurs = {}
+            ts.rozklad.forEach(s => { if (!byKurs[s.kurs]) byKurs[s.kurs] = []; byKurs[s.kurs].push(s) })
+            Object.values(byKurs).forEach(kursStops => {
+                for (let i = 0; i < kursStops.length - 1; i++) {
+                    const fromCity = cities.find(c => c.id === kursStops[i].miasto || c.name === kursStops[i].miasto)
+                    const toCity = cities.find(c => c.id === kursStops[i + 1].miasto || c.name === kursStops[i + 1].miasto)
+                    if (!fromCity || !toCity) continue
+                    const key = `${fromCity.id}:${toCity.id}`
+                    if (!cache[key]) cache[key] = findShortestPath(routes, fromCity.id, toCity.id, 'fastest')
+                }
+            })
+        })
+        return cache
+    }, [trainsSets, routes, cities])
+
+    // 2b. Pozycje pociągów w ruchu (Interpolacja)
     const trainPositions = useMemo(() => {
         const positions = []
         if (!trainsSets || !cities || !routes) return positions
 
         trainsSets.forEach(ts => {
             if (!ts.rozklad?.length) return
+            if (!ts.dailyDemand || Object.keys(ts.dailyDemand).length === 0) return
 
             const byKurs = {}
             ts.rozklad.forEach(s => {
@@ -86,25 +110,43 @@ export function useMapData({ trainsSets, routes, cities, currentMin, trains }) {
                     }
                     progress = Math.max(0, Math.min(1, progress))
 
-                    const route = routes.find(r =>
-                        (r.from === fromCity.id && r.to === toCity.id) ||
-                        (r.to === fromCity.id && r.from === toCity.id)
-                    )
+                    const pathResult = segmentPaths[`${fromCity.id}:${toCity.id}`]
 
-                    if (route) {
-                        const reversed = route.from !== fromCity.id
-                        positions.push({
-                            id: `${ts.id}-${fromStop.kurs}-${i}`,
-                            ts,
-                            kursId: String(fromStop.kurs),
-                            kursStops,
-                            routeFromCity: reversed ? toCity : fromCity,
-                            routeToCity: reversed ? fromCity : toCity,
-                            progress,
-                            reversed,
-                            routeId: route.id
-                        })
+                    if (pathResult && pathResult.edges.length > 0) {
+                        // Rozłóż postęp proporcjonalnie do odległości po sub-krawędziach
+                        const totalDist = pathResult.totalDistance || 1
+                        let accFrac = 0
+                        for (let ei = 0; ei < pathResult.edges.length; ei++) {
+                            const edge = pathResult.edges[ei]
+                            const edgeFrac = edge.distance / totalDist
+                            const edgeEnd = accFrac + edgeFrac
+
+                            if (progress <= edgeEnd || ei === pathResult.edges.length - 1) {
+                                const localProgress = edgeFrac > 0
+                                    ? Math.max(0, Math.min(1, (progress - accFrac) / edgeFrac))
+                                    : 0
+                                const routeFromCity = cities.find(c => c.id === edge.from)
+                                const routeToCity = cities.find(c => c.id === edge.to)
+                                if (!routeFromCity || !routeToCity) break
+                                // Czy pociąg jedzie zgodnie z kierunkiem krawędzi?
+                                const reversed = pathResult.path[ei] !== edge.from
+                                positions.push({
+                                    id: `${ts.id}-${fromStop.kurs}-${i}`,
+                                    ts,
+                                    kursId: String(fromStop.kurs),
+                                    kursStops,
+                                    routeFromCity,
+                                    routeToCity,
+                                    progress: localProgress,
+                                    reversed,
+                                    routeId: edge.id
+                                })
+                                break
+                            }
+                            accFrac = edgeEnd
+                        }
                     } else {
+                        // Fallback: brak ścieżki w grafie — interpolacja liniowa
                         positions.push({
                             id: `${ts.id}-${fromStop.kurs}-${i}`,
                             ts,
@@ -120,7 +162,7 @@ export function useMapData({ trainsSets, routes, cities, currentMin, trains }) {
             })
         })
         return positions
-    }, [trainsSets, cities, routes, currentMin])
+    }, [trainsSets, cities, routes, currentMin, segmentPaths])
 
     // 3. Liczba pociągów na stacjach (pociągi, które fizycznie stoją w mieście)
     const trainCountsAtCities = useMemo(() => {
@@ -129,6 +171,7 @@ export function useMapData({ trainsSets, routes, cities, currentMin, trains }) {
 
         trainsSets.forEach(ts => {
             if (!ts.rozklad?.length) return
+            if (!ts.dailyDemand || Object.keys(ts.dailyDemand).length === 0) return
 
             // Jeśli pociąg jest w ruchu (na odcinku), nie zliczamy go jako stojący na stacji
             const isMoving = trainPositions.some(p => p.ts.id === ts.id)

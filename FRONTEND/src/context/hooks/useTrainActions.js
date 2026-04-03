@@ -2,35 +2,40 @@ import { doc, writeBatch, updateDoc } from 'firebase/firestore'
 import { db, auth } from '../../firebase/config'
 
 export function useTrainActions({ baseTrains, budget, gameDate }) {
-  async function buyTrain(baseTrainId) {
+  async function buyTrain(baseTrainId, qty = 1) {
     const baseTrain = baseTrains.find((t) => t.id === baseTrainId)
     if (!baseTrain) return false
 
-    const vehiclePrice = baseTrain.price || ((baseTrain.speed || 100) * (baseTrain.seats || 50) * 100)
+    const unitPrice = baseTrain.price || ((baseTrain.speed || 100) * (baseTrain.seats || 50) * 100)
+    const multiplier = Math.max(0.20, Math.pow(0.995, qty))
+    const totalPrice = Math.round(qty * unitPrice * multiplier)
 
-    if (budget < vehiclePrice) {
+    if (budget < totalPrice) {
       alert('Niewystarczające środki na koncie!')
       return false
     }
 
     try {
       const batch = writeBatch(db)
-      const newTrainId = `pt_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`
       const purchasedAt = gameDate.toISOString()
 
-      batch.set(doc(db, `players/${auth.currentUser.uid}/trains/${newTrainId}`), {
-        id: newTrainId,
-        parent_id: baseTrain.id,
-        name: `${baseTrain.name} #${Math.floor(Math.random() * 900) + 100}`,
-        purchasedAt,
-        lastMaintenance: purchasedAt,
-        lastOverhaul: purchasedAt,
-      })
+      for (let i = 0; i < qty; i++) {
+        const newTrainId = `pt_${Math.random().toString(36).substr(2, 9)}_${Date.now() + i}`
+        batch.set(doc(db, `players/${auth.currentUser.uid}/trains/${newTrainId}`), {
+          id: newTrainId,
+          parent_id: baseTrain.id,
+          name: `${baseTrain.name} #${Math.floor(Math.random() * 900) + 100}`,
+          purchasedAt,
+          lastMaintenance: purchasedAt,
+          lastOverhaul: purchasedAt,
+        })
+      }
 
-      batch.set(doc(db, 'players', auth.currentUser.uid), { finance: { balance: budget - vehiclePrice } }, { merge: true })
+      batch.set(doc(db, 'players', auth.currentUser.uid), { finance: { balance: budget - totalPrice } }, { merge: true })
 
       await batch.commit()
-      alert(`Zakupiono pociąg! Kwota ${vehiclePrice.toLocaleString()} PLN pomyślnie pobrana z konta.`)
+      const discountPct = Math.round((1 - multiplier) * 100)
+      alert(`Zakupiono ${qty} szt.! Kwota ${totalPrice.toLocaleString()} PLN pobrana z konta.${discountPct > 0 ? ` (rabat ${discountPct}%)` : ''}`)
       return true
     } catch (e) {
       console.error('Błąd podczas zakupu pociągu:', e)
