@@ -50,10 +50,16 @@ export default function TrainSetPanel() {
     ? Object.values(ts.currentTransfer).reduce((sum, d) => sum + (d.totalOnBoard || 0), 0)
     : 0
   const totalOnBoardC1 = ts.currentTransfer
-    ? Object.values(ts.currentTransfer).reduce((sum, d) => sum + (d.onBoardC1 || 0), 0)
+    ? Object.values(ts.currentTransfer).reduce((sum, d) => {
+        const onBoard = d.onBoard || {}
+        return sum + Object.values(onBoard).reduce((s, v) => s + (v.class1 || 0), 0)
+      }, 0)
     : 0
   const totalOnBoardC2 = ts.currentTransfer
-    ? Object.values(ts.currentTransfer).reduce((sum, d) => sum + (d.onBoardC2 || 0), 0)
+    ? Object.values(ts.currentTransfer).reduce((sum, d) => {
+        const onBoard = d.onBoard || {}
+        return sum + Object.values(onBoard).reduce((s, v) => s + (v.class2 || 0), 0)
+      }, 0)
     : 0
 
   const sumTransferred = dailyTransfer
@@ -280,7 +286,7 @@ export default function TrainSetPanel() {
           cities={cities} openKurs={openKurs} setOpenKurs={setOpenKurs}
           openTimetable={openTimetable} setOpenTimetable={setOpenTimetable}
           kursRevenue={kursRevenue} totalDailyRevenue={totalDailyRevenue}
-          totalSeats={totalSeats} stopOrder={stopOrder}
+          totalSeats={totalSeats} stopOrder={stopOrder} currentMin={currentMin}
         />
         <TrafficStats totalDailyPassengers={totalDailyPassengers} totalTransferred={totalTransferred} avgOccupancy={avgOccupancy} gapowiczeRate={ts.gapowiczeRate} avgInspectionIndex={avgInspectionIndex} totalFineRevenue={totalFineRevenue} totalWarsRevenue={totalWarsRevenue} />
         <DemandMatrix mergedOD={mergedOD} stopOrder={stopOrder} cities={cities} dailyDemand={dailyDemand} currentTransfer={ts.currentTransfer} />

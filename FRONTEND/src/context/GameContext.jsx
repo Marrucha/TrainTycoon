@@ -25,7 +25,10 @@ export function GameProvider({ children }) {
   const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, loading, hallOfFame, gameConstants } = firestoreData
 
   const selection = useSelectionState()
-  const { selectedCity, selectedRoute, selectedTrainSet, selectCity, selectRoute, selectTrainSet } = selection
+  const { selectedCity, selectedRoute, selectedTrainSet: selectedTrainSetRef, selectCity, selectRoute, selectTrainSet } = selection
+  const selectedTrainSet = selectedTrainSetRef
+    ? (trainsSets.find(ts => ts.id === selectedTrainSetRef.id) ?? selectedTrainSetRef)
+    : null
 
 
   const REAL_START_TIME_MS = gameConstants?.REAL_START_TIME_MS

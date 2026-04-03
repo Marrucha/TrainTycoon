@@ -9,6 +9,38 @@ function addDelay(timeStr, minutes) {
   return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
+function _timeToMin(t) {
+  if (!t || t === '—') return -1
+  const [h, m] = t.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return -1
+  return h * 60 + m
+}
+
+// Returns 'onboard' | 'transferred' | 'waiting' | null
+function predictPassengerState(fromId, toId, kursStops, cities, nowMin) {
+  if (nowMin == null || !kursStops?.length) return null
+  const fromName = cities?.find(c => c.id === fromId)?.name
+  const toName   = cities?.find(c => c.id === toId)?.name
+  const fromStop = kursStops.find(s => s.miasto === fromId || s.miasto === fromName)
+  const toStop   = kursStops.find(s => s.miasto === toId   || s.miasto === toName)
+  if (!fromStop || !toStop) return null
+  const depMin = _timeToMin(fromStop.odjazd)
+  const arrMin = _timeToMin(toStop.przyjazd ?? toStop.odjazd)
+  if (depMin < 0 || arrMin < 0) return null
+
+  const crossesMidnight = arrMin < depMin
+  if (!crossesMidnight) {
+    if (nowMin < depMin) return 'waiting'
+    if (nowMin >= arrMin) return 'transferred'
+    return 'onboard'
+  } else {
+    // Trasa przez północ: odjazd np. 23:00 → przyjazd 01:00
+    if (nowMin >= depMin || nowMin < arrMin) return 'onboard'
+    if (nowMin >= arrMin && nowMin < depMin) return 'waiting'
+    return 'onboard'
+  }
+}
+
 export default function CourseSchedule({
   ts,
   coursesCount,
@@ -24,7 +56,8 @@ export default function CourseSchedule({
   kursRevenue,
   totalDailyRevenue,
   totalSeats,
-  stopOrder
+  stopOrder,
+  currentMin = null,
 }) {
   const [open, setOpen] = useState(false)
 
@@ -122,6 +155,8 @@ export default function CourseSchedule({
           let kursObC1 = 0, kursObC2 = 0;
           let kursTrC1 = 0, kursTrC2 = 0;
           let kursDmC1 = 0, kursDmC2 = 0;
+          // Predicted (virtual-time-based) buckets for kurs-level badges
+          let predKursOb = 0, predKursTr = 0, predKursDm = 0;
 
           allOdKeys.forEach(key => {
             const trC1 = odTransfer[key]?.class1 ?? 0;
@@ -130,7 +165,7 @@ export default function CourseSchedule({
             const obC2 = odOnBoard[key]?.class2 ?? 0;
             const dmC1 = odDemand[key]?.class1 ?? 0;
             const dmC2 = odDemand[key]?.class2 ?? 0;
-            
+
             kursTrC1 += trC1; kursTrC2 += trC2;
             kursObC1 += obC1; kursObC2 += obC2;
             kursDmC1 += dmC1; kursDmC2 += dmC2;
@@ -138,11 +173,24 @@ export default function CourseSchedule({
             dayTrC1 += trC1; dayTrC2 += trC2;
             dayObC1 += obC1; dayObC2 += obC2;
             dayDmC1 += dmC1; dayDmC2 += dmC2;
+
+            // Predicted state for kurs-level color badge
+            const [fId, tId] = key.split(':')
+            const pred = predictPassengerState(fId, tId, kursStops, cities, currentMin)
+            const ob = obC1 + obC2, tr = trC1 + trC2, dm = dmC1 + dmC2
+            if (pred === 'onboard')     predKursOb += ob > 0 ? ob : dm
+            else if (pred === 'transferred') predKursTr += tr > 0 ? tr : ob + dm
+            else if (pred === 'waiting')     predKursDm += dm
+            else { // no prediction — use Firestore data as-is
+              if (ob > 0) predKursOb += ob
+              else if (tr > 0) predKursTr += tr
+              else predKursDm += dm
+            }
           });
-          
-          const kursOb = kursObC1 + kursObC2;
-          const kursTr = kursTrC1 + kursTrC2;
-          const kursDm = kursDmC1 + kursDmC2;
+
+          const kursOb = predKursOb;
+          const kursTr = predKursTr;
+          const kursDm = predKursDm;
           const kursOriginalC1 = kursTrC1 + kursObC1 + kursDmC1;
           const kursOriginalC2 = kursTrC2 + kursObC2 + kursDmC2;
           const kursOriginal = kursOriginalC1 + kursOriginalC2;
@@ -247,18 +295,24 @@ export default function CourseSchedule({
                       totalObC1 += obC1; totalObC2 += obC2;
                       totalDmC1 += dmC1; totalDmC2 += dmC2;
 
+                      const pred = predictPassengerState(fromId, toId, kursStops, cities, currentMin)
                       let displayCount = null;
-                      let displayColor = '#ffffff'; 
-                      
-                      if (ob > 0) {
-                        displayCount = ob;
-                        displayColor = '#e74c3c'; 
-                      } else if (tr > 0) {
-                        displayCount = tr;
-                        displayColor = '#f0c040'; 
+                      let displayColor = '#ffffff';
+
+                      if (pred === 'onboard') {
+                        displayColor = '#e74c3c'
+                        displayCount = ob > 0 ? ob : dm
+                      } else if (pred === 'transferred') {
+                        displayColor = '#f0c040'
+                        displayCount = tr > 0 ? tr : (ob + dm > 0 ? ob + dm : 0)
+                      } else if (pred === 'waiting') {
+                        displayColor = '#ffffff'
+                        displayCount = dm
                       } else {
-                        displayCount = dm; 
-                        displayColor = '#ffffff'; 
+                        // Brak danych o czasie — fallback na dane Firestore
+                        if (ob > 0) { displayCount = ob; displayColor = '#e74c3c' }
+                        else if (tr > 0) { displayCount = tr; displayColor = '#f0c040' }
+                        else { displayCount = dm; displayColor = '#ffffff' }
                       }
 
                       const originalC1 = trC1 + obC1 + dmC1;

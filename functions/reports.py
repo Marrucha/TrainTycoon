@@ -135,17 +135,21 @@ DEFAULT_PRICING = {
 }
 
 
-def save_daily_report(db):
+def save_daily_report(db, date_str=None, ts_str=None):
     """Snapshot dailyDemand / dailyTransfer / currentTransfer for all
     trainSets and write aggregated kurs-level stats to
     players/{pid}/Raporty/{date}.
 
-    Uses Warsaw local date (02:59 call → still the same calendar day).
+    date_str: game date in 'YYYY-MM-DD' format. If None, falls back to
+              Warsaw real-world time (legacy behaviour).
     """
-    import zoneinfo
-    now_waw = datetime.now(zoneinfo.ZoneInfo('Europe/Warsaw'))
-    date_str = now_waw.strftime('%Y-%m-%d')
-    ts_str   = now_waw.isoformat()
+    if date_str is None:
+        import zoneinfo
+        now_waw = datetime.now(zoneinfo.ZoneInfo('Europe/Warsaw'))
+        date_str = now_waw.strftime('%Y-%m-%d')
+        ts_str   = now_waw.isoformat()
+    elif ts_str is None:
+        ts_str = datetime.now(timezone.utc).isoformat()
 
     cities_col = db.collection('cities').stream()
     cities_map = {}
@@ -243,30 +247,27 @@ def save_daily_report(db):
                 real_c1  = round(tr_c1 / orig_c1, 4)       if orig_c1 > 0 else 0.0
                 real_c2  = round(tr_c2 / orig_c2, 4)       if orig_c2 > 0 else 0.0
 
-                # Revenue from transferred OD pairs
-                revenue = 0
-                revenue_c1 = 0
-                revenue_c2 = 0
-                all_od_keys = set(list(od_demand.keys()) + list(od_transfer.keys()) + list(on_board.keys()))
-                for od_key in all_od_keys:
-                    parts = od_key.split(':')
-                    if len(parts) != 2:
-                        continue
-                    from_id, to_id = parts
-                    val_tr = od_transfer.get(od_key, {})
-                    p1 = _ticket_price_for_pair(from_id, to_id, pricing, cities_map, 1)
-                    p2 = _ticket_price_for_pair(from_id, to_id, pricing, cities_map, 2)
-                    
-                    c1_qty = val_tr.get('class1', 0)
-                    c2_qty = val_tr.get('class2', 0)
-                    
-                    revenue_c1 += c1_qty * p1
-                    revenue_c2 += c2_qty * p2
-                    revenue += c1_qty * p1 + c2_qty * p2
-
-                revenue = round(revenue)
-                revenue_c1 = round(revenue_c1)
-                revenue_c2 = round(revenue_c2)
+                # Revenue — calculated at boarding time in boarding_sim; fall back to
+                # on-the-fly calculation for legacy data that predates that field.
+                if kt.get('revenue') is not None:
+                    revenue    = round(kt['revenue'])
+                    revenue_c1 = round(kt.get('revenueC1', 0))
+                    revenue_c2 = round(kt.get('revenueC2', 0))
+                else:
+                    revenue = revenue_c1 = revenue_c2 = 0
+                    for od_key in set(list(od_transfer.keys()) + list(on_board.keys())):
+                        parts = od_key.split(':')
+                        if len(parts) != 2:
+                            continue
+                        from_id, to_id = parts
+                        val_tr = od_transfer.get(od_key, {})
+                        p1 = _ticket_price_for_pair(from_id, to_id, pricing, cities_map, 1)
+                        p2 = _ticket_price_for_pair(from_id, to_id, pricing, cities_map, 2)
+                        revenue_c1 += val_tr.get('class1', 0) * p1
+                        revenue_c2 += val_tr.get('class2', 0) * p2
+                    revenue    = round(revenue_c1 + revenue_c2)
+                    revenue_c1 = round(revenue_c1)
+                    revenue_c2 = round(revenue_c2)
 
                 # First/last stop info for this kurs
                 k_stops   = by_kurs.get(kurs_id, [])

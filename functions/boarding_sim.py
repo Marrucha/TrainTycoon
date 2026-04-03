@@ -43,7 +43,7 @@ _DEFAULT_FINE_MULTIPLIER   = 20
 _DEFAULT_PENALTY_MIN       = 15
 _DEFAULT_COND_CAP_PER_HOUR = 100
 from schedule_builder import rebuild_schedule_for_trainset, rebuild_schedule_table
-from tickets_pricing import _calc_min_segment_price, _DEFAULT_CLASS2_PER_100KM
+from tickets_pricing import _calc_min_segment_price, _DEFAULT_CLASS2_PER_100KM, _ticket_price_for_pair, DEFAULT_PRICING
 def run_boarding_tick(db, now_str=None):
     """Process all boarding/alighting events. Supports Batch Processing of virtual minutes."""
     import time
@@ -101,6 +101,7 @@ def run_boarding_tick(db, now_str=None):
     cond_cap_per_hour = int(game_config.get('conductorPassengersPerHour', 100))
 
     emp_cache = {}
+    player_cache = {}
 
     affected_schedules = {}
     from itertools import islice
@@ -158,8 +159,13 @@ def run_boarding_tick(db, now_str=None):
                 ts_refs[(pid, ts_id)] = ts_ref
                 ts_cache[(pid, ts_id)] = ts_snap.to_dict()
 
+            if pid not in player_cache:
+                p_snap = db.collection('players').document(pid).get()
+                player_cache[pid] = p_snap.to_dict() or {} if p_snap.exists else {}
+
             ts = ts_cache[(pid, ts_id)]
             crew = ts.get('crew') or {}
+            pricing = ts.get('pricing') or player_cache[pid].get('defaultPricing') or DEFAULT_PRICING
 
             if not crew.get('maszynista') or not crew.get('kierownik'):
                 continue
@@ -204,7 +210,8 @@ def run_boarding_tick(db, now_str=None):
             cond_ids = crew.get('konduktorzy') or []
             n_cond = len(cond_ids)
 
-            events.sort(key=lambda x: x[1].get('stop_index', 0))
+            ev_order = {'arrive': 0, 'depart': 1}
+            events.sort(key=lambda x: (x[1].get('stop_index', 0), ev_order.get(x[2], 0)))
 
             for kurs_data, stop, ev_type in events:
                 kurs_id = str(kurs_data['kurs_id'])
@@ -218,6 +225,7 @@ def run_boarding_tick(db, now_str=None):
                     ev_type, kurs_id, city_id, forward_ids, is_last,
                     seat_caps, daily_demand, daily_transfer, current_transfer,
                     m_str, next_city_id=next_city,
+                    pricing=pricing, cities=cities, gapowicze_rate=gapowicze_rate,
                 )
 
                 if is_last:
@@ -285,8 +293,13 @@ def _process_stop_event(
     ev_type, kurs_id, city_id, forward_ids, is_last,
     seat_caps, daily_demand, daily_transfer, current_transfer,
     now_str, next_city_id,
+    pricing=None, cities=None, gapowicze_rate=0.0,
 ):
     """Mutates daily_demand, daily_transfer, current_transfer in-place."""
+    if pricing is None:
+        pricing = DEFAULT_PRICING
+    if cities is None:
+        cities = {}
 
     kd          = daily_demand.get(kurs_id, {'od': {}, 'total': 0, 'class1': 0, 'class2': 0})
     od_demand   = kd['od']
@@ -347,7 +360,17 @@ def _process_stop_event(
                 
                 if b1 + b2 == 0:
                     continue
-                    
+
+                from_id, to_id = key.split(':') if ':' in key else (key, '')
+                p1 = _ticket_price_for_pair(from_id, to_id, pricing, cities, 1)
+                p2 = _ticket_price_for_pair(from_id, to_id, pricing, cities, 2)
+                pay_factor = 1.0 - gapowicze_rate
+                rev_c1 = b1 * p1 * pay_factor
+                rev_c2 = b2 * p2 * pay_factor
+                kt['revenueC1'] = kt.get('revenueC1', 0) + rev_c1
+                kt['revenueC2'] = kt.get('revenueC2', 0) + rev_c2
+                kt['revenue']   = kt.get('revenue',   0) + rev_c1 + rev_c2
+
                 entry = on_board.setdefault(key, {'class1': 0, 'class2': 0})
                 entry['class1'] += b1
                 entry['class2'] += b2
@@ -385,7 +408,15 @@ def _process_stop_event(
     # ---- Recompute dailyTransfer totals ----
     t_c1 = sum(v.get('class1', 0) for v in od_transfer.values())
     t_c2 = sum(v.get('class2', 0) for v in od_transfer.values())
-    daily_transfer[kurs_id] = {'od': od_transfer, 'total': t_c1 + t_c2, 'class1': t_c1, 'class2': t_c2}
+    daily_transfer[kurs_id] = {
+        'od':         od_transfer,
+        'total':      t_c1 + t_c2,
+        'class1':     t_c1,
+        'class2':     t_c2,
+        'revenue':    kt.get('revenue',   0),
+        'revenueC1':  kt.get('revenueC1', 0),
+        'revenueC2':  kt.get('revenueC2', 0),
+    }
 
 
 # ---------------------------------------------------------------------------

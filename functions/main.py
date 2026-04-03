@@ -98,10 +98,61 @@ def _calc_daily_breakdowns(db) -> None:
         batch.commit()
 
 
-def _accrue_credit_line_interest(db) -> None:
+def _get_game_date(db):
+    """Compute current game date from Firestore constants.
+    Returns datetime.date or None if constants are missing."""
+    constants_snap = db.collection('gameConfig').document('constants').get()
+    if not constants_snap.exists:
+        return None
+    consts = constants_snap.to_dict() or {}
+    real_start_ms = consts.get('REAL_START_TIME_MS')
+    game_start_ms = consts.get('GAME_START_TIME_MS')
+    multiplier = consts.get('TIME_MULTIPLIER', 30)
+    if not real_start_ms or not game_start_ms:
+        return None
+    real_now_ms = datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000
+    virtual_now_ms = game_start_ms + (real_now_ms - real_start_ms) * multiplier
+    game_now = datetime.datetime.fromtimestamp(virtual_now_ms / 1000, tz=datetime.timezone.utc)
+    return game_now.date()
+
+
+def _check_game_day_rollover(db) -> None:
+    """If the game date has advanced since the last daily report, run the daily pipeline."""
+    game_date = _get_game_date(db)
+    if not game_date:
+        return
+
+    state_ref = db.collection('gameConfig').document('gameState')
+    state = state_ref.get().to_dict() or {}
+    last_date_str = state.get('lastReportDate')
+    game_date_str = game_date.isoformat()
+
+    if last_date_str is None:
+        # First run: initialize without triggering pipeline
+        state_ref.set({'lastReportDate': game_date_str}, merge=True)
+        return
+
+    if last_date_str == game_date_str:
+        return  # Same game day, nothing to do
+
+    # New game day — update state first to prevent double-run on concurrent ticks
+    state_ref.set({'lastReportDate': game_date_str}, merge=True)
+
+    save_daily_report(db, date_str=game_date_str)
+    calc_demand_for_train_sets(db)
+    _accrue_credit_line_interest(db, today=game_date)
+    _calc_daily_breakdowns(db)
+    run_daily_staff(db)
+    run_monthly_staff(db, today=game_date)
+    update_reputation_metrics(db)
+    update_hall_of_fame(db)
+
+
+def _accrue_credit_line_interest(db, today=None) -> None:
     """Deduct credit line costs from each player."""
     import calendar
-    today = datetime.date.today()
+    if today is None:
+        today = datetime.date.today()
     players = db.collection('players').stream()
     for player_doc in players:
         data = player_doc.to_dict() or {}
@@ -126,23 +177,17 @@ def _accrue_credit_line_interest(db) -> None:
 
 @scheduler_fn.on_schedule(schedule='0 3 * * *', timezone='Europe/Warsaw')
 def calc_daily_demand(event: scheduler_fn.ScheduledEvent) -> None:
-    """Cloud Function: Daily demand calculation and maintenance."""
+    """Cloud Function: fallback daily pipeline (runs via game-time rollover in tick_boarding)."""
     db = firestore.client()
-    save_daily_report(db)
-    calc_demand_for_train_sets(db)
-    _accrue_credit_line_interest(db)
-    _calc_daily_breakdowns(db)
-    run_daily_staff(db)
-    run_monthly_staff(db)
-    update_reputation_metrics(db)
-    update_hall_of_fame(db)
+    _check_game_day_rollover(db)
 
 
 @scheduler_fn.on_schedule(schedule='* * * * *', timezone='Europe/Warsaw')
 def tick_boarding(event: scheduler_fn.ScheduledEvent) -> None:
-    """Cloud Function: live simulation of train stops."""
+    """Cloud Function: live simulation of train stops + game day rollover check."""
     db = firestore.client()
     run_boarding_tick(db)
+    _check_game_day_rollover(db)
 
 
 @firestore_fn.on_document_written(document='players/{pid}/trainSet/{ts_id}')
