@@ -3,11 +3,11 @@ import { useGame } from '../../../context/GameContext'
 import styles from '../RoutePanel.module.css'
 
 const CREW_ROLES = [
-  { key: 'maszynista',        label: 'Maszynista',         array: false, required: true  },
-  { key: 'kierownik',         label: 'Kierownik',          array: false, required: true  },
-  { key: 'pomocnikMaszynisty',label: 'Pomocnik masz.',     array: false, required: false },
-  { key: 'konduktorzy',       label: 'Konduktorzy',        array: true,  required: false },
-  { key: 'barman',            label: 'Barman',             array: false, required: false },
+  { key: 'maszynista',         role: 'maszynista',  label: 'Maszynista',        array: false, required: true  },
+  { key: 'kierownik',          role: 'kierownik',   label: 'Kierownik',         array: false, required: true  },
+  { key: 'pomocnikMaszynisty', role: 'pomocnik',    label: 'Pomocnik masz.',    array: false, required: false },
+  { key: 'konduktorzy',        role: 'konduktor',   label: 'Konduktorzy',       array: true,  required: false },
+  { key: 'barman',             role: 'barman',      label: 'Barman',            array: false, required: false },
 ]
 
 function GapBar({ rate }) {
@@ -23,9 +23,9 @@ function GapBar({ rate }) {
   )
 }
 
-
-export default function CrewSection({ ts }) {
-  const { employees } = useGame()
+export default function CrewSection({ ts, editable = false }) {
+  const { employees, assignCrew, unassignCrew } = useGame()
+  const [busy, setBusy] = useState(false)
 
   const crew = ts.crew || {}
   const empById = Object.fromEntries(employees.map(e => [e.id, e]))
@@ -38,6 +38,20 @@ export default function CrewSection({ ts }) {
     return `${e.name} (${Math.round(e.experience ?? 0)})`
   }
 
+  async function handleAssign(crewKey, role, empId) {
+    if (!empId || busy) return
+    setBusy(true)
+    await assignCrew(ts.id, crewKey, empId)
+    setBusy(false)
+  }
+
+  async function handleUnassign(crewKey, role, empId) {
+    if (!empId || busy) return
+    setBusy(true)
+    await unassignCrew(ts.id, crewKey, empId)
+    setBusy(false)
+  }
+
   const effectiveMax = ts.effectiveMaxSpeed ?? ts.maxSpeed ?? '—'
   const hasBarman    = !!crew.barman
   const hasHelper    = !!crew.pomocnikMaszynisty
@@ -45,61 +59,107 @@ export default function CrewSection({ ts }) {
   return (
     <div className={styles.section}>
       <div>
-          {ts.noCrewAlert && (
-            <div style={{
-              background: 'rgba(230,126,34,0.15)', border: '1px solid #e67e22',
-              borderRadius: 6, padding: '8px 10px', marginBottom: 8,
-              display: 'flex', alignItems: 'flex-start', gap: 8
-            }}>
-              <span style={{ fontSize: 14, lineHeight: 1 }}>⚠️</span>
-              <div>
-                <div style={{ color: '#e67e22', fontWeight: 'bold', fontSize: 11, marginBottom: 2 }}>
-                  POCIĄG UNIERUCHOMIONY
-                </div>
-                <div style={{ color: '#b0804a', fontSize: 10 }}>
-                  Brak wymaganej obsady. Przypisz maszynistę i kierownika, aby wznowić kursy.
-                </div>
+        {ts.noCrewAlert && (
+          <div style={{
+            background: 'rgba(230,126,34,0.15)', border: '1px solid #e67e22',
+            borderRadius: 6, padding: '8px 10px', marginBottom: 8,
+            display: 'flex', alignItems: 'flex-start', gap: 8
+          }}>
+            <span style={{ fontSize: 14, lineHeight: 1 }}>⚠️</span>
+            <div>
+              <div style={{ color: '#e67e22', fontWeight: 'bold', fontSize: 11, marginBottom: 2 }}>
+                POCIĄG UNIERUCHOMIONY
+              </div>
+              <div style={{ color: '#b0804a', fontSize: 10 }}>
+                Brak wymaganej obsady. Przypisz maszynistę i kierownika, aby wznowić kursy.
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {CREW_ROLES.map(({ key, label, array, required }) => {
-            const val = crew[key]
-            const ids = array ? (val || []) : (val ? [val] : [])
+        {CREW_ROLES.map(({ key, role, label, array, required }) => {
+          const val = crew[key]
+          const ids = array ? (val || []) : (val ? [val] : [])
 
-            return (
-              <div key={key} className={styles.statRow} style={{ borderBottom: '1px solid #1a2a1a' }}>
+          // Wolni pracownicy pasujący do roli (nie przypisani do innego składu)
+          const available = editable
+            ? employees.filter(e =>
+                e.role === role &&
+                !e.isIntern &&
+                (!e.assignedTo || e.assignedTo === ts.id) &&
+                !ids.includes(e.id)
+              )
+            : []
+
+          return (
+            <div key={key} className={styles.statRow} style={{ borderBottom: '1px solid #1a2a1a', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                 <span className={styles.statLabel} style={{ color: required && ids.length === 0 ? '#e74c3c' : undefined, minWidth: 110 }}>
                   {label}{required && ids.length === 0 ? ' !' : ''}
                 </span>
-                <span className={styles.statValue} style={{ color: ids.length === 0 ? '#444' : undefined }}>
+                <span className={styles.statValue} style={{ color: ids.length === 0 ? '#444' : undefined, fontSize: 11 }}>
                   {ids.length === 0 ? 'Nieprzypisany' : ids.map(id => empLabel(id)).join(', ')}
                 </span>
               </div>
-            )
-          })}
 
-          {/* Summary stats */}
-          <div className={styles.stats} style={{ marginTop: 8 }}>
-            <div className={styles.statRow}>
-              <span className={styles.statLabel}>Gapowicze</span>
-              <GapBar rate={ts.gapowiczeRate} />
+              {editable && (
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', paddingBottom: 4 }}>
+                  {/* Przyciski odpięcia */}
+                  {ids.map(empId => (
+                    <button
+                      key={empId}
+                      disabled={busy}
+                      onClick={() => handleUnassign(key, role, empId)}
+                      style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(231,76,60,0.15)', border: '1px solid #c0392b', color: '#e74c3c', borderRadius: 3, cursor: 'pointer' }}
+                    >
+                      − {empLabel(empId)}
+                    </button>
+                  ))}
+                  {/* Dropdown przypisania */}
+                  {(array || ids.length === 0) && available.length > 0 && (
+                    <select
+                      disabled={busy}
+                      defaultValue=""
+                      onChange={e => { if (e.target.value) handleAssign(key, role, e.target.value); e.target.value = '' }}
+                      style={{ fontSize: 10, padding: '2px 4px', background: '#0f1f0f', border: '1px solid #27ae60', color: '#2ecc71', borderRadius: 3, cursor: 'pointer' }}
+                    >
+                      <option value="">+ Przypisz...</option>
+                      {available.map(e => (
+                        <option key={e.id} value={e.id}>
+                          {e.name} ({Math.round(e.experience ?? 0)} exp)
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {(array || ids.length === 0) && available.length === 0 && (
+                    <span style={{ fontSize: 10, color: '#555', fontStyle: 'italic' }}>brak wolnych pracowników</span>
+                  )}
+                </div>
+              )}
             </div>
-            <div className={styles.statRow}>
-              <span className={styles.statLabel}>Max prędkość</span>
-              <span style={{ fontSize: 11, color: hasHelper ? '#2ecc71' : '#f39c12' }}>
-                {effectiveMax} km/h{!hasHelper ? ' (bez pomocnika)' : ''}
-              </span>
-            </div>
-            <div className={styles.statRow}>
-              <span className={styles.statLabel}>Wars</span>
-              <span className={styles.statValue} style={{ color: hasBarman ? '#2ecc71' : '#555' }}>
-                {hasBarman ? 'aktywny' : 'brak barmana'}
-              </span>
-            </div>
+          )
+        })}
+
+        {/* Summary stats */}
+        <div className={styles.stats} style={{ marginTop: 8 }}>
+          <div className={styles.statRow}>
+            <span className={styles.statLabel}>Gapowicze</span>
+            <GapBar rate={ts.gapowiczeRate} />
           </div>
+          <div className={styles.statRow}>
+            <span className={styles.statLabel}>Max prędkość</span>
+            <span style={{ fontSize: 11, color: hasHelper ? '#2ecc71' : '#f39c12' }}>
+              {effectiveMax} km/h{!hasHelper ? ' (bez pomocnika)' : ''}
+            </span>
+          </div>
+          <div className={styles.statRow}>
+            <span className={styles.statLabel}>Wars</span>
+            <span className={styles.statValue} style={{ color: hasBarman ? '#2ecc71' : '#555' }}>
+              {hasBarman ? 'aktywny' : 'brak barmana'}
+            </span>
+          </div>
+        </div>
       </div>
-
     </div>
   )
 }

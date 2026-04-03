@@ -353,7 +353,7 @@ export default function FleetCompositions() {
                                                 <button className={pricingStyles.closeBtn} onClick={() => setCrewOpenFor(null)}>✕</button>
                                             </div>
                                             <div className={styles.crewPanel}>
-                                                <CrewSection ts={trainSet} />
+                                                <CrewSection ts={trainSet} editable />
                                             </div>
                                         </div>
                                     )}
