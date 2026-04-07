@@ -156,10 +156,11 @@ def _calc_raw_modernity_score(db, pid):
     if not active_ids: return 0.0
     now = datetime.now(timezone.utc)
     equiv_ages = []
+    # Pobierz wszystkie wagony gracza jednym stream() zamiast N oddzielnych get()
+    all_trains = {d.id: d.to_dict() for d in db.collection(f'players/{pid}/trains').stream()}
     for tid in active_ids:
-        t_doc = db.collection(f'players/{pid}/trains').document(tid).get()
-        if not t_doc.exists: continue
-        t = t_doc.to_dict()
+        t = all_trains.get(tid)
+        if not t: continue
         p_at = t.get('purchasedAt') or now.isoformat()
         dt_p = datetime.fromisoformat(p_at.replace('Z', '+00:00'))
         actual_age = max(0, (now - dt_p).total_seconds() / (365.25 * 3600 * 24))

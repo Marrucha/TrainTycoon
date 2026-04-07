@@ -198,6 +198,8 @@ def on_trainset_written(
     pid   = event.params['pid']
     ts_id = event.params['ts_id']
     ts_data = event.data.after.to_dict() if event.data.after else None
+    if ts_data and ts_data.get('_boardingWrite'):
+        return  # zapis z boardingu — nie przebudowuj rozkładu
     db = firestore.client()
     rebuild_schedule_for_trainset(db, pid, ts_id, ts_data)
 
@@ -488,6 +490,8 @@ def track_trainset_changes(event: firestore_fn.Event[firestore_fn.Change[firesto
     # CASE 3: Document updated - analyze delta
     old = event.data.before.to_dict()
     new = event.data.after.to_dict()
+    if new.get('_boardingWrite'):
+        return  # zapis z boardingu — nie śledź zmiany
     
     weight = 0
     

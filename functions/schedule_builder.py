@@ -20,7 +20,7 @@ def _group_by_kurs_raw(rozklad):
         by_kurs.setdefault(str(k), []).append(stop)
     return by_kurs
 
-def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
+def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data, cities=None):
     """Rebuild rozkłady records for a single trainSet.
 
     Called by the Firestore trigger on_trainset_written.
@@ -28,9 +28,13 @@ def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
     and writes new ones — one document per kurs.
     If ts_data is None (document deleted), only the deletion happens.
 
+    Accepts optional pre-loaded ``cities`` dict to avoid a repeated Firestore
+    stream when called in a loop (e.g. from rebuild_schedule_table).
+
     Returns number of kurs documents written.
     """
-    cities = {d.id: d.to_dict() for d in db.collection('cities').stream()}
+    if cities is None:
+        cities = {d.id: d.to_dict() for d in db.collection('cities').stream()}
 
     def resolve(miasto):
         _, cid = _find_city(cities, miasto)
@@ -119,13 +123,15 @@ def rebuild_schedule_for_trainset(db, pid, ts_id, ts_data):
 
 def rebuild_schedule_table(db):
     """Rebuild the entire `rozkłady` collection for all players."""
+    # Pobierz cities raz dla całego przebiegu zamiast per trainSet
+    cities = {d.id: d.to_dict() for d in db.collection('cities').stream()}
     total = 0
     for p_doc in db.collection('players').stream():
         pid = p_doc.id
         if pid == 'samorządowy':
             continue
         for ts_doc in db.collection(f'players/{pid}/trainSet').stream():
-            total += rebuild_schedule_for_trainset(db, pid, ts_doc.id, ts_doc.to_dict())
+            total += rebuild_schedule_for_trainset(db, pid, ts_doc.id, ts_doc.to_dict(), cities=cities)
 
     print(f'Full schedule table rebuild: {total} kurs doc(s) total.')
     return total

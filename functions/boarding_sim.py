@@ -32,6 +32,7 @@ rozkłady document schema
 """
 
 import math
+import time as _time_module
 from datetime import datetime
 import zoneinfo
 
@@ -44,6 +45,35 @@ _DEFAULT_PENALTY_MIN       = 15
 _DEFAULT_COND_CAP_PER_HOUR = 100
 from schedule_builder import rebuild_schedule_for_trainset, rebuild_schedule_table
 from tickets_pricing import _calc_min_segment_price, _DEFAULT_CLASS2_PER_100KM, _ticket_price_for_pair, DEFAULT_PRICING
+
+# ---------------------------------------------------------------------------
+# Module-level cache dla kolekcji rzadko zmieniających się danych
+# ---------------------------------------------------------------------------
+_cities_cache = None
+_cities_cache_ts = 0
+_trains_cache = None
+_trains_cache_ts = 0
+_CACHE_TTL_S = 3600  # odświeżaj co godzinę realną
+
+
+def _get_cities(db):
+    global _cities_cache, _cities_cache_ts
+    now = _time_module.time()
+    if _cities_cache is None or (now - _cities_cache_ts) > _CACHE_TTL_S:
+        _cities_cache = {d.id: d.to_dict() for d in db.collection('cities').stream()}
+        _cities_cache_ts = now
+    return _cities_cache
+
+
+def _get_base_trains(db):
+    global _trains_cache, _trains_cache_ts
+    now = _time_module.time()
+    if _trains_cache is None or (now - _trains_cache_ts) > _CACHE_TTL_S:
+        _trains_cache = {d.id: d.to_dict() for d in db.collection('trains').stream()}
+        _trains_cache_ts = now
+    return _trains_cache
+
+
 def run_boarding_tick(db, now_str=None):
     """Process all boarding/alighting events. Supports Batch Processing of virtual minutes."""
     import time
@@ -91,8 +121,8 @@ def run_boarding_tick(db, now_str=None):
     print(f"Boarding tick batch processing {len(minute_strings)} minutes.")
 
     sched_ref = db.collection('rozkłady')
-    base_trains = {d.id: d.to_dict() for d in db.collection('trains').stream()}
-    cities = {d.id: d.to_dict() for d in db.collection('cities').stream()}
+    base_trains = _get_base_trains(db)
+    cities = _get_cities(db)
 
     config_snap = db.collection('gameSettings').document('config').get()
     game_config = config_snap.to_dict() or {} if config_snap.exists else {}
@@ -271,7 +301,7 @@ def run_boarding_tick(db, now_str=None):
 
     write_batch = db.batch()
     batch_count = 0
-    
+
     for (pid, ts_id), ts_data in ts_cache.items():
         ts_ref = ts_refs[(pid, ts_id)]
         write_batch.update(ts_ref, {
@@ -279,6 +309,7 @@ def run_boarding_tick(db, now_str=None):
             'dailyTransfer': ts_data.get('dailyTransfer', {}),
             'currentTransfer': ts_data.get('currentTransfer', {}),
             'dailyArrivals': ts_data.get('dailyArrivals', {}),
+            '_boardingWrite': True,
         })
         batch_count += 1
         if batch_count % 400 == 0:
