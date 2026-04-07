@@ -22,7 +22,7 @@ function FlipCell({ value }) {
 }
 
 export default function DepartureBoard() {
-  const { selectedCity, getDeparturesForCity, selectCity, selectTrainSet, cities, companyName, trainsSets, getCityById, trainSetsByCity, gameTime } = useGame()
+  const { selectedCity, getDeparturesForCity, selectCity, selectTrainSet, cities, companyName, trainsSets, getCityById, trainSetsByCity, gameTime, boardingState } = useGame()
   const [demandTab, setDemandTab] = useState(0)
   const listRef = useRef(null)
 
@@ -190,8 +190,9 @@ export default function DepartureBoard() {
         <div className={styles.trainsAtStation}>
           <div className={styles.trainsAtStationHeader}>SKŁADY NA STACJI</div>
           {trainsAtStation.map(({ ts, platform }) => {
-            const totalOnBoard = ts.currentTransfer
-              ? Object.values(ts.currentTransfer).reduce((s, ct) => s + (ct.totalOnBoard ?? 0), 0)
+            const simCT = boardingState?.[ts.id]?.currentTransfer
+            const totalOnBoard = simCT
+              ? Object.values(simCT).reduce((s, ct) => s + (ct.totalOnBoard ?? 0), 0)
               : null
             return (
               <div

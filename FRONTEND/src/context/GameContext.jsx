@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react'
+import { useBoardingSimulation } from '../hooks/useBoardingSimulation'
 import { doc, setDoc } from 'firebase/firestore'
 import { db, auth } from '../firebase/config'
 import { INITIAL_BUDGET } from '../data/gameData'
@@ -171,10 +172,15 @@ export function GameProvider({ children }) {
     return result
   }, [trainsSets, cities, gameTime])
 
+  // Boarding simulation — runs in the browser for current player's trainSets.
+  // gameTimeMin is stable per virtual minute, avoiding excessive re-renders.
+  const gameTimeMin = gameDate ? gameDate.getHours() * 60 + gameDate.getMinutes() : -1
+  const boardingState = useBoardingSimulation(trainsSets, cities, trains, gameTimeMin, defaultPricing)
+
   const trainActions = useTrainActions({ baseTrains, budget, gameDate })
   const financeActions = useFinanceActions({ budget, playerDoc, gameConstants, gameDate })
   const scheduleActions = useScheduleActions({ cities, trainsSets, setSelectedRoute: selection.setSelectedRoute })
-  const hrActions = useHRActions({ budget, trainsSets, employees, gameConstants, gameDate })
+  const hrActions = useHRActions({ budget, trainsSets, employees, gameConstants, gameDate, boardingState })
 
   function getTrainById(id) {
     return trains.find(t => t.id === id) || null
@@ -249,6 +255,8 @@ export function GameProvider({ children }) {
       // Pochodne
       dailyRevenue, activeTrainsCount, defaultPricing, trainSetsByCity,
       companyName, reputation,
+      // Symulacja boardingu (frontend)
+      boardingState,
       // Selekcja
       selectedCity, selectedRoute, selectedTrainSet,
       selectCity, selectRoute, selectTrainSet,

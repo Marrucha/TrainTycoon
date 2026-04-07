@@ -52,7 +52,7 @@ const ROLE_KEY_MAP = {
   barman:            'barman',
 }
 
-export function useHRActions({ budget, trainsSets, employees, gameConstants, gameDate }) {
+export function useHRActions({ budget, trainsSets, employees, gameConstants, gameDate, boardingState }) {
   const SALARIES = gameConstants?.SALARIES ?? { maszynista: 9000, kierownik: 7000, pomocnik: 6000, konduktor: 5000, barman: 4500 }
   const INTERN_SALARY = gameConstants?.INTERN_SALARY ?? 4300
   const AGENCY_FEE_MULTIPLIER = gameConstants?.AGENCY_FEE_MULTIPLIER ?? 6
@@ -316,10 +316,9 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants, gam
         const wasOperational = !!(crew.maszynista && crew.kierownik)
 
         if (wasOperational) {
-          // Fetch live currentTransfer to count stranded passengers
-          const tsSnap = await getDoc(tsRef)
-          const tsData = tsSnap.data() || {}
-          const ct = tsData.currentTransfer || {}
+          // Use frontend simulation state (boardingState) instead of Firestore read
+          const simState = boardingState?.[tsId]
+          const ct = simState?.currentTransfer || {}
 
           let stranded = 0
           let lastCityId = null
@@ -338,7 +337,6 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants, gam
           if (!confirmed && !window.confirm(msg)) return false
 
           crewUpdate.noCrewAlert = true
-          crewUpdate.currentTransfer = {}
           if (lastCityId) crewUpdate.noCrewCityId = lastCityId
 
           // Deduct compensation + penalize punctuality reputation

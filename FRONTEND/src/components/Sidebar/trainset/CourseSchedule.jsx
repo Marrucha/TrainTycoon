@@ -46,7 +46,9 @@ export default function CourseSchedule({
   coursesCount,
   firstStops,
   dailyDemand,
+  remainingDemand,
   dailyTransfer,
+  currentTransfer,
   byKurs,
   cities,
   openKurs,
@@ -80,9 +82,7 @@ export default function CourseSchedule({
   let dayTrC1 = 0, dayTrC2 = 0;
   let dayDmC1 = 0, dayDmC2 = 0;
 
-  const totalOnBoard = ts.currentTransfer
-    ? Object.values(ts.currentTransfer).reduce((s, d) => s + (d.totalOnBoard || 0), 0)
-    : 0
+  const totalOnBoard = Object.values(currentTransfer || {}).reduce((s, d) => s + (d.totalOnBoard || 0), 0)
 
   return (
     <section className={styles.section}>
@@ -107,7 +107,7 @@ export default function CourseSchedule({
 
         {firstStops.map((s) => {
           const kursDemandTotal = dailyDemand?.[s.kurs]?.total ?? null
-          const currentKursObj = ts.currentTransfer?.[s.kurs]
+          const currentKursObj = currentTransfer?.[s.kurs]
           const isStarted = !!currentKursObj
 
           let displayVal = 0
@@ -125,8 +125,8 @@ export default function CourseSchedule({
 
           const isOpen = openKurs === s.kurs
 
-          // OD breakdown dla listy
-          const odDemand = dailyDemand?.[s.kurs]?.od ?? {}
+          // OD breakdown dla listy: remaining demand (or initial if sim hasn't run), transferred, on board
+          const odDemand = (remainingDemand ?? dailyDemand)?.[s.kurs]?.od ?? {}
           const odTransfer = dailyTransfer?.[s.kurs]?.od ?? {}
           const odOnBoard = currentKursObj?.onBoard ?? {}
 
@@ -158,6 +158,9 @@ export default function CourseSchedule({
           // Predicted (virtual-time-based) buckets for kurs-level badges
           let predKursOb = 0, predKursTr = 0, predKursDm = 0;
 
+          // hasSimData: simulation ran for this trainSet (remainingDemand is not null)
+          const hasSimData = remainingDemand != null
+
           allOdKeys.forEach(key => {
             const trC1 = odTransfer[key]?.class1 ?? 0;
             const trC2 = odTransfer[key]?.class2 ?? 0;
@@ -174,17 +177,26 @@ export default function CourseSchedule({
             dayObC1 += obC1; dayObC2 += obC2;
             dayDmC1 += dmC1; dayDmC2 += dmC2;
 
-            // Predicted state for kurs-level color badge
-            const [fId, tId] = key.split(':')
-            const pred = predictPassengerState(fId, tId, kursStops, cities, currentMin)
             const ob = obC1 + obC2, tr = trC1 + trC2, dm = dmC1 + dmC2
-            if (pred === 'onboard')          predKursOb += ob > 0 ? ob : dm
-            else if (pred === 'transferred') predKursTr += tr > 0 ? tr : ob + dm
-            else if (pred === 'waiting')     { if (dm > 0) predKursDm += dm; else predKursTr += tr }
-            else { // no prediction — use Firestore data as-is
+
+            if (hasSimData) {
+              // Simulation data is accurate — show it directly, no time-prediction needed
               if (ob > 0) predKursOb += ob
               else if (tr > 0) predKursTr += tr
               else predKursDm += dm
+            } else {
+              // No simulation — predict state from schedule time; cap dm at totalSeats
+              const [fId, tId] = key.split(':')
+              const pred = predictPassengerState(fId, tId, kursStops, cities, currentMin)
+              const dmCapped = Math.min(dm, totalSeats)
+              if (pred === 'onboard')          predKursOb += ob > 0 ? ob : dmCapped
+              else if (pred === 'transferred') predKursTr += tr > 0 ? tr : ob + dmCapped
+              else if (pred === 'waiting')     { if (dm > 0) predKursDm += dmCapped; else predKursTr += tr }
+              else {
+                if (ob > 0) predKursOb += ob
+                else if (tr > 0) predKursTr += tr
+                else predKursDm += dmCapped
+              }
             }
           });
 
@@ -295,29 +307,36 @@ export default function CourseSchedule({
                       totalObC1 += obC1; totalObC2 += obC2;
                       totalDmC1 += dmC1; totalDmC2 += dmC2;
 
-                      const pred = predictPassengerState(fromId, toId, kursStops, cities, currentMin)
                       let displayCount = null;
                       let displayColor = '#ffffff';
 
-                      if (pred === 'onboard') {
-                        displayColor = '#e74c3c'
-                        displayCount = ob > 0 ? ob : dm
-                      } else if (pred === 'transferred') {
-                        displayColor = '#f0c040'
-                        displayCount = tr > 0 ? tr : (ob + dm > 0 ? ob + dm : 0)
-                      } else if (pred === 'waiting') {
-                        if (dm > 0) {
-                          displayColor = '#ffffff'
-                          displayCount = dm
-                        } else {
-                          displayColor = '#f0c040'
-                          displayCount = tr
-                        }
-                      } else {
-                        // Brak danych o czasie — fallback na dane Firestore
+                      if (hasSimData) {
+                        // Simulation data is accurate — display directly
                         if (ob > 0) { displayCount = ob; displayColor = '#e74c3c' }
                         else if (tr > 0) { displayCount = tr; displayColor = '#f0c040' }
                         else { displayCount = dm; displayColor = '#ffffff' }
+                      } else {
+                        const pred = predictPassengerState(fromId, toId, kursStops, cities, currentMin)
+                        const dmCapped = Math.min(dm, totalSeats)
+                        if (pred === 'onboard') {
+                          displayColor = '#e74c3c'
+                          displayCount = ob > 0 ? ob : dmCapped
+                        } else if (pred === 'transferred') {
+                          displayColor = '#f0c040'
+                          displayCount = tr > 0 ? tr : (ob + dmCapped > 0 ? ob + dmCapped : 0)
+                        } else if (pred === 'waiting') {
+                          if (dm > 0) {
+                            displayColor = '#ffffff'
+                            displayCount = dmCapped
+                          } else {
+                            displayColor = '#f0c040'
+                            displayCount = tr
+                          }
+                        } else {
+                          if (ob > 0) { displayCount = ob; displayColor = '#e74c3c' }
+                          else if (tr > 0) { displayCount = tr; displayColor = '#f0c040' }
+                          else { displayCount = dmCapped; displayColor = '#ffffff' }
+                        }
                       }
 
                       const originalC1 = trC1 + obC1 + dmC1;

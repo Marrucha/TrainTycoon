@@ -13,11 +13,9 @@ import DemandMatrix from './trainset/DemandMatrix'
 import CrewSection from './trainset/CrewSection'
 
 export default function TrainSetPanel() {
-  const { selectedTrainSet, selectTrainSet, trains, getCityById, companyName, cities, getTicketPrice, gameConstants } = useGame()
+  const { selectedTrainSet, selectTrainSet, trains, getCityById, companyName, cities, getTicketPrice, gameConstants, boardingState, gameDate: now } = useGame()
   const [openKurs, setOpenKurs] = useState(null)
   const [openTimetable, setOpenTimetable] = useState(null)
-
-  const { gameDate: now } = useGame()
 
   const timeMultiplier = gameConstants?.TIME_MULTIPLIER || 30
   const oneGameMonthMs = 30 * 24 * 3600 * 1000 / timeMultiplier
@@ -49,36 +47,30 @@ export default function TrainSetPanel() {
     ? new Set(ts.rozklad.map((s) => s.kurs)).size
     : 0
 
-  const dailyDemand = ts.dailyDemand || {}
-  const dailyTransfer = ts.dailyTransfer || {}
+  // Boarding simulation state — replaces live Firestore currentTransfer/dailyTransfer
+  const simState = boardingState?.[ts.id]
+  const simCurrentTransfer = simState?.currentTransfer || {}
+  const simTransferredToday = simState?.transferredToday || {}
+  const simRemainingDemand = simState?.remainingDemand  // null if sim hasn't run yet
+
+  const dailyDemand = ts.dailyDemand || {}             // initial demand (from Firestore, constant)
+  const dailyTransfer = simTransferredToday             // simulated transfers so far today
   const totalDailyPassengers = Object.values(dailyDemand).reduce((sum, d) => sum + (d.total || 0), 0)
 
-  const totalOnBoard = ts.currentTransfer
-    ? Object.values(ts.currentTransfer).reduce((sum, d) => sum + (d.totalOnBoard || 0), 0)
-    : 0
-  const totalOnBoardC1 = ts.currentTransfer
-    ? Object.values(ts.currentTransfer).reduce((sum, d) => {
-        const onBoard = d.onBoard || {}
-        return sum + Object.values(onBoard).reduce((s, v) => s + (v.class1 || 0), 0)
-      }, 0)
-    : 0
-  const totalOnBoardC2 = ts.currentTransfer
-    ? Object.values(ts.currentTransfer).reduce((sum, d) => {
-        const onBoard = d.onBoard || {}
-        return sum + Object.values(onBoard).reduce((s, v) => s + (v.class2 || 0), 0)
-      }, 0)
-    : 0
+  const totalOnBoard = Object.values(simCurrentTransfer).reduce((sum, d) => sum + (d.totalOnBoard || 0), 0)
+  const totalOnBoardC1 = Object.values(simCurrentTransfer).reduce((sum, d) => {
+    const onBoard = d.onBoard || {}
+    return sum + Object.values(onBoard).reduce((s, v) => s + (v.class1 || 0), 0)
+  }, 0)
+  const totalOnBoardC2 = Object.values(simCurrentTransfer).reduce((sum, d) => {
+    const onBoard = d.onBoard || {}
+    return sum + Object.values(onBoard).reduce((s, v) => s + (v.class2 || 0), 0)
+  }, 0)
 
-  const sumTransferred = dailyTransfer
-    ? Object.values(dailyTransfer).reduce((sum, d) => sum + (d.total || 0), 0)
-    : 0
+  const sumTransferred = Object.values(dailyTransfer).reduce((sum, d) => sum + (d.total || 0), 0)
   const totalTransferred = (sumTransferred > 0 || totalOnBoard > 0) ? sumTransferred + totalOnBoard : null
-  const totalTransferredC1 = dailyTransfer
-    ? Object.values(dailyTransfer).reduce((sum, d) => sum + (d.class1 || 0), 0)
-    : null
-  const totalTransferredC2 = dailyTransfer
-    ? Object.values(dailyTransfer).reduce((sum, d) => sum + (d.class2 || 0), 0)
-    : null
+  const totalTransferredC1 = Object.values(dailyTransfer).reduce((sum, d) => sum + (d.class1 || 0), 0) || null
+  const totalTransferredC2 = Object.values(dailyTransfer).reduce((sum, d) => sum + (d.class2 || 0), 0) || null
 
   const totalSeats = wagons.reduce((sum, w) => sum + (w.seats || 0), 0)
   const avgOccupancy = (totalTransferred !== null && totalTransferred > 0 && totalSeats > 0 && coursesCount > 0)
@@ -118,7 +110,7 @@ export default function TrainSetPanel() {
 
   const kursRevenue = {}
   let totalDailyRevenue = 0
-  Object.entries(ts.dailyTransfer || {}).forEach(([kursId, kd]) => {
+  Object.entries(dailyTransfer).forEach(([kursId, kd]) => {
     let rev = 0
     Object.entries(kd.od || {}).forEach(([key, val]) => {
       const [fromId, toId] = key.split(':')
@@ -221,16 +213,18 @@ export default function TrainSetPanel() {
     }
   }
 
+  // mergedOD: dm = remaining demand (from simulation), tr = transferred, ob = on board
+  const demandForMatrix = simRemainingDemand || dailyDemand
   const mergedOD = {}
   const allOdKeysSet = new Set()
-  Object.values(dailyDemand || {}).forEach(d => Object.keys(d.od || {}).forEach(k => allOdKeysSet.add(k)))
+  Object.values(demandForMatrix || {}).forEach(d => Object.keys(d.od || {}).forEach(k => allOdKeysSet.add(k)))
   Object.values(dailyTransfer || {}).forEach(d => Object.keys(d.od || {}).forEach(k => allOdKeysSet.add(k)))
-  Object.values(ts.currentTransfer || {}).forEach(d => Object.keys(d.onBoard || {}).forEach(k => allOdKeysSet.add(k)))
+  Object.values(simCurrentTransfer || {}).forEach(d => Object.keys(d.onBoard || {}).forEach(k => allOdKeysSet.add(k)))
 
   allOdKeysSet.forEach(key => {
     mergedOD[key] = { dmC1: 0, dmC2: 0, trC1: 0, trC2: 0, obC1: 0, obC2: 0 }
   })
-  Object.values(dailyDemand || {}).forEach(d => {
+  Object.values(demandForMatrix || {}).forEach(d => {
     Object.entries(d.od || {}).forEach(([key, val]) => {
       mergedOD[key].dmC1 += val.class1 || 0
       mergedOD[key].dmC2 += val.class2 || 0
@@ -242,7 +236,7 @@ export default function TrainSetPanel() {
       mergedOD[key].trC2 += val.class2 || 0
     })
   })
-  Object.values(ts.currentTransfer || {}).forEach(d => {
+  Object.values(simCurrentTransfer || {}).forEach(d => {
     Object.entries(d.onBoard || {}).forEach(([key, val]) => {
       mergedOD[key].obC1 += val.class1 || 0
       mergedOD[key].obC2 += val.class2 || 0
@@ -298,14 +292,16 @@ export default function TrainSetPanel() {
         <RevenueSection byKurs={byKurs} cities={cities} totalCostPerKm={ts.totalCostPerKm} totalDailyRevenue={totalDailyRevenue} />
         <CourseSchedule
           ts={ts} coursesCount={coursesCount} firstStops={firstStops}
-          dailyDemand={dailyDemand} dailyTransfer={dailyTransfer} byKurs={byKurs}
+          dailyDemand={dailyDemand} remainingDemand={simRemainingDemand}
+          dailyTransfer={dailyTransfer} currentTransfer={simCurrentTransfer}
+          byKurs={byKurs}
           cities={cities} openKurs={openKurs} setOpenKurs={setOpenKurs}
           openTimetable={openTimetable} setOpenTimetable={setOpenTimetable}
           kursRevenue={kursRevenue} totalDailyRevenue={totalDailyRevenue}
           totalSeats={totalSeats} stopOrder={stopOrder} currentMin={currentMin}
         />
         <TrafficStats totalDailyPassengers={totalDailyPassengers} totalTransferred={totalTransferred} avgOccupancy={avgOccupancy} gapowiczeRate={ts.gapowiczeRate} avgInspectionIndex={avgInspectionIndex} totalFineRevenue={totalFineRevenue} totalWarsRevenue={totalWarsRevenue} />
-        <DemandMatrix mergedOD={mergedOD} stopOrder={stopOrder} cities={cities} dailyDemand={dailyDemand} currentTransfer={ts.currentTransfer} />
+        <DemandMatrix mergedOD={mergedOD} stopOrder={stopOrder} cities={cities} dailyDemand={dailyDemand} currentTransfer={simCurrentTransfer} />
       </div>
     </div>
   )

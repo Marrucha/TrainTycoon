@@ -7,7 +7,10 @@ from firebase_functions import scheduler_fn, https_fn, firestore_fn, tasks_fn, o
 from firebase_admin import initialize_app, firestore, functions as admin_functions
 
 from demand_calc import calc_demand_for_train_sets, _collect_segments_for_debug
-from boarding_sim import run_boarding_tick, rebuild_schedule_table, rebuild_schedule_for_trainset
+from boarding_sim import (
+    run_boarding_tick, run_boarding_rollover, _clear_daily_boarding_state,
+    rebuild_schedule_table, rebuild_schedule_for_trainset,
+)
 from reports import save_daily_report, _calc_ticket_price, DEFAULT_PRICING
 from reputation import update_reputation_metrics
 from staff import run_daily_staff, run_monthly_staff, _generate_agency_lists
@@ -138,8 +141,10 @@ def _check_game_day_rollover(db) -> None:
     # New game day — update state first to prevent double-run on concurrent ticks
     state_ref.set({'lastReportDate': game_date_str}, merge=True)
 
-    save_daily_report(db, date_str=game_date_str)
-    calc_demand_for_train_sets(db)
+    run_boarding_rollover(db)              # 1. simulate full day → writes dailyTransfer
+    save_daily_report(db, date_str=game_date_str)  # 2. reads dailyTransfer → updates finance
+    calc_demand_for_train_sets(db)         # 3. writes new dailyDemand for next day
+    _clear_daily_boarding_state(db)        # 4. reset dailyTransfer/currentTransfer for new day
     _accrue_credit_line_interest(db, today=game_date)
     _calc_daily_breakdowns(db)
     run_daily_staff(db)
@@ -182,11 +187,11 @@ def calc_daily_demand(event: scheduler_fn.ScheduledEvent) -> None:
     _check_game_day_rollover(db)
 
 
-@scheduler_fn.on_schedule(schedule='* * * * *', timezone='Europe/Warsaw')
+@scheduler_fn.on_schedule(schedule='*/15 * * * *', timezone='Europe/Warsaw')
 def tick_boarding(event: scheduler_fn.ScheduledEvent) -> None:
-    """Cloud Function: live simulation of train stops + game day rollover check."""
+    """Cloud Function: game day rollover check (runs every 15 real min ≈ 7.5 virtual hours).
+    Boarding simulation is now handled by the frontend; backend simulates only at midnight."""
     db = firestore.client()
-    run_boarding_tick(db)
     _check_game_day_rollover(db)
 
 

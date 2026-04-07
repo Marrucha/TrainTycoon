@@ -1,5 +1,6 @@
 import React from 'react'
 import styles from '../PolandMap.module.css'
+import { useGame } from '../../../context/GameContext'
 
 export function MapTooltips({
     hoveredCity,
@@ -13,6 +14,7 @@ export function MapTooltips({
     cityDemandInfo,
     gameTime,
 }) {
+    const { boardingState } = useGame()
     if (!hoveredCity && !hoveredRoute && !hoveredTrain) return null
 
     return (
@@ -87,8 +89,9 @@ export function MapTooltips({
                     >
                         <strong>{ts.name}</strong>
                         {kursStops?.length > 0 && (() => {
-                            const ct = ts.currentTransfer?.[kursId] ?? {}
-                            const dt = ts.dailyTransfer?.[kursId] ?? {}
+                            const simState = boardingState?.[ts.id]
+                            const ct = simState?.currentTransfer?.[kursId] ?? {}
+                            const dt = simState?.transferredToday?.[kursId] ?? {}
                             const onBoard = ct.onBoard ?? {}
                             const alighted = dt.od ?? {}
                             const totalOnBoard = ct.totalOnBoard ?? 0
