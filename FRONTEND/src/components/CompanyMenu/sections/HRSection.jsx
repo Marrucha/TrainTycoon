@@ -81,6 +81,7 @@ export default function HRSection() {
         <MentorPickModal
           intern={internAssignFor}
           employees={employees}
+          trainsSets={trainsSets}
           onAssign={handleInternAssign}
           onUnassign={handleInternUnassign}
           onClose={() => setInternAssignFor(null)}

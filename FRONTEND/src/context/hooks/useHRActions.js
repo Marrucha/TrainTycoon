@@ -23,8 +23,7 @@ function _randomName() {
   return `${first} ${last}`
 }
 
-function _randomDob(minAge, maxAge) {
-  const now = gameDate
+function _randomDob(minAge, maxAge, now) {
   const age = minAge + Math.floor(Math.random() * (maxAge - minAge + 1))
   const y   = now.getFullYear() - age
   const m   = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')
@@ -32,10 +31,9 @@ function _randomDob(minAge, maxAge) {
   return `${y}-${m}-${d}`
 }
 
-function _calcAge(dateOfBirth) {
+function _calcAge(dateOfBirth, now) {
   if (!dateOfBirth) return null
   const birth = new Date(dateOfBirth)
-  const now = gameDate
   let age = now.getFullYear() - birth.getFullYear()
   const m = now.getMonth() - birth.getMonth()
   if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--
@@ -116,7 +114,7 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants, gam
         internGraduatesAt: null,   // set when mentor is assigned
         mentorId:          null,
         assignedTo:        null,
-        dateOfBirth:       _randomDob(20, 24),
+        dateOfBirth:       _randomDob(20, 24, gameDate),
       })
       return true
     } catch (e) {
@@ -129,7 +127,7 @@ export function useHRActions({ budget, trainsSets, employees, gameConstants, gam
 
   async function fireEmployee(empId, empData, { confirmed = false } = {}) {
     const { monthlySalary = 5000, hiredAt, isIntern, assignedTo, dateOfBirth } = empData
-    const age = _calcAge(dateOfBirth)
+    const age = _calcAge(dateOfBirth, gameDate)
     if (age !== null && age >= 63) {
       alert('Pracownik w wieku przedemerytalnym (63+) nie może zostać zwolniony.')
       return false

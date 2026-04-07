@@ -70,7 +70,9 @@ export function ExpBar({ value }) {
   )
 }
 
-export function MentorPickModal({ intern, employees, onAssign, onUnassign, onClose }) {
+export function MentorPickModal({ intern, employees, trainsSets, onAssign, onUnassign, onClose }) {
+  const tsName = (id) => trainsSets?.find(ts => ts.id === id)?.name ?? id
+
   const busyMentorIds = new Set(
     (employees || [])
       .filter(e => e.isIntern && e.mentorId && e.id !== intern.id)
@@ -96,7 +98,7 @@ export function MentorPickModal({ intern, employees, onAssign, onUnassign, onClo
           <div style={{ marginBottom: 12, padding: '8px 10px', background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: 12, color: '#2ecc71' }}>Mentor: {currentMentor.name}</div>
-              {currentMentor.assignedTo && <div style={{ fontSize: 11, color: '#888' }}>Skład: {currentMentor.assignedTo}</div>}
+              {currentMentor.assignedTo && <div style={{ fontSize: 11, color: '#888' }}>Skład: {tsName(currentMentor.assignedTo)}</div>}
             </div>
             <button
               onClick={onUnassign}
@@ -117,7 +119,7 @@ export function MentorPickModal({ intern, employees, onAssign, onUnassign, onClo
               <div style={{ color: '#ddd', fontSize: 13 }}>{mentor.name}</div>
               <div style={{ fontSize: 11, color: '#888' }}>
                 exp: {Math.round(mentor.experience ?? 0)}
-                {mentor.assignedTo ? <span style={{ color: '#666', marginLeft: 6 }}>• {mentor.assignedTo}</span> : <span style={{ color: '#444', marginLeft: 6 }}>• wolny</span>}
+                {mentor.assignedTo ? <span style={{ color: '#666', marginLeft: 6 }}>• {tsName(mentor.assignedTo)}</span> : <span style={{ color: '#444', marginLeft: 6 }}>• wolny</span>}
               </div>
             </div>
             <button

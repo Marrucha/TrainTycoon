@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useGame } from '../../context/GameContext'
 import ConfirmButton from '../common/ConfirmButton'
 import TrainComposer from './TrainComposer'
@@ -20,6 +20,47 @@ export default function FleetCompositions() {
     const [schedulingOpenFor, setSchedulingOpenFor] = useState(null) // skład dla SchedulePlanner
     const [crewOpenFor, setCrewOpenFor] = useState(null) // id składu z otwartą obsadą
     const [collapsedCards, setCollapsedCards] = useState({}) // id → bool
+    const [sortBy, setSortBy] = useState('firstRouteAt')
+    const [sortDir, setSortDir] = useState('desc')
+
+    const SORT_OPTS = [
+        { key: 'status',       label: 'Status'           },
+        { key: 'firstRouteAt', label: 'Od kiedy kursuje' },
+        { key: 'length',       label: 'Długość składu'   },
+        { key: 'revenue',      label: 'Przychody (wcz.)' },
+        { key: 'occupancy',    label: 'Obłożenie (wcz.)' },
+    ]
+
+    // 0 = W Trasie, 1 = Na postoju (szkic), 2 = W Stoczni
+    const getStatus = (ts) => {
+        const pub = cities.some(c => c.rozklad && c.rozklad.some(r => r.trainSetId === ts.id))
+        if (pub) return 0
+        const hasRoute = ts.routeStops?.length > 0 || ts.routePath || routes.find(r => r.trainId === ts.id)
+        return hasRoute ? 1 : 2
+    }
+
+    const sortedTrainsSets = useMemo(() => {
+        if (!trainsSets) return []
+        return [...trainsSets].sort((a, b) => {
+            let av, bv
+            if (sortBy === 'status') {
+                av = getStatus(a); bv = getStatus(b)
+            } else if (sortBy === 'firstRouteAt') {
+                av = a.firstRouteAt ? new Date(a.firstRouteAt).getTime() : 0
+                bv = b.firstRouteAt ? new Date(b.firstRouteAt).getTime() : 0
+            } else if (sortBy === 'length') {
+                av = (a.trainIds || []).length; bv = (b.trainIds || []).length
+            } else if (sortBy === 'revenue') {
+                av = a.prevDayRevenue ?? 0; bv = b.prevDayRevenue ?? 0
+            } else if (sortBy === 'occupancy') {
+                av = a.prevDayOccupancy ?? 0; bv = b.prevDayOccupancy ?? 0
+            }
+            if (av < bv) return sortDir === 'asc' ? -1 : 1
+            if (av > bv) return sortDir === 'asc' ? 1 : -1
+            return 0
+        })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trainsSets, sortBy, sortDir, cities, routes])
 
     // Skrócona nazwa pracownika: "J. Kowalski"
     const empShortName = (id) => {
@@ -75,13 +116,18 @@ export default function FleetCompositions() {
     }
 
     const toggleCollapse = (id) => setCollapsedCards(prev => ({ ...prev, [id]: !prev[id] }))
-    const allCollapsed = trainsSets?.length > 0 && trainsSets.every(ts => collapsedCards[ts.id])
+    const allCollapsed = sortedTrainsSets.length > 0 && sortedTrainsSets.every(ts => collapsedCards[ts.id])
     const toggleAll = () => {
         if (allCollapsed) {
             setCollapsedCards({})
         } else {
-            setCollapsedCards(Object.fromEntries((trainsSets || []).map(ts => [ts.id, true])))
+            setCollapsedCards(Object.fromEntries(sortedTrainsSets.map(ts => [ts.id, true])))
         }
+    }
+
+    const handleSort = (key) => {
+        setSortDir(prev => sortBy === key ? (prev === 'asc' ? 'desc' : 'asc') : (key === 'firstRouteAt' ? 'desc' : 'asc'))
+        setSortBy(key)
     }
 
     if (isComposing) {
@@ -107,9 +153,32 @@ export default function FleetCompositions() {
                     </div>
                 </div>
 
+                {/* Sort bar */}
+                {sortedTrainsSets.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 10, color: '#6a8a6a', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginRight: 4 }}>Sortuj:</span>
+                        {SORT_OPTS.map(opt => (
+                            <button
+                                key={opt.key}
+                                onClick={() => handleSort(opt.key)}
+                                style={{
+                                    background: sortBy === opt.key ? '#2a4a2a' : '#0a150a',
+                                    color: sortBy === opt.key ? '#f0c040' : '#8aab8a',
+                                    border: `1px solid ${sortBy === opt.key ? '#f0c040' : '#2a4a2a'}`,
+                                    borderRadius: 4, padding: '4px 10px', fontSize: 10,
+                                    fontWeight: 700, cursor: 'pointer',
+                                    textTransform: 'uppercase', letterSpacing: 1,
+                                }}
+                            >
+                                {opt.label} {sortBy === opt.key ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 <div className={styles.compositionGrid}>
-                    {trainsSets && trainsSets.length > 0 ? (
-                        trainsSets.map((trainSet, tsIndex) => {
+                    {sortedTrainsSets.length > 0 ? (
+                        sortedTrainsSets.map((trainSet, tsIndex) => {
                             // Algorytm szukania podpietej trasy
                             const attachedRoute = routes.find(r => r.trainId === trainSet.id);
 

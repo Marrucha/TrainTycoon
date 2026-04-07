@@ -17,6 +17,7 @@ Firestore functions (called from main.py daily scheduler):
 """
 
 import datetime as dt
+import random
 
 from staff_core import (
     ROLES,

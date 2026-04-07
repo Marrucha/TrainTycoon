@@ -28,7 +28,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
   max-width: 1400px;
 }
@@ -100,8 +100,8 @@
 }
 
 .imageWrapper {
-  width: 110px;
-  min-width: 110px;
+  width: 90px;
+  min-width: 90px;
   overflow: hidden;
   border-radius: 6px;
   border: 1px solid rgba(42, 74, 42, 0.4);
@@ -121,8 +121,8 @@
 }
 
 .imagePlaceholder {
-  width: 110px;
-  min-width: 110px;
+  width: 90px;
+  min-width: 90px;
   border-radius: 6px;
   border: 1px dashed #2a4a2a;
   background: rgba(10, 21, 10, 0.35);

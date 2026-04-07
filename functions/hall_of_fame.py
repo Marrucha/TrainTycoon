@@ -1,17 +1,24 @@
 import datetime
 import zoneinfo
 
-def update_hall_of_fame(db):
+def update_hall_of_fame(db, game_date=None):
     """
     Agreguje statystyki z raportów wszystkich aktywnych graczy.
     Zapisuje TOP wyniki każdej kategorii do wyznaczonej kolekcji publicznej w bazie, by Frontend mógł je łatwo odczytać.
+    game_date: datetime.date representing current virtual game day (used to look up Raporty docs).
+               Falls back to real Warsaw time if not provided.
     """
     now_waw = datetime.datetime.now(zoneinfo.ZoneInfo('Europe/Warsaw'))
-    
-    today_str = now_waw.strftime('%Y-%m-%d')
-    yesterday_str = (now_waw - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-    week_str = (now_waw - datetime.timedelta(days=7)).strftime('%Y-%m-%d')
-    month_str = (now_waw - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
+
+    if game_date is not None:
+        base = game_date if isinstance(game_date, datetime.date) else datetime.date.fromisoformat(str(game_date))
+    else:
+        base = now_waw.date()
+
+    today_str = base.strftime('%Y-%m-%d')
+    yesterday_str = (base - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    week_str = (base - datetime.timedelta(days=7)).strftime('%Y-%m-%d')
+    month_str = (base - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
     
     players = []
     
