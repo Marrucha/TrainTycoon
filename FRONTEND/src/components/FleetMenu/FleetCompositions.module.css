@@ -92,6 +92,7 @@
 }
 
 .routeBadge {
+    display: inline-block;
     background: #153315;
     color: #f0c040;
     padding: 4px 10px;
@@ -105,7 +106,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 60vw;
+    max-width: 100%;
+    vertical-align: middle;
 }
 
 .routeBadgeEmpty {

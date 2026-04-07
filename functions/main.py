@@ -61,11 +61,19 @@ def processDepositTask(req: tasks_fn.CallableRequest) -> None:
     dep = dep_snap.to_dict()
     player_ref = db.collection('players').document(pid)
     balance = (player_ref.get().to_dict() or {}).get('finance', {}).get('balance', 0)
-    total_return = round(dep['amount'] * (1 + dep['rate']))
+    interest = round(dep['amount'] * dep['rate'])
+    total_return = dep['amount'] + interest
+
+    date_str = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d')
+    ledger_ref = db.collection(f'players/{pid}/financeLedger').document(date_str)
 
     batch = db.batch()
     batch.delete(dep_ref)
     batch.update(player_ref, {'finance.balance': balance + total_return})
+    batch.set(ledger_ref, {
+        'date': date_str,
+        'revenues': {'depositInterest': interest},
+    }, merge=True)
     batch.commit()
 
 
@@ -146,11 +154,12 @@ def _check_game_day_rollover(db) -> None:
     calc_demand_for_train_sets(db)         # 3. writes new dailyDemand for next day
     _clear_daily_boarding_state(db)        # 4. reset dailyTransfer/currentTransfer for new day
     _accrue_credit_line_interest(db, today=game_date)
+    _process_loan_payments(db, today=game_date)
     _calc_daily_breakdowns(db)
     run_daily_staff(db)
     run_monthly_staff(db, today=game_date)
     update_reputation_metrics(db)
-    update_hall_of_fame(db)
+    update_hall_of_fame(db, game_date=game_date)
 
 
 def _accrue_credit_line_interest(db, today=None) -> None:
@@ -178,6 +187,59 @@ def _accrue_credit_line_interest(db, today=None) -> None:
         total = daily_interest + monthly_fee
         if total > 0:
             player_doc.reference.update({'finance.balance': balance - total})
+
+
+def _process_loan_payments(db, today=None) -> None:
+    """1st of game-month: deduct monthly loan instalment and update remaining months."""
+    if today is None:
+        today = datetime.date.today()
+    if today.day != 1:
+        return
+
+    from google.cloud.firestore_v1 import ArrayUnion
+
+    for player_doc in db.collection('players').stream():
+        pid = player_doc.id
+        if pid == 'samorządowy':
+            continue
+        data = player_doc.to_dict() or {}
+        finance = data.get('finance', {})
+        loans = finance.get('loans', [])
+        if not loans:
+            continue
+
+        balance = finance.get('balance', 0)
+        total_payment = 0
+        updated_loans = []
+
+        for loan in loans:
+            remaining = loan.get('remainingMonths', 0)
+            if remaining <= 0:
+                continue
+            payment = round(loan.get('monthlyPayment', 0))
+            total_payment += payment
+            new_remaining = remaining - 1
+            if new_remaining > 0:
+                updated_loans.append({**loan, 'remainingMonths': new_remaining})
+
+        if total_payment == 0:
+            continue
+
+        player_doc.reference.update({
+            'finance.balance': balance - total_payment,
+            'finance.loans': updated_loans,
+        })
+
+        date_str = today.isoformat()
+        ledger_ref = db.collection(f'players/{pid}/financeLedger').document(date_str)
+        ledger_ref.set({
+            'date': date_str,
+            'oneTimeCosts': ArrayUnion([{
+                'type': 'loanPayment',
+                'amount': total_payment,
+                'desc': f'Rata kredytu ({len([l for l in loans if l.get("remainingMonths", 0) > 0])} kredytów)',
+            }]),
+        }, merge=True)
 
 
 @scheduler_fn.on_schedule(schedule='0 3 * * *', timezone='Europe/Warsaw')
@@ -341,14 +403,18 @@ def debug_utility_compare(req: https_fn.Request) -> https_fn.Response:
 
 @https_fn.on_request()
 def generate_agency_lists_manual(req: https_fn.Request) -> https_fn.Response:
-    """Tymczasowy endpoint – generuje listy kandydatów agencji dla wszystkich graczy."""
-    db = firestore.client()
-    _generate_agency_lists(db)
-    return https_fn.Response(
-        'Agency lists generated.\n',
-        status=200,
-        headers={'Access-Control-Allow-Origin': '*'},
-    )
+    """HTTP endpoint: manually trigger agency candidate list generation for all players."""
+    cors = {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST'}
+    if req.method == 'OPTIONS':
+        return https_fn.Response('', status=204, headers=cors)
+    try:
+        db = firestore.client()
+        c_snap = db.collection('gameConfig').document('constants').get()
+        consts = c_snap.to_dict() or {} if c_snap.exists else {}
+        _generate_agency_lists(db, consts)
+        return https_fn.Response('Agency lists generated.\n', status=200, headers=cors)
+    except Exception as e:
+        return https_fn.Response(str(e), status=500, headers=cors)
 
 
 @https_fn.on_request()
@@ -369,7 +435,7 @@ def manual_update_reputation(req: https_fn.Request) -> https_fn.Response:
 @https_fn.on_request()
 def manual_update_hall_of_fame(req: https_fn.Request) -> https_fn.Response:
     db = firestore.client()
-    update_hall_of_fame(db)
+    update_hall_of_fame(db, game_date=_get_game_date(db))
     return https_fn.Response("Hall of Fame updated successfully.\n", status=200)
 
 

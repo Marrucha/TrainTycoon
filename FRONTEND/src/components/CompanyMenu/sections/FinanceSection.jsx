@@ -18,6 +18,7 @@ const FinanceSection = ({
     deposits,
     depositRates,
     openDeposit,
+    redeemDeposit,
     breakDeposit,
     emitShares,
 }) => {
@@ -197,9 +198,10 @@ const FinanceSection = ({
                                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                                                             <div>
                                                                 <div style={{ fontSize: 10, color: '#2ecc71', textTransform: 'uppercase', marginBottom: 3, letterSpacing: 1 }}>Przychody +{fmt(totalRev)}</div>
-                                                                {rev.courses > 0 && <PLRow label="Kursy" value={rev.courses} />}
-                                                                {rev.wars   > 0 && <PLRow label="Wars" value={rev.wars} />}
-                                                                {rev.fines  > 0 && <PLRow label="Mandaty" value={rev.fines} />}
+                                                                {rev.courses         > 0 && <PLRow label="Kursy" value={rev.courses} />}
+                                                                {rev.wars            > 0 && <PLRow label="Wars" value={rev.wars} />}
+                                                                {rev.fines           > 0 && <PLRow label="Mandaty" value={rev.fines} />}
+                                                                {rev.depositInterest > 0 && <PLRow label="Odsetki z lokat" value={rev.depositInterest} color="#2ecc71" />}
                                                             </div>
                                                             <div>
                                                                 <div style={{ fontSize: 10, color: '#e74c3c', textTransform: 'uppercase', marginBottom: 3, letterSpacing: 1 }}>Koszty −{fmt(totalCost)}</div>
@@ -438,10 +440,14 @@ const FinanceSection = ({
                                                         +{fmt(interest)} PLN <span style={{ fontWeight: '400', fontSize: '10px', opacity: 0.8 }}>(+{(dep.rate * 100).toFixed(2)}%{annualLabel})</span>
                                                     </span>
                                                 </div>
-                                                <button onClick={() => breakDeposit(dep.id, dep.amount)}
+                                                <button
+                                                    onClick={() => isMatured
+                                                        ? redeemDeposit(dep.id, dep.amount, dep.rate)
+                                                        : breakDeposit(dep.id, dep.amount)
+                                                    }
                                                     className={styles.breakBtn}
                                                     style={{ padding: '6px 12px', fontSize: '11px', fontWeight: 'bold' }}
-                                                    title="Uwaga: zerwanie lokaty przed terminem powoduje utratę wszystkich odsetek — odzyskasz tylko wpłacony kapitał.">
+                                                    title={isMatured ? 'Odbierz lokatę z odsetkami.' : 'Uwaga: zerwanie lokaty przed terminem powoduje utratę wszystkich odsetek — odzyskasz tylko wpłacony kapitał.'}>
                                                     Zakończ
                                                 </button>
                                             </div>

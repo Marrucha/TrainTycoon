@@ -37,7 +37,7 @@ def _aggregate_monthly_ledger(db, today=None, constants=None):
             .stream()
         )
 
-        agg_rev   = {'courses': 0, 'wars': 0, 'fines': 0}
+        agg_rev   = {'courses': 0, 'wars': 0, 'fines': 0, 'depositInterest': 0}
         agg_costs = {
             'operational': 0, 'trackFees': 0, 'creditInterest': 0,
             'salaries': 0, 'loanPayments': 0, 'oneTime': 0,

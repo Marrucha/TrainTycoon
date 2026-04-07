@@ -233,9 +233,9 @@ export default function FleetCompositions() {
                                                 }}>NEW</span>
                                             )}
                                         </h4>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                                             {routeLabel ? (
-                                                <div title={formattedSchedule.trim()}>
+                                                <div title={routeLabel} style={{ minWidth: 0, overflow: 'hidden' }}>
                                                     <span
                                                         className={styles.routeBadge}
                                                         style={{ backgroundColor: isPublished ? '#1b4332' : 'rgba(240, 192, 64, 0.2)', color: isPublished ? '#4CAF50' : '#f0c040', borderColor: isPublished ? '#2d6a4f' : '#8a6a20' }}
@@ -246,7 +246,7 @@ export default function FleetCompositions() {
                                             ) : (
                                                 <span className={styles.routeBadgeEmpty}>W Stoczni</span>
                                             )}
-                                            <span style={{ color: '#4a6a4a', fontSize: '14px' }}>{isCollapsed ? '▶' : '▼'}</span>
+                                            <span style={{ color: '#4a6a4a', fontSize: '14px', flexShrink: 0 }}>{isCollapsed ? '▶' : '▼'}</span>
                                         </div>
                                     </div>
 

@@ -15,7 +15,7 @@ export const DEFAULT_DEPOSIT_RATES = Object.fromEntries(
   DEPOSIT_TYPES.map(t => [t.key, t.defaultRate])
 )
 
-export function useFinanceActions({ budget, playerDoc, gameConstants }) {
+export function useFinanceActions({ budget, playerDoc, gameConstants, gameDate }) {
   async function takeLoan(amount, months = 12) {
     try {
       const batch = writeBatch(db)
@@ -83,6 +83,10 @@ export function useFinanceActions({ budget, playerDoc, gameConstants }) {
     const annualRate = depositRates?.[typeKey] ?? type.defaultRate
     const rate = (type.days / 365) * annualRate
 
+    if (!gameDate) {
+      alert('Poczekaj na załadowanie daty gry.')
+      return false
+    }
     if (!amount || amount <= 0 || amount > budget) {
       alert('Nieprawidłowa kwota lokaty!')
       return false
@@ -114,6 +118,28 @@ export function useFinanceActions({ budget, playerDoc, gameConstants }) {
       return true
     } catch (e) {
       console.error('Błąd zakładania lokaty:', e)
+      return false
+    }
+  }
+
+  async function redeemDeposit(depositId, amount, rate) {
+    const interest = Math.round(amount * rate)
+    const total = amount + interest
+    const dateStr = (gameDate instanceof Date ? gameDate : new Date(gameDate)).toISOString().slice(0, 10)
+    try {
+      const batch = writeBatch(db)
+      batch.delete(doc(db, `players/${auth.currentUser.uid}/deposits`, depositId))
+      batch.set(doc(db, 'players', auth.currentUser.uid), {
+        finance: { balance: budget + total }
+      }, { merge: true })
+      batch.set(doc(db, `players/${auth.currentUser.uid}/financeLedger`, dateStr), {
+        date: dateStr,
+        revenues: { depositInterest: interest },
+      }, { merge: true })
+      await batch.commit()
+      return true
+    } catch (e) {
+      console.error('Błąd realizacji lokaty:', e)
       return false
     }
   }
@@ -167,6 +193,6 @@ export function useFinanceActions({ budget, playerDoc, gameConstants }) {
     }
   }
 
-  return { takeLoan, openCreditLine, openDeposit, breakDeposit, emitShares }
+  return { takeLoan, openCreditLine, openDeposit, redeemDeposit, breakDeposit, emitShares }
 }
 ;

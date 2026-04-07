@@ -42,7 +42,7 @@ export default function CompanyMenu() {
     defaultPricing, performMaintenance,
     pictures, playerDoc,
     openCreditLine, takeLoan,
-    deposits, depositRates, openDeposit, breakDeposit,
+    deposits, depositRates, openDeposit, redeemDeposit, breakDeposit,
     emitShares,
     gameDate: now,
   } = useGame();
@@ -51,7 +51,7 @@ export default function CompanyMenu() {
   const [collapsed, setCollapsed] = useState(false);
   const [openGroups, setOpenGroups] = useState({ 'fleet-group': true });
   const [sortOrder, setSortOrder] = useState('desc');
-  const [groupBy, setGroupBy] = useState('set');
+  const [groupBy, setGroupBy] = useState('type');
   const [expandedGroups, setExpandedGroups] = useState({});
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
 
@@ -126,12 +126,25 @@ export default function CompanyMenu() {
         return { id: ts.id, name: `${ts.name} [${members.length} szt.]`, type: ts.type, status: setStatus, condition: avgCondition, minCondition, members, isGroup: true };
       });
       const assignedIds = new Set(trainsSets.flatMap(ts => ts.trainIds || []));
-      const unassigned = analyzedTrains.filter(t => !assignedIds.has(t.id)).map(t => ({
-        id: t.id, name: `${t.name} [1 szt.]`, type: 'WOLNY ELEMENT', status: t.status,
-        condition: t.condition, minCondition: t.condition, members: [t], isGroup: false,
-      }));
-      return [...groups, ...unassigned].sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition);
-    } else {
+      const unassigned = analyzedTrains.filter(t => !assignedIds.has(t.id));
+      if (unassigned.length > 0) {
+        const typeGroups = {};
+        unassigned.forEach(t => {
+          const key = t.type || 'Inne';
+          if (!typeGroups[key]) typeGroups[key] = [];
+          typeGroups[key].push(t);
+        });
+        Object.entries(typeGroups).forEach(([key, members]) => {
+          const avgCondition = Math.round(members.reduce((s, m) => s + m.condition, 0) / members.length);
+          const minCondition = Math.min(...members.map(m => m.condition));
+          let status = 'READY';
+          if (members.some(m => m.status === 'OVERHAUL')) status = 'OVERHAUL';
+          else if (members.some(m => m.status === 'MAINTENANCE')) status = 'MAINTENANCE';
+          groups.push({ id: `free_${key}`, name: `${key} [wolne, ${members.length} szt.]`, type: key, status, condition: avgCondition, minCondition, members, isGroup: true });
+        });
+      }
+      return groups.sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition);
+    } else if (groupBy === 'type') {
       const typeGroups = {};
       analyzedTrains.forEach(t => {
         const typeKey = t.type || 'Inne';
@@ -146,6 +159,9 @@ export default function CompanyMenu() {
         else if (g.members.some(m => m.status === 'MAINTENANCE')) groupStatus = 'MAINTENANCE';
         return { ...g, name: `${g.name} [${g.members.length} szt.]`, condition: avgCondition, minCondition, status: groupStatus, isGroup: true, members: g.members.sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition) };
       }).sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition);
+    } else {
+      // 'detail' — flat sorted list
+      return analyzedTrains.sort((a, b) => sortOrder === 'desc' ? b.condition - a.condition : a.condition - b.condition);
     }
   }, [trains, trainsSets, sortOrder, groupBy, nowMs]);
 
@@ -250,7 +266,7 @@ export default function CompanyMenu() {
             openCreditLine={openCreditLine} takeLoan={takeLoan}
             toggleGroup={toggleGroup} expandedGroups={expandedGroups}
             deposits={deposits} depositRates={depositRates}
-            openDeposit={openDeposit} breakDeposit={breakDeposit}
+            openDeposit={openDeposit} redeemDeposit={redeemDeposit} breakDeposit={breakDeposit}
             emitShares={emitShares}
           />
         )}
