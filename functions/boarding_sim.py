@@ -164,24 +164,29 @@ def run_boarding_tick(db, now_str=None):
                 player_cache[pid] = p_snap.to_dict() or {} if p_snap.exists else {}
 
             ts = ts_cache[(pid, ts_id)]
+            ts_name = ts.get('name', ts_id)
             crew = ts.get('crew') or {}
             pricing = ts.get('pricing') or player_cache[pid].get('defaultPricing')
             if not pricing or not pricing.get('class2Per100km') or not pricing.get('class1Per100km'):
+                print(f'[SKIP] {ts_name} ({ts_id}): brak cennika')
                 continue  # brak cennika — skład nie kursuje
 
             if not crew.get('maszynista') or not crew.get('kierownik'):
+                print(f'[SKIP] {ts_name} ({ts_id}): brak maszynisty lub kierownika (crew={list(crew.keys())})')
                 continue
 
             if ts.get('speedMismatchBlock'):
+                print(f'[SKIP] {ts_name} ({ts_id}): speedMismatchBlock')
                 continue
 
             dispatch_ms = ts.get('dispatchDate')
             if dispatch_ms:
                 # We can calculate virt_now_ms for this minute based on m_str relative to virt_start_ms or just real_now_ms.
-                # Since batching runs every 1 minute and spans roughly 30 minutes, 
+                # Since batching runs every 1 minute and spans roughly 30 minutes,
                 # we can approximate using the current real_now_ms + virtual calculations.
                 virt_now_ms = game_start_ms + (int(time.time() * 1000) - real_start_ms) * multiplier
                 if virt_now_ms < dispatch_ms:
+                    print(f'[SKIP] {ts_name} ({ts_id}): dispatchDate nie minął (virt_now={virt_now_ms}, dispatch={dispatch_ms})')
                     continue
 
             seat_caps = _calc_total_seats(ts, player_trains, base_trains)

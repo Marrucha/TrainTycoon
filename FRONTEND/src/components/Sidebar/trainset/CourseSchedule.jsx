@@ -178,9 +178,9 @@ export default function CourseSchedule({
             const [fId, tId] = key.split(':')
             const pred = predictPassengerState(fId, tId, kursStops, cities, currentMin)
             const ob = obC1 + obC2, tr = trC1 + trC2, dm = dmC1 + dmC2
-            if (pred === 'onboard')     predKursOb += ob > 0 ? ob : dm
+            if (pred === 'onboard')          predKursOb += ob > 0 ? ob : dm
             else if (pred === 'transferred') predKursTr += tr > 0 ? tr : ob + dm
-            else if (pred === 'waiting')     predKursDm += dm
+            else if (pred === 'waiting')     { if (dm > 0) predKursDm += dm; else predKursTr += tr }
             else { // no prediction — use Firestore data as-is
               if (ob > 0) predKursOb += ob
               else if (tr > 0) predKursTr += tr
@@ -306,8 +306,13 @@ export default function CourseSchedule({
                         displayColor = '#f0c040'
                         displayCount = tr > 0 ? tr : (ob + dm > 0 ? ob + dm : 0)
                       } else if (pred === 'waiting') {
-                        displayColor = '#ffffff'
-                        displayCount = dm
+                        if (dm > 0) {
+                          displayColor = '#ffffff'
+                          displayCount = dm
+                        } else {
+                          displayColor = '#f0c040'
+                          displayCount = tr
+                        }
                       } else {
                         // Brak danych o czasie — fallback na dane Firestore
                         if (ob > 0) { displayCount = ob; displayColor = '#e74c3c' }

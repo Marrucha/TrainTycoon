@@ -119,15 +119,24 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
         setSaving(true)
 
         try {
-            const next3AM = new Date()
-            next3AM.setHours(3, 0, 0, 0)
-            if (next3AM.getTime() <= Date.now()) {
-                next3AM.setDate(next3AM.getDate() + 1)
-            }
+            // Calculate next 3AM in GAME (virtual) time, not real time.
+            // With TIME_MULTIPLIER=30, next game 3AM is ≤48 real minutes away,
+            // not 24 real hours as it would be with next 3AM real time.
             let dispatchMs = null
             if (gameConstants?.REAL_START_TIME_MS) {
-                dispatchMs = gameConstants.GAME_START_TIME_MS + (next3AM.getTime() - gameConstants.REAL_START_TIME_MS) * (gameConstants.TIME_MULTIPLIER || 30)
+                const multiplier = gameConstants.TIME_MULTIPLIER || 30
+                const virtNowMs = gameConstants.GAME_START_TIME_MS + (Date.now() - gameConstants.REAL_START_TIME_MS) * multiplier
+                const virtDate = new Date(virtNowMs)
+                const next3AMVirt = new Date(virtNowMs)
+                next3AMVirt.setHours(3, 0, 0, 0)
+                if (next3AMVirt.getTime() <= virtNowMs) {
+                    next3AMVirt.setDate(next3AMVirt.getDate() + 1)
+                }
+                dispatchMs = next3AMVirt.getTime()
             } else {
+                const next3AM = new Date()
+                next3AM.setHours(3, 0, 0, 0)
+                if (next3AM.getTime() <= Date.now()) next3AM.setDate(next3AM.getDate() + 1)
                 dispatchMs = next3AM.getTime()
             }
 

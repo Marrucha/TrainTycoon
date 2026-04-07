@@ -382,6 +382,64 @@ def boarding_tick_manual(req: https_fn.Request) -> https_fn.Response:
 
 
 @https_fn.on_request()
+def fix_dispatch_dates(req: https_fn.Request) -> https_fn.Response:
+    """Naprawa błędnych dispatchDate — usuwa przyszłe dispatchDate z trainSetów,
+    które mają już obliczony dailyDemand (czyli są gotowe do odbioru pasażerów).
+
+    Przyczyna błędu: dispatchDate był obliczany względem następnego 3:00 REALNEGO czasu
+    zamiast 3:00 WIRTUALNEGO czasu gry, co powodowało blokadę przez nawet 24h realne.
+    """
+    import time as _time
+    db = firestore.client()
+    c_snap = db.collection('gameConfig').document('constants').get()
+    consts = c_snap.to_dict() or {} if c_snap.exists else {}
+    real_start_ms = consts.get('REAL_START_TIME_MS')
+    game_start_ms = consts.get('GAME_START_TIME_MS')
+    multiplier = consts.get('TIME_MULTIPLIER', 30)
+
+    if not real_start_ms:
+        return https_fn.Response('Brak REAL_START_TIME_MS w constants.\n', status=400)
+
+    virt_now_ms = game_start_ms + (int(_time.time() * 1000) - real_start_ms) * multiplier
+
+    fixed = 0
+    batch = db.batch()
+    batch_count = 0
+
+    for p_doc in db.collection('players').stream():
+        pid = p_doc.id
+        if pid == 'samorządowy':
+            continue
+        for ts_doc in db.collection(f'players/{pid}/trainSet').stream():
+            ts = ts_doc.to_dict() or {}
+            dispatch_ms = ts.get('dispatchDate')
+            if not dispatch_ms:
+                continue
+            if dispatch_ms <= virt_now_ms:
+                continue  # already in the past — OK
+            daily_demand = ts.get('dailyDemand') or {}
+            if not daily_demand:
+                continue  # no demand yet — leave it alone
+            # dispatchDate is in the future but train already has demand: fix it
+            batch.update(ts_doc.reference, {'dispatchDate': None})
+            fixed += 1
+            batch_count += 1
+            if batch_count >= 400:
+                batch.commit()
+                batch = db.batch()
+                batch_count = 0
+
+    if batch_count:
+        batch.commit()
+
+    return https_fn.Response(
+        f'Naprawiono {fixed} trainSet(ów) z błędnym dispatchDate.\n',
+        status=200,
+        headers={'Access-Control-Allow-Origin': '*'},
+    )
+
+
+@https_fn.on_request()
 def debug_demand(req: https_fn.Request) -> https_fn.Response:
     now_str = req.args.get('time') or '00:06'
     db = firestore.client()
