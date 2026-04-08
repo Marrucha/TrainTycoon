@@ -1,124 +1,272 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useGame } from '../../../../context/GameContext'
 import styles from '../../CompanyMenu.module.css'
 
+const OFFICE_RENT      = 2_000_000   // PLN/miesiąc
+const MANAGEMENT_COST  = 2_000_000   // PLN/miesiąc
+const ENERGY_PRICE_KWH = 0.80        // PLN za kWh
+const DEPRECIATION_YRS = 25          // lata amortyzacji liniowej
+
 const fmt = (n) => Math.round(n).toLocaleString('pl-PL')
 
-const PLRow = ({ label, value, color, bold }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 11 }}>
-        <span style={{ color: '#999' }}>{label}</span>
-        <span style={{ color: color || '#ddd', fontWeight: bold ? 700 : 400, fontFamily: 'Share Tech Mono, monospace' }}>
-            {bold && value >= 0 ? '+' : ''}{fmt(value)} PLN
+function haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371
+    const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180
+    const Δφ = (lat2 - lat1) * Math.PI / 180
+    const Δλ = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Podatek progresywny — naliczany miesięcznie
+// 10% do 100M, 15% do 200M, 20% do 500M, 30% powyżej
+function calcMonthlyTax(grossProfit) {
+    if (grossProfit <= 0) return 0
+    const brackets = [
+        [100_000_000, 0.10],
+        [200_000_000, 0.15],
+        [500_000_000, 0.20],
+        [Infinity,    0.30],
+    ]
+    let tax = 0, prev = 0, rem = grossProfit
+    for (const [limit, rate] of brackets) {
+        const chunk = Math.min(rem, limit - prev)
+        tax += chunk * rate
+        rem -= chunk
+        prev = limit
+        if (rem <= 0) break
+    }
+    return Math.round(tax)
+}
+
+const PLRow = ({ label, value, color, bold, indent }) => (
+    <div style={{
+        display: 'flex', justifyContent: 'space-between', padding: '3px 0',
+        fontSize: bold ? 12 : 11,
+        borderTop: bold ? '1px solid rgba(42,74,42,0.3)' : 'none',
+        marginTop: bold ? 4 : 0,
+        paddingLeft: indent ? 12 : 0,
+    }}>
+        <span style={{ color: bold ? '#ccc' : '#888' }}>{label}</span>
+        <span style={{ color: color || (bold ? '#f0c040' : '#ddd'), fontWeight: bold ? 700 : 400, fontFamily: 'Share Tech Mono, monospace' }}>
+            {fmt(value)} PLN
         </span>
     </div>
 )
 
+const SectionLabel = ({ title, color = '#888' }) => (
+    <div style={{ fontSize: 10, color, textTransform: 'uppercase', letterSpacing: 1, marginTop: 10, marginBottom: 2 }}>
+        {title}
+    </div>
+)
+
 export default function FinancePL() {
-    const { financeLedger = [] } = useGame()
-    const [plExpanded, setPlExpanded] = useState(false)
-    const [plView, setPlView] = useState('daily')
+    const { financeLedger = [], trainsSets = [], trains = [], cities = [] } = useGame()
+    const [expanded, setExpanded] = useState(false)
+    const [view, setView]         = useState('monthly')
 
-    const dailyDocs   = financeLedger.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.id))
-    const monthlyDocs = financeLedger.filter(d => d.id?.startsWith('monthly-'))
+    const citiesMap = useMemo(() => {
+        const m = {}
+        cities.forEach(c => { if (c.id) m[c.id] = c; if (c.name) m[c.name] = c })
+        return m
+    }, [cities])
 
-    const latestMonthly = monthlyDocs[0]
-    const summaryRev = latestMonthly
-        ? (latestMonthly.revenues?.total ?? 0)
-        : dailyDocs.reduce((s, d) => s + (d.revenues ? Object.values(d.revenues).reduce((a,b)=>a+b,0) : 0), 0)
-    const summaryCost = latestMonthly
-        ? (latestMonthly.costs?.total ?? 0)
-        : dailyDocs.reduce((s, d) => {
-            const costsSum = d.costs ? Object.values(d.costs).reduce((a,b)=>a+b,0) : 0
-            const otSum    = (d.oneTimeCosts || []).reduce((a,b) => a + (b.amount || 0), 0)
-            return s + costsSum + otSum
+    const trainsById = useMemo(() => {
+        const m = {}
+        trains.forEach(t => { m[t.id] = t })
+        return m
+    }, [trains])
+
+    // Amortyzacja liniowa: cena / 25 lat / 12 miesięcy
+    const monthlyDepreciation = useMemo(() =>
+        trains.reduce((sum, t) => {
+            const price = t.price || (t.speed || 100) * (t.seats || 50) * 100
+            return sum + Math.round(price / DEPRECIATION_YRS / 12)
         }, 0)
-    const summaryNet = summaryRev - summaryCost
+    , [trains])
+
+    // Energia: (1000 + 100×extraWagonów) kWh/100km × speedFactor × cena × 30 dni
+    const monthlyEnergyCost = useMemo(() => {
+        let dailyKwh = 0
+        for (const ts of trainsSets) {
+            if (!ts.rozklad?.length) continue
+            const tsTrains = (ts.trainIds || []).map(id => trainsById[id]).filter(Boolean)
+            if (!tsTrains.length) continue
+
+            const maxSpeed    = tsTrains.reduce((max, t) => Math.max(max, t.speed || 100), 100)
+            const wagonCount  = tsTrains.filter(t => (t.seats || 0) > 0).length
+            const extraWagons = Math.max(0, wagonCount - 1)
+            const speedFactor = Math.pow(1.1, (maxSpeed - 100) / 10)
+            const energyPer100km = (1000 + 100 * extraWagons) * speedFactor  // kWh
+
+            const byKurs = {}
+            ts.rozklad.forEach(s => {
+                const k = s.kurs ?? '_'
+                if (!byKurs[k]) byKurs[k] = []
+                byKurs[k].push(s)
+            })
+            for (const stops of Object.values(byKurs)) {
+                for (let i = 0; i < stops.length - 1; i++) {
+                    const ca = citiesMap[stops[i].miasto]
+                    const cb = citiesMap[stops[i + 1].miasto]
+                    if (ca && cb) {
+                        dailyKwh += (haversineKm(ca.lat, ca.lon, cb.lat, cb.lon) / 100) * energyPer100km
+                    }
+                }
+            }
+        }
+        return Math.round(dailyKwh * 30 * ENERGY_PRICE_KWH)
+    }, [trainsSets, trainsById, citiesMap])
+
+    const dailyDocs    = financeLedger.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.id))
+    const monthlyDocs  = financeLedger.filter(d => d.id?.startsWith('monthly-'))
+    const latestMonthly = monthlyDocs[0]
+
+    const baseRev = useMemo(() => {
+        if (latestMonthly) return latestMonthly.revenues || {}
+        return dailyDocs.reduce((acc, d) => {
+            Object.entries(d.revenues || {}).forEach(([k, v]) => { acc[k] = (acc[k] || 0) + v })
+            return acc
+        }, {})
+    }, [latestMonthly, dailyDocs])
+
+    const baseCosts = useMemo(() => {
+        if (latestMonthly) return latestMonthly.costs || {}
+        return dailyDocs.reduce((acc, d) => {
+            Object.entries(d.costs || {}).forEach(([k, v]) => { acc[k] = (acc[k] || 0) + v })
+            const ot = (d.oneTimeCosts || []).reduce((s, x) => s + (x.amount || 0), 0)
+            acc.oneTime = (acc.oneTime || 0) + ot
+            return acc
+        }, {})
+    }, [latestMonthly, dailyDocs])
+
+    const monthly = useMemo(() => {
+        const rev = {
+            courses:         baseRev.courses         || 0,
+            wars:            baseRev.wars            || 0,
+            fines:           baseRev.fines           || 0,
+            depositInterest: baseRev.depositInterest || 0,
+        }
+        rev.total = rev.courses + rev.wars + rev.fines + rev.depositInterest
+
+        const costs = {
+            operational:    baseCosts.operational    || 0,
+            energy:         monthlyEnergyCost,
+            trackFees:      baseCosts.trackFees      || 0,
+            salaries:       baseCosts.salaries       || 0,
+            office:         OFFICE_RENT,
+            management:     MANAGEMENT_COST,
+            depreciation:   monthlyDepreciation,
+            creditInterest: baseCosts.creditInterest || 0,
+            loanPayments:   baseCosts.loanPayments   || 0,
+            oneTime:        baseCosts.oneTime        || 0,
+        }
+        costs.total = Object.values(costs).reduce((s, v) => s + v, 0)
+
+        const grossProfit = rev.total - costs.total
+        const tax         = calcMonthlyTax(grossProfit)
+        const netProfit   = grossProfit - tax
+        return { rev, costs, grossProfit, tax, netProfit }
+    }, [baseRev, baseCosts, monthlyEnergyCost, monthlyDepreciation])
+
+    // Widok roczny: × 12, podatek też × 12 (naliczany miesięcznie)
+    const mult = view === 'annual' ? 12 : 1
+    const R = (k) => monthly.rev[k]   * mult
+    const C = (k) => monthly.costs[k] * mult
+    const totalRev  = monthly.rev.total   * mult
+    const totalCost = monthly.costs.total * mult
+    const gross     = monthly.grossProfit * mult
+    const tax       = monthly.tax         * mult
+    const net       = monthly.netProfit   * mult
+
+    const netColor = net >= 0 ? '#2ecc71' : '#e74c3c'
 
     return (
         <div className={styles.grid} style={{ marginTop: 8 }}>
-            <section className={styles.card} style={{ gridColumn: 'span 2', cursor: 'pointer' }} onClick={() => setPlExpanded(v => !v)}>
+            <section className={styles.card} style={{ gridColumn: 'span 2', cursor: 'pointer' }} onClick={() => setExpanded(v => !v)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ margin: 0 }}>Rachunek Zysków i Strat</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                        <div style={{ textAlign: 'right', fontSize: 11, lineHeight: 1.5 }}>
-                            <div><span style={{ color: '#888' }}>Przychody: </span><span style={{ color: '#2ecc71' }}>{fmt(summaryRev)} PLN</span></div>
-                            <div><span style={{ color: '#888' }}>Koszty: </span><span style={{ color: '#e74c3c' }}>{fmt(summaryCost)} PLN</span></div>
-                            <div><span style={{ color: '#888' }}>Wynik: </span><span style={{ color: summaryNet >= 0 ? '#2ecc71' : '#e74c3c', fontWeight: 700 }}>{summaryNet >= 0 ? '+' : ''}{fmt(summaryNet)} PLN</span></div>
+                        <div style={{ textAlign: 'right', fontSize: 11, lineHeight: 1.6 }}>
+                            <div><span style={{ color: '#888' }}>Przychody: </span><span style={{ color: '#2ecc71' }}>{fmt(totalRev)} PLN</span></div>
+                            <div><span style={{ color: '#888' }}>Koszty: </span><span style={{ color: '#e74c3c' }}>{fmt(totalCost)} PLN</span></div>
+                            <div><span style={{ color: '#888' }}>Wynik netto: </span><span style={{ color: netColor, fontWeight: 700 }}>{net >= 0 ? '+' : ''}{fmt(net)} PLN</span></div>
                         </div>
-                        <span style={{ color: '#4a6a4a', fontSize: 18 }}>{plExpanded ? '▲' : '▼'}</span>
+                        <span style={{ color: '#4a6a4a', fontSize: 18 }}>{expanded ? '▲' : '▼'}</span>
                     </div>
                 </div>
 
-                {plExpanded && (
+                {expanded && (
                     <div onClick={e => e.stopPropagation()} style={{ marginTop: 16 }}>
-                        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                            {['daily','monthly'].map(v => (
-                                <button key={v} onClick={() => setPlView(v)}
-                                    style={{ background: plView===v ? '#1a3a1a' : 'rgba(255,255,255,0.04)', border: `1px solid ${plView===v ? '#2ecc71' : '#333'}`, color: plView===v ? '#2ecc71' : '#888', borderRadius: 4, padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}>
-                                    {v === 'daily' ? 'Dzienny' : 'Miesięczny'}
-                                </button>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+                            {[['monthly', 'Miesięczny'], ['annual', 'Roczny (proj.)']].map(([v, label]) => (
+                                <button key={v} onClick={() => setView(v)} style={{
+                                    background: view === v ? '#1a3a1a' : 'rgba(255,255,255,0.04)',
+                                    border: `1px solid ${view === v ? '#2ecc71' : '#333'}`,
+                                    color: view === v ? '#2ecc71' : '#888',
+                                    borderRadius: 4, padding: '4px 12px', fontSize: 11, cursor: 'pointer'
+                                }}>{label}</button>
                             ))}
                         </div>
 
-                        {plView === 'daily' && (
-                            <div style={{ maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                {dailyDocs.length === 0 && <div style={{ color: '#555', fontSize: 12 }}>Brak danych – historia uzupełnia się codziennie o 3:00.</div>}
-                                {dailyDocs.map(d => {
-                                    const rev = d.revenues || {}
-                                    const cost = d.costs || {}
-                                    const ot   = d.oneTimeCosts || []
-                                    const totalRev  = Object.values(rev).reduce((a,b)=>a+b,0)
-                                    const totalCost = Object.values(cost).reduce((a,b)=>a+b,0) + ot.reduce((a,b)=>a+(b.amount||0),0)
-                                    const net = totalRev - totalCost
-                                    return (
-                                        <div key={d.id} style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: '10px 12px', border: '1px solid rgba(42,74,42,0.3)' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                                <span style={{ fontSize: 12, color: '#aaa', fontWeight: 700 }}>{d.date}</span>
-                                                <span style={{ fontSize: 12, color: net>=0?'#2ecc71':'#e74c3c', fontWeight: 700 }}>{net>=0?'+':''}{fmt(net)} PLN</span>
-                                            </div>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                                                <div>
-                                                    <div style={{ fontSize: 10, color: '#2ecc71', textTransform: 'uppercase', marginBottom: 3, letterSpacing: 1 }}>Przychody +{fmt(totalRev)}</div>
-                                                    {rev.courses         > 0 && <PLRow label="Kursy" value={rev.courses} />}
-                                                    {rev.wars            > 0 && <PLRow label="Wars" value={rev.wars} />}
-                                                    {rev.fines           > 0 && <PLRow label="Mandaty" value={rev.fines} />}
-                                                    {rev.depositInterest > 0 && <PLRow label="Odsetki z lokat" value={rev.depositInterest} color="#2ecc71" />}
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontSize: 10, color: '#e74c3c', textTransform: 'uppercase', marginBottom: 3, letterSpacing: 1 }}>Koszty −{fmt(totalCost)}</div>
-                                                    {cost.operational    > 0 && <PLRow label="Operacyjne" value={cost.operational} />}
-                                                    {cost.trackFees      > 0 && <PLRow label="Tory" value={cost.trackFees} />}
-                                                    {cost.creditInterest > 0 && <PLRow label="Odsetki" value={cost.creditInterest} />}
-                                                    {ot.map((o,i) => <PLRow key={i} label={o.desc || o.type} value={o.amount} />)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 28px' }}>
+                            {/* PRZYCHODY */}
+                            <div>
+                                <SectionLabel title="Przychody" color="#2ecc71" />
+                                {R('courses')         > 0 && <PLRow label="Kursy pasażerskie"  value={R('courses')}         indent />}
+                                {R('wars')            > 0 && <PLRow label="Wars (wagon bar)"   value={R('wars')}            indent />}
+                                {R('fines')           > 0 && <PLRow label="Mandaty kontrolne"  value={R('fines')}           indent />}
+                                {R('depositInterest') > 0 && <PLRow label="Odsetki z lokat"    value={R('depositInterest')} indent />}
+                                <PLRow label="RAZEM PRZYCHODY" value={totalRev} bold color="#2ecc71" />
                             </div>
-                        )}
 
-                        {plView === 'monthly' && (
-                            <div style={{ maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                {monthlyDocs.length === 0 && <div style={{ color: '#555', fontSize: 12 }}>Brak danych – podsumowanie miesięczne generowane 1. dnia miesiąca.</div>}
-                                {monthlyDocs.map(d => {
-                                    const rev  = d.revenues || {}
-                                    const cost = d.costs    || {}
-                                    return (
-                                        <div key={d.id} style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: '10px 12px', border: '1px solid rgba(42,74,42,0.3)' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                                <span style={{ fontSize: 12, color: '#aaa', fontWeight: 700 }}>{d.month}</span>
-                                                <span style={{ fontSize: 12, color: d.netResult>=0?'#2ecc71':'#e74c3c', fontWeight: 700 }}>{d.netResult>=0?'+':''}{fmt(d.netResult||0)} PLN</span>
-                                            </div>
-                                            <PLRow label="Przychody łącznie" value={rev.total||0} color="#2ecc71" />
-                                            <PLRow label="Koszty łącznie"    value={cost.total||0} color="#e74c3c" />
-                                            <PLRow label="Salaria" value={cost.salaries||0} />
-                                            <PLRow label="Koszty jednorazowe" value={cost.oneTime||0} />
-                                        </div>
-                                    )
-                                })}
+                            {/* KOSZTY */}
+                            <div>
+                                <SectionLabel title="Koszty operacyjne" color="#e74c3c" />
+                                {C('operational') > 0 && <PLRow label="Eksploatacja (km)"    value={C('operational')}    indent />}
+                                {C('energy')      > 0 && <PLRow label="Energia elektryczna"  value={C('energy')}         indent />}
+                                {C('trackFees')   > 0 && <PLRow label="Opłaty torowe"        value={C('trackFees')}      indent />}
+                                {C('salaries')    > 0 && <PLRow label="Wynagrodzenia"         value={C('salaries')}       indent />}
+
+                                <SectionLabel title="Koszty stałe" color="#e74c3c" />
+                                <PLRow label="Wynajem biur"   value={C('office')}      indent />
+                                <PLRow label="Koszty zarządu" value={C('management')}  indent />
+
+                                <SectionLabel title="Amortyzacja" color="#e74c3c" />
+                                <PLRow label="Amortyzacja taboru" value={C('depreciation')} indent />
+
+                                <SectionLabel title="Koszty finansowe" color="#e74c3c" />
+                                {C('creditInterest') > 0 && <PLRow label="Odsetki kredytowe" value={C('creditInterest')} indent />}
+                                {C('loanPayments')   > 0 && <PLRow label="Spłaty rat"        value={C('loanPayments')}   indent />}
+
+                                {C('oneTime') > 0 && <>
+                                    <SectionLabel title="Jednorazowe" color="#e74c3c" />
+                                    <PLRow label="Koszty jednorazowe" value={C('oneTime')} indent />
+                                </>}
+
+                                <PLRow label="RAZEM KOSZTY" value={totalCost} bold color="#e74c3c" />
                             </div>
-                        )}
+                        </div>
+
+                        {/* WYNIK */}
+                        <div style={{ borderTop: '1px solid rgba(42,74,42,0.5)', marginTop: 12, paddingTop: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 28px' }}>
+                                <div>
+                                    <PLRow label="WYNIK BRUTTO"     value={gross} bold color={gross >= 0 ? '#f0c040' : '#e74c3c'} />
+                                    <PLRow label="Podatek dochodowy" value={-tax}  indent color="#e74c3c" />
+                                    <PLRow label="WYNIK NETTO"       value={net}   bold color={netColor} />
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 4 }}>
+                                    <div style={{ fontSize: 10, color: '#555', lineHeight: 1.8 }}>
+                                        <div>Podatek: 10% (0–100M) · 15% (100–200M) · 20% (200–500M) · 30% (&gt;500M)</div>
+                                        <div>Energia: {ENERGY_PRICE_KWH.toFixed(2)} PLN/kWh · Amortyzacja liniowa {DEPRECIATION_YRS} lat</div>
+                                        <div style={{ color: '#444', marginTop: 2 }}>
+                                            {latestMonthly ? `Dane za: ${latestMonthly.month}` : 'Szacunek z danych dziennych (brak zamkniętego miesiąca)'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </section>
