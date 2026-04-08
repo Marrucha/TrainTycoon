@@ -20,6 +20,15 @@ const btnStyle = (active) => ({
     borderRadius: 4, padding: '3px 10px', fontSize: 11, cursor: 'pointer',
 })
 
+const dayTotals = (d) => {
+    const rev  = d.revenues || {}
+    const cost = d.costs || {}
+    const ot   = d.oneTimeCosts || []
+    const totalRev  = Object.values(rev).reduce((a, b) => a + b, 0)
+    const totalCost = Object.values(cost).reduce((a, b) => a + b, 0) + ot.reduce((a, b) => a + (b.amount || 0), 0)
+    return { rev, cost, ot, totalRev, totalCost, net: totalRev - totalCost }
+}
+
 export default function FinanceLedger() {
     const { financeLedger = [], gameDate } = useGame()
     const [expanded, setExpanded]       = useState(false)
@@ -28,8 +37,7 @@ export default function FinanceLedger() {
     const gameYear  = gameDate ? gameDate.getFullYear() : null
     const gameMonth = gameDate ? gameDate.getMonth() + 1 : null
 
-    const dailyDocs   = useMemo(() => financeLedger.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.id)), [financeLedger])
-    const monthlyDocs = useMemo(() => financeLedger.filter(d => d.id?.startsWith('monthly-')), [financeLedger])
+    const dailyDocs = useMemo(() => financeLedger.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.id)), [financeLedger])
 
     const currentMonthPrefix = gameYear && gameMonth
         ? `${gameYear}-${String(gameMonth).padStart(2, '0')}-`
@@ -45,33 +53,23 @@ export default function FinanceLedger() {
         return currentMonthDays[0] || null
     }, [selectedDay, currentMonthDays])
 
-    const { summaryRev, summaryCost } = useMemo(() => {
-        const latest = monthlyDocs[0]
-        if (latest) return { summaryRev: latest.revenues?.total ?? 0, summaryCost: latest.costs?.total ?? 0 }
-        const sRev  = dailyDocs.reduce((s, d) => s + Object.values(d.revenues || {}).reduce((a, b) => a + b, 0), 0)
-        const sCost = dailyDocs.reduce((s, d) => {
-            const c  = Object.values(d.costs || {}).reduce((a, b) => a + b, 0)
-            const ot = (d.oneTimeCosts || []).reduce((a, b) => a + (b.amount || 0), 0)
-            return s + c + ot
-        }, 0)
-        return { summaryRev: sRev, summaryCost: sCost }
-    }, [dailyDocs, monthlyDocs])
+    // Nagłówek: ostatni dostępny dzień
+    const lastDayDoc = currentMonthDays[0] || dailyDocs[0] || null
+    const { summaryRev, summaryCost, summaryLabel } = useMemo(() => {
+        if (!lastDayDoc) return { summaryRev: 0, summaryCost: 0, summaryLabel: '' }
+        const { totalRev, totalCost } = dayTotals(lastDayDoc)
+        return { summaryRev: totalRev, summaryCost: totalCost, summaryLabel: lastDayDoc.id }
+    }, [lastDayDoc])
     const summaryNet = summaryRev - summaryCost
-
-    const dayTotals = (d) => {
-        const rev  = d.revenues || {}
-        const cost = d.costs || {}
-        const ot   = d.oneTimeCosts || []
-        const totalRev  = Object.values(rev).reduce((a, b) => a + b, 0)
-        const totalCost = Object.values(cost).reduce((a, b) => a + b, 0) + ot.reduce((a, b) => a + (b.amount || 0), 0)
-        return { rev, cost, ot, totalRev, totalCost, net: totalRev - totalCost }
-    }
 
     return (
         <div className={styles.grid} style={{ marginTop: 8 }}>
             <section className={styles.card} style={{ gridColumn: 'span 2', cursor: 'pointer' }} onClick={() => setExpanded(v => !v)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0 }}>Dziennik Finansowy</h3>
+                    <div>
+                        <h3 style={{ margin: 0 }}>Dziennik Finansowy</h3>
+                        {summaryLabel && <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>{summaryLabel}</div>}
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                         <div style={{ textAlign: 'right', fontSize: 11, lineHeight: 1.5 }}>
                             <div><span style={{ color: '#888' }}>Przychody: </span><span style={{ color: '#2ecc71' }}>{fmt(summaryRev)} PLN</span></div>
@@ -84,7 +82,6 @@ export default function FinanceLedger() {
 
                 {expanded && (
                     <div onClick={e => e.stopPropagation()} style={{ marginTop: 16 }}>
-                        {/* Wybór dnia */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
                             {currentMonthDays.length === 0
                                 ? <span style={{ color: '#555', fontSize: 12 }}>Brak danych za bieżący miesiąc.</span>
@@ -100,7 +97,6 @@ export default function FinanceLedger() {
                             }
                         </div>
 
-                        {/* Szczegóły wybranego dnia */}
                         {activeDayDoc && (() => {
                             const { rev, cost, ot, totalRev, totalCost, net } = dayTotals(activeDayDoc)
                             return (
