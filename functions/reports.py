@@ -128,6 +128,8 @@ def _ticket_price_for_pair_dist(dist_km, base_per_100km, multipliers):
 # Main
 # ---------------------------------------------------------------------------
 
+ENERGY_PRICE_KWH = 0.80  # PLN za kWh
+
 DEFAULT_PRICING = {
     'class1Per100km': 10,
     'class2Per100km': 6,
@@ -356,6 +358,13 @@ def save_daily_report(db, date_str=None, ts_str=None):
             wagon_count = sum(1 for tid in train_ids if (trains_map.get(tid) or {}).get('seats', 0) > 0)
             loco_count  = sum(1 for tid in train_ids if (trains_map.get(tid) or {}).get('seats', 0) == 0)
 
+            # Koszt energii: (1000 + 100×extraWagony) kWh/100km × 1.1^((V-100)/10) × cena
+            speeds = [trains_map[tid]['speed'] for tid in train_ids if trains_map.get(tid) and trains_map[tid].get('speed')]
+            max_speed    = max(speeds) if speeds else 100
+            extra_wagons = max(0, wagon_count - 1)
+            energy_per_100km = (1000 + 100 * extra_wagons) * (1.1 ** ((max_speed - 100) / 10))
+            energy_cost = round((daily_km / 100) * energy_per_100km * ENERGY_PRICE_KWH)
+
             ts_agg[ts_id] = {
                 'name':   ts.get('name', ts_id),
                 'kursy':  kursy_report,
@@ -371,6 +380,7 @@ def save_daily_report(db, date_str=None, ts_str=None):
                     'fineRevenue': day_fines,
                     'km':          daily_km,
                     'koszt':       daily_cost,
+                    'energyCost':  energy_cost,
                     'netto':       netto,
                     'wagonCount':  wagon_count,
                     'locoCount':   loco_count,
@@ -399,6 +409,9 @@ def save_daily_report(db, date_str=None, ts_str=None):
             player_operational = sum(
                 ts_info['daily']['koszt'] for ts_info in ts_agg.values()
             )
+            player_energy = sum(
+                ts_info['daily'].get('energyCost', 0) for ts_info in ts_agg.values()
+            )
 
             _write_daily_ledger(
                 db, pid, date_str,
@@ -409,6 +422,7 @@ def save_daily_report(db, date_str=None, ts_str=None):
                 },
                 costs={
                     'operational':    player_operational,
+                    'energy':         player_energy,
                     'trackFees':      0,
                     'creditInterest': 0,
                 },

@@ -39,7 +39,7 @@ def _aggregate_monthly_ledger(db, today=None, constants=None):
 
         agg_rev   = {'courses': 0, 'wars': 0, 'fines': 0, 'depositInterest': 0}
         agg_costs = {
-            'operational': 0, 'trackFees': 0, 'creditInterest': 0,
+            'operational': 0, 'energy': 0, 'trackFees': 0, 'creditInterest': 0,
             'salaries': 0, 'loanPayments': 0, 'oneTime': 0,
         }
 
@@ -47,7 +47,7 @@ def _aggregate_monthly_ledger(db, today=None, constants=None):
             d = doc.to_dict() or {}
             for k in agg_rev:
                 agg_rev[k] += int((d.get('revenues') or {}).get(k, 0))
-            for k in ('operational', 'trackFees', 'creditInterest'):
+            for k in ('operational', 'energy', 'trackFees', 'creditInterest'):
                 agg_costs[k] += int((d.get('costs') or {}).get(k, 0))
             for ot in (d.get('oneTimeCosts') or []):
                 agg_costs['oneTime'] += int(ot.get('amount', 0))

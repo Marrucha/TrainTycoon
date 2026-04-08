@@ -164,7 +164,7 @@ export default function FinancePL() {
 
         const costs = {
             operational:    baseCosts.operational    || 0,
-            energy:         monthlyEnergyCost,
+            energy:         baseCosts.energy || monthlyEnergyCost,
             trackFees:      baseCosts.trackFees      || 0,
             salaries:       monthlySalaries,
             office:         OFFICE_RENT,

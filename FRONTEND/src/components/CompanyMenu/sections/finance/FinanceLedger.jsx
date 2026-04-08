@@ -115,6 +115,7 @@ export default function FinanceLedger() {
                                             Koszty · −{fmt(totalCost)} PLN
                                         </div>
                                         {cost.operational    > 0 && <PLRow label="Eksploatacja (km)"  value={cost.operational} />}
+                                        {cost.energy         > 0 && <PLRow label="Energia elektryczna" value={cost.energy} />}
                                         {cost.trackFees      > 0 && <PLRow label="Opłaty torowe"       value={cost.trackFees} />}
                                         {cost.creditInterest > 0 && <PLRow label="Odsetki kredytowe"   value={cost.creditInterest} />}
                                         {ot.map((o, i) => <PLRow key={i} label={o.desc || o.type} value={o.amount} />)}
