@@ -1,6 +1,7 @@
 import styles from '../CompanyMenu.module.css'
 import FinanceBalance from './finance/FinanceBalance'
 import FinancePL from './finance/FinancePL'
+import FinanceLedger from './finance/FinanceLedger'
 import FinanceDebt from './finance/FinanceDebt'
 import FinanceDeposits from './finance/FinanceDeposits'
 import FinanceStock from './finance/FinanceStock'
@@ -38,6 +39,7 @@ const FinanceSection = ({
             />
 
             <FinancePL />
+            <FinanceLedger />
 
             <div className={styles.sectionHeader} style={{ marginTop: '30px' }}>
                 <h2>Sektor Bankowy</h2>
