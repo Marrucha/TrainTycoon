@@ -61,7 +61,7 @@ const SectionLabel = ({ title, color = '#888' }) => (
 )
 
 export default function FinancePL() {
-    const { financeLedger = [], trainsSets = [], trains = [], cities = [] } = useGame()
+    const { financeLedger = [], trainsSets = [], trains = [], cities = [], employees = [], gameConstants } = useGame()
     const [expanded, setExpanded] = useState(false)
     const [view, setView]         = useState('monthly')
 
@@ -76,6 +76,14 @@ export default function FinancePL() {
         trains.forEach(t => { m[t.id] = t })
         return m
     }, [trains])
+
+    // Wynagrodzenia — wyliczane bezpośrednio z listy pracowników
+    const monthlySalaries = useMemo(() => {
+        const INTERN_SALARY = gameConstants?.INTERN_SALARY ?? 4300
+        return employees.reduce((sum, e) => {
+            return sum + (e.isIntern ? INTERN_SALARY : (e.monthlySalary || 0))
+        }, 0)
+    }, [employees, gameConstants])
 
     // Amortyzacja liniowa: cena / 25 lat / 12 miesięcy
     const monthlyDepreciation = useMemo(() =>
@@ -132,12 +140,17 @@ export default function FinancePL() {
 
     const baseCosts = useMemo(() => {
         if (latestMonthly) return latestMonthly.costs || {}
-        return dailyDocs.reduce((acc, d) => {
+        const result = dailyDocs.reduce((acc, d) => {
             Object.entries(d.costs || {}).forEach(([k, v]) => { acc[k] = (acc[k] || 0) + v })
-            const ot = (d.oneTimeCosts || []).reduce((s, x) => s + (x.amount || 0), 0)
-            acc.oneTime = (acc.oneTime || 0) + ot
+            for (const ot of (d.oneTimeCosts || [])) {
+                const amt = ot.amount || 0
+                if (ot.type === 'salaries')         acc.salaries     = (acc.salaries     || 0) + amt
+                else if (ot.type === 'loanPayment') acc.loanPayments = (acc.loanPayments || 0) + amt
+                else                               acc.oneTime      = (acc.oneTime      || 0) + amt
+            }
             return acc
         }, {})
+        return result
     }, [latestMonthly, dailyDocs])
 
     const monthly = useMemo(() => {
@@ -153,7 +166,7 @@ export default function FinancePL() {
             operational:    baseCosts.operational    || 0,
             energy:         monthlyEnergyCost,
             trackFees:      baseCosts.trackFees      || 0,
-            salaries:       baseCosts.salaries       || 0,
+            salaries:       monthlySalaries,
             office:         OFFICE_RENT,
             management:     MANAGEMENT_COST,
             depreciation:   monthlyDepreciation,

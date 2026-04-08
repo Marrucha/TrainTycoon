@@ -255,11 +255,12 @@ def _accrue_staff_salaries(db, today=None):
             p_doc.reference.update({'finance.balance': balance - total_salary})
 
             # Record salary cost in financeLedger for this day
+            from google.cloud.firestore_v1 import ArrayUnion
             n_emp = len(employees)
             ledger_ref = db.collection(f'players/{pid}/financeLedger').document(today.isoformat())
             ledger_ref.set({
-                'oneTimeCosts': [{'type': 'salaries', 'amount': total_salary,
-                                  'desc': f'Pensje pracowników ({n_emp} os.)'}],
+                'oneTimeCosts': ArrayUnion([{'type': 'salaries', 'amount': total_salary,
+                                             'desc': f'Pensje pracowników ({n_emp} os.)'}]),
             }, merge=True)
 
 
