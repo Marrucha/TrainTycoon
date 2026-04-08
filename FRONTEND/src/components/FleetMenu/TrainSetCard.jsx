@@ -320,14 +320,6 @@ export default function TrainSetCard({
                                     </button>
                                 )
                             )}
-                            {!isPublished && (
-                                <button
-                                    className={styles.pricingBtn}
-                                    onClick={() => setRoutingOpenFor(trainSet)}
-                                >
-                                    Edytuj Skład
-                                </button>
-                            )}
                             <ConfirmButton
                                 label="Rozwiąż"
                                 confirmLabel="Rozwiązać skład?"
