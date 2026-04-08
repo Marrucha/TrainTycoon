@@ -28,6 +28,7 @@ export default function TrainSetCard({
     updateDefaultPricing,
     updateCitySchedules,
     disbandTrainSet,
+    onEditTrainSet,
 }) {
     const getStatus = (ts) => {
         const pub = cities.some(c => c.rozklad && c.rozklad.some(r => r.trainSetId === ts.id))
@@ -268,6 +269,12 @@ export default function TrainSetCard({
                                 onClick={() => setPricingOpenFor(pricingOpenFor === trainSet.id ? null : trainSet.id)}
                             >
                                 {pricingOpenFor === trainSet.id ? '▲ Cennik' : '▼ Cennik'}
+                            </button>
+                            <button
+                                className={styles.pricingBtn}
+                                onClick={() => onEditTrainSet(trainSet)}
+                            >
+                                Modyfikuj Skład
                             </button>
                             {!isPublished && (
                                 <button

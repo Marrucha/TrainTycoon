@@ -133,6 +133,7 @@ export default function FleetCompositions() {
                                 defaultPricing={defaultPricing}
                                 isCollapsed={!!collapsedCards[trainSet.id]}
                                 onToggleCollapse={toggleCollapse}
+                                onEditTrainSet={setEditingTrainSet}
                                 pricingOpenFor={pricingOpenFor}     setPricingOpenFor={setPricingOpenFor}
                                 routingOpenFor={routingOpenFor}     setRoutingOpenFor={setRoutingOpenFor}
                                 schedulingOpenFor={schedulingOpenFor} setSchedulingOpenFor={setSchedulingOpenFor}
