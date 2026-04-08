@@ -26,7 +26,8 @@ export function DailyTable({ report, expandedTS, setExpandedTS }) {
           <tr>
             <th>Skład</th>
             <th>Przychód</th>
-            <th>Koszty</th>
+            <th>Koszty ekspl.</th>
+            <th>Energia</th>
             <th>Wynik netto</th>
             <th>Km</th>
             <th>Pasażerowie</th>
@@ -57,6 +58,7 @@ export function DailyTable({ report, expandedTS, setExpandedTS }) {
                     <ClassInfo v1={ts.daily.przychodC1 || 0} v2={ts.daily.przychodC2 || 0} unit=" PLN" />
                   </td>
                   <td style={{color: '#f0a040'}}>{Math.round(ts.daily.koszt).toLocaleString()} PLN</td>
+                  <td style={{color: '#e8a020'}}>{Math.round(ts.daily.energyCost || 0).toLocaleString()} PLN</td>
                   <td style={{fontWeight: 'bold', color: ts.daily.netto >= 0 ? '#4caf50' : '#e74c3c'}}>
                     {ts.daily.netto >= 0 ? '+' : ''}{Math.round(ts.daily.netto).toLocaleString()} PLN
                   </td>
@@ -81,6 +83,7 @@ export function DailyTable({ report, expandedTS, setExpandedTS }) {
                         <ClassInfo v1={k.przychodC1 || 0} v2={k.przychodC2 || 0} unit=" PLN" />
                       </td>
                       <td style={{color: '#8a4a2a'}}>{k.koszt.toLocaleString()} PLN</td>
+                      <td style={{color: '#c08020'}}>{(k.energyCost || 0).toLocaleString()} PLN</td>
                       <td style={{color: k.netto >= 0 ? '#4c8f4c' : '#a74c3c'}}>{k.netto.toLocaleString()} PLN</td>
                       <td>{k.km} km</td>
                       <td>
@@ -113,8 +116,9 @@ export function PeriodTable({ agg, expandedTS, setExpandedTS }) {
           <tr>
             <th>Skład</th>
             <th>Dni kursowania</th>
-            <th>Przychód łaczny</th>
-            <th>Koszty łączne</th>
+            <th>Przychód łączny</th>
+            <th>Koszty ekspl.</th>
+            <th>Energia</th>
             <th>Wynik netto</th>
             <th>Km suma</th>
             <th>Pas. suma</th>
@@ -140,6 +144,7 @@ export function PeriodTable({ agg, expandedTS, setExpandedTS }) {
                   <ClassInfo v1={tsb.revenueC1} v2={tsb.revenueC2} unit=" PLN" />
                 </td>
                 <td style={{color: '#f0a040'}}>{Math.round(tsb.cost).toLocaleString()} PLN</td>
+                <td style={{color: '#e8a020'}}>{Math.round(tsb.energyCost || 0).toLocaleString()} PLN</td>
                 <td style={{fontWeight: 'bold', color: tsb.netto >= 0 ? '#4caf50' : '#e74c3c'}}>
                   {tsb.netto >= 0 ? '+' : ''}{Math.round(tsb.netto).toLocaleString()} PLN
                 </td>
@@ -167,6 +172,7 @@ export function PeriodTable({ agg, expandedTS, setExpandedTS }) {
                       <ClassInfo v1={kb.przychodC1 || 0} v2={kb.przychodC2 || 0} unit=" PLN" />
                     </td>
                     <td style={{color: '#8a4a2a'}}>{Math.round(kb.koszt).toLocaleString()} PLN</td>
+                    <td style={{color: '#c08020'}}>{Math.round(kb.energyCost || 0).toLocaleString()} PLN</td>
                     <td style={{color: kb.netto >= 0 ? '#4c8f4c' : '#a74c3c'}}>{Math.round(kb.netto).toLocaleString()} PLN</td>
                     <td>{Math.round(kb.km).toLocaleString()} km</td>
                     <td>

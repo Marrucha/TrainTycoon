@@ -114,13 +114,18 @@ export default function FinancePL() {
                 byKurs[k].push(s)
             })
             for (const stops of Object.values(byKurs)) {
+                let kursKwh = 0
                 for (let i = 0; i < stops.length - 1; i++) {
                     const ca = citiesMap[stops[i].miasto]
                     const cb = citiesMap[stops[i + 1].miasto]
                     if (ca && cb) {
-                        dailyKwh += (haversineKm(ca.lat, ca.lon, cb.lat, cb.lon) / 100) * energyPer100km
+                        kursKwh += (haversineKm(ca.lat, ca.lon, cb.lat, cb.lon) / 100) * energyPer100km
                     }
                 }
+                // +300 kWh za każdy przystanek poza ostatnim (start + pośrednie)
+                const stopCount = Math.max(0, stops.length - 1)
+                kursKwh += stopCount * 300
+                dailyKwh += kursKwh
             }
         }
         return Math.round(dailyKwh * 30 * ENERGY_PRICE_KWH)

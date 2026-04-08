@@ -212,6 +212,14 @@ def save_daily_report(db, date_str=None, ts_str=None):
                         )
             daily_km = round(daily_km)
 
+            # Właściwości energetyczne składu (niezależne od kursu)
+            train_ids_pre = ts.get('trainIds') or []
+            wagon_count_pre = sum(1 for tid in train_ids_pre if (trains_map.get(tid) or {}).get('seats', 0) > 0)
+            speeds_pre = [trains_map[tid]['speed'] for tid in train_ids_pre if trains_map.get(tid) and trains_map[tid].get('speed')]
+            max_speed_pre = max(speeds_pre) if speeds_pre else 100
+            extra_wagons_pre = max(0, wagon_count_pre - 1)
+            energy_per_100km = (1000 + 100 * extra_wagons_pre) * (1.1 ** ((max_speed_pre - 100) / 10))
+
             # Per-kurs aggregation
             all_kurs_ids = set(list(daily_demand.keys()) + list(daily_transfer.keys()) + list(current_tf.keys()))
             kursy_report = {}
@@ -221,6 +229,7 @@ def save_daily_report(db, date_str=None, ts_str=None):
             day_dm_c1 = day_dm_c2 = 0
             day_rev = day_rev_c1 = day_rev_c2 = 0
             day_wars = day_fines = 0
+            day_energy = 0
 
             for kurs_id in all_kurs_ids:
                 kd = daily_demand.get(kurs_id, {})
@@ -303,7 +312,13 @@ def save_daily_report(db, date_str=None, ts_str=None):
                 kurs_km = round(kurs_km)
                 cost_per_km = ts.get('totalCostPerKm', 0) or 0
                 kurs_koszt = round(cost_per_km * kurs_km)
-                kurs_netto = revenue - kurs_koszt
+
+                # Energia: km + 300 kWh za każdy przystanek poza ostatnim
+                stop_count = max(0, len(k_stops) - 1)  # start + pośrednie, bez końcowego
+                kurs_energy_kwh = (kurs_km / 100) * energy_per_100km + stop_count * 300
+                kurs_energy_cost = round(kurs_energy_kwh * ENERGY_PRICE_KWH)
+
+                kurs_netto = revenue - kurs_koszt - kurs_energy_cost
 
                 # Commercial speed: km / actual travel time
                 commercial_speed = None
@@ -328,9 +343,10 @@ def save_daily_report(db, date_str=None, ts_str=None):
                     'warsRevenue':     kurs_wars,
                     'fineRevenue':     kurs_fines,
                     'inspectionIndex': round(kurs_insp, 4),
-                    'km':      kurs_km,
-                    'koszt':   kurs_koszt,
-                    'netto':   kurs_netto,
+                    'km':         kurs_km,
+                    'koszt':      kurs_koszt,
+                    'energyCost': kurs_energy_cost,
+                    'netto':      kurs_netto,
                     'scheduledArrival':  scheduled_arrival,
                     'actualArrival':     actual_arrival,
                     'delayMin':          delay_min,
@@ -342,8 +358,9 @@ def save_daily_report(db, date_str=None, ts_str=None):
                 day_rev += revenue
                 day_rev_c1 += revenue_c1
                 day_rev_c2 += revenue_c2
-                day_wars  += kurs_wars
-                day_fines += kurs_fines
+                day_wars   += kurs_wars
+                day_fines  += kurs_fines
+                day_energy += kurs_energy_cost
 
             day_orig_c1 = day_tr_c1 + day_dm_c1
             day_orig_c2 = day_tr_c2 + day_dm_c2
@@ -351,19 +368,13 @@ def save_daily_report(db, date_str=None, ts_str=None):
 
             cost_per_km = ts.get('totalCostPerKm', 0) or 0
             daily_cost  = round(cost_per_km * daily_km)
-            netto        = round(day_rev) - daily_cost
+            netto        = round(day_rev) - daily_cost - day_energy
 
             # Fleet composition
-            train_ids = ts.get('trainIds') or []
-            wagon_count = sum(1 for tid in train_ids if (trains_map.get(tid) or {}).get('seats', 0) > 0)
+            train_ids   = train_ids_pre
+            wagon_count = wagon_count_pre
             loco_count  = sum(1 for tid in train_ids if (trains_map.get(tid) or {}).get('seats', 0) == 0)
-
-            # Koszt energii: (1000 + 100×extraWagony) kWh/100km × 1.1^((V-100)/10) × cena
-            speeds = [trains_map[tid]['speed'] for tid in train_ids if trains_map.get(tid) and trains_map[tid].get('speed')]
-            max_speed    = max(speeds) if speeds else 100
-            extra_wagons = max(0, wagon_count - 1)
-            energy_per_100km = (1000 + 100 * extra_wagons) * (1.1 ** ((max_speed - 100) / 10))
-            energy_cost = round((daily_km / 100) * energy_per_100km * ENERGY_PRICE_KWH)
+            energy_cost = day_energy
 
             ts_agg[ts_id] = {
                 'name':   ts.get('name', ts_id),

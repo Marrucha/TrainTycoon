@@ -22,7 +22,7 @@ export function getISOWeek(dateStr) {
 
 export function calcDaily(report) {
   let revenue = 0, revenueC1 = 0, revenueC2 = 0
-  let km = 0, cost = 0
+  let km = 0, cost = 0, energyCost = 0
   let transferred = 0, transferredC1 = 0, transferredC2 = 0
   let demandTotal = 0, demandC1 = 0, demandC2 = 0
   let wagonCount = 0, locoCount = 0
@@ -54,6 +54,7 @@ export function calcDaily(report) {
       demandC1 += ts.daily?.totalDemand?.class1 || 0
       demandC2 += ts.daily?.totalDemand?.class2 || 0
       cost += ts.daily?.koszt || 0
+      energyCost += ts.daily?.energyCost || 0
       wagonCount += ts.daily?.wagonCount || 0
       locoCount += ts.daily?.locoCount || 0
     })
@@ -61,7 +62,7 @@ export function calcDaily(report) {
 
   return {
     revenue, revenueC1, revenueC2,
-    km, cost, netto: revenue - cost,
+    km, cost, energyCost, netto: revenue - cost,
     transferred, transferredC1, transferredC2,
     demandTotal, demandC1, demandC2,
     wagonCount, locoCount,
@@ -98,7 +99,7 @@ export function useReportsData() {
     const calcPeriod = (slice) => {
       const agg = {
         revenue: 0, revenueC1: 0, revenueC2: 0,
-        km: 0, cost: 0, count: slice.length, byTrainSet: {},
+        km: 0, cost: 0, energyCost: 0, count: slice.length, byTrainSet: {},
         transferred: 0, transferredC1: 0, transferredC2: 0,
         demandTotal: 0, demandC1: 0, demandC2: 0
       }
@@ -110,6 +111,7 @@ export function useReportsData() {
         agg.revenueC2 += d.revenueC2
         agg.km += d.km
         agg.cost += d.cost
+        agg.energyCost += d.energyCost || 0
         agg.transferred += d.transferred
         agg.transferredC1 += d.transferredC1
         agg.transferredC2 += d.transferredC2
@@ -124,7 +126,7 @@ export function useReportsData() {
                 name: ts.name,
                 revenue: 0, revenueC1: 0, revenueC2: 0,
                 km: 0, transferred: 0, transferredC1: 0, transferredC2: 0,
-                demandC1: 0, demandC2: 0, cost: 0, daysActive: 0, realizacje: []
+                demandC1: 0, demandC2: 0, cost: 0, energyCost: 0, daysActive: 0, realizacje: []
               }
             }
             const tsb = agg.byTrainSet[tsId]
@@ -138,6 +140,7 @@ export function useReportsData() {
             tsb.demandC1 += ts.daily?.totalDemand?.class1 || 0
             tsb.demandC2 += ts.daily?.totalDemand?.class2 || 0
             tsb.cost += ts.daily?.koszt || 0
+            tsb.energyCost += ts.daily?.energyCost || 0
             tsb.daysActive += 1
             if (ts.daily?.realizacja !== undefined) tsb.realizacje.push(ts.daily.realizacja)
 
@@ -148,7 +151,7 @@ export function useReportsData() {
                   tsb.kursy[kId] = {
                     odjazd: k.odjazd, from: k.from, to: k.to,
                     przychod: 0, przychodC1: 0, przychodC2: 0,
-                    koszt: 0, km: 0, transferredTotal: 0,
+                    koszt: 0, energyCost: 0, km: 0, transferredTotal: 0,
                     transferredC1: 0, transferredC2: 0,
                     demandC1: 0, demandC2: 0, realizacje: []
                   }
@@ -158,6 +161,7 @@ export function useReportsData() {
                 kb.przychodC1 += k.przychodC1 || 0
                 kb.przychodC2 += k.przychodC2 || 0
                 kb.koszt += k.koszt || 0
+                kb.energyCost += k.energyCost || 0
                 kb.km += k.km || 0
                 kb.transferredTotal += k.transferred?.total || 0
                 kb.transferredC1 += k.transferred?.class1 || 0
