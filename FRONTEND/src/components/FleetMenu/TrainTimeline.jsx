@@ -8,7 +8,7 @@ function tM(t) {
     return h * 60 + m
 }
 
-function buildSegments(rozklad) {
+export function buildSegments(rozklad) {
     const byKurs = {}
     rozklad.forEach(r => {
         if (!byKurs[r.kurs]) byKurs[r.kurs] = []

@@ -66,7 +66,7 @@ export function useFirestoreData() {
     })
     const unsubFame = onSnapshot(doc(db, 'globalStats', 'hallOfFame'), (snap) => {
       setHallOfFame(snap.exists() ? snap.data() : {})
-    })
+    }, (err) => console.error('[HallOfFame] Firestore error:', err))
     const unsubConstants = onSnapshot(doc(db, 'gameConfig', 'constants'), (snap) => {
       setGameConstants(snap.exists() ? snap.data() : {})
     })

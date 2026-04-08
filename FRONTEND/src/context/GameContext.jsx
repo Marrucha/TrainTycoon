@@ -251,7 +251,7 @@ export function GameProvider({ children }) {
       budget, trains, trainsSets, routes, cities, loading, gameTime, gameDate,
       baseTrains, gameSettings, pictures, playerDoc,
       deposits, depositRates, gameConstants,
-      employees, financeLedger,
+      employees, financeLedger, hallOfFame,
       // Pochodne
       dailyRevenue, activeTrainsCount, defaultPricing, trainSetsByCity,
       companyName, reputation,
