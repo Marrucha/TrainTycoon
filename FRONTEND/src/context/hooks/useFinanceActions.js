@@ -200,11 +200,14 @@ export function useFinanceActions({ budget, playerDoc, gameConstants, gameDate }
     }
   }
 
-  const FUNCTIONS_BASE = `https://${import.meta.env.VITE_FUNCTIONS_HASH}-uc.a.run.app`
+  // Firebase Functions v2: każda funkcja ma własny Cloud Run URL
+  // format: https://{function-name-with-hyphens}-{HASH}-uc.a.run.app
+  const _fnUrl = (name) =>
+    `https://${name.replace(/_/g, '-')}-${import.meta.env.VITE_FUNCTIONS_HASH}-uc.a.run.app`
 
   async function _callExchangeEndpoint(endpoint, body) {
     const token = await auth.currentUser.getIdToken()
-    const res = await fetch(`${FUNCTIONS_BASE}/${endpoint}`, {
+    const res = await fetch(_fnUrl(endpoint), {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
