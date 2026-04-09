@@ -19,25 +19,25 @@ const tsFormat = (ts) => {
 
 const globalIds = new Set(GLOBAL_GROUPS.map(g => g.id))
 
-function GroupList({ groups, activeId, onSelect, onNew, myUid }) {
+function GroupList({ groups, activeId, onSelect, onNew, myUid, totalPlayers }) {
     const publicGroups  = groups.filter(g => globalIds.has(g.id))
     const privateGroups = groups.filter(g => !globalIds.has(g.id))
 
     const renderItem = (g) => {
-        const unread = g.unread?.[myUid] || 0
+        const isGlobal = globalIds.has(g.id)
+        const unread   = g.unread?.[myUid] || 0
+        const count    = isGlobal ? totalPlayers : (g.members?.length || 0)
         return (
             <div
                 key={g.id}
-                className={`${styles.groupItem} ${g.id === activeId ? styles.groupItemActive : ''} ${globalIds.has(g.id) ? styles.groupItemGlobal : ''}`}
+                className={`${styles.groupItem} ${g.id === activeId ? styles.groupItemActive : ''} ${isGlobal ? styles.groupItemGlobal : ''}`}
                 onClick={() => onSelect(g.id)}
             >
                 <div className={styles.groupItemName}>{g.name}</div>
-                {!globalIds.has(g.id) && (
-                    <div className={styles.groupItemMeta}>
-                        <span className={styles.groupMemberCount}>{g.members?.length || 0} os.</span>
-                        {unread > 0 && <span className={styles.unreadBadge}>{unread}</span>}
-                    </div>
-                )}
+                <div className={styles.groupItemMeta}>
+                    <span className={styles.groupMemberCount}>{count} os.</span>
+                    {!isGlobal && unread > 0 && <span className={styles.unreadBadge}>{unread}</span>}
+                </div>
             </div>
         )
     }
@@ -266,6 +266,7 @@ export default function Chat() {
                 onSelect={setActiveGroupId}
                 onNew={() => setShowNewGroup(true)}
                 myUid={myUid}
+                totalPlayers={allPlayers.length}
             />
 
             <div className={styles.chatArea}>
