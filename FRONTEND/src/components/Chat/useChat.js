@@ -37,7 +37,10 @@ export function useChat(myUid) {
     useEffect(() => {
         if (!myUid) return
         getDocs(collection(db, 'players')).then(snap => {
-            setAllPlayers(snap.docs.map(d => ({ uid: d.id, ...d.data() })))
+            setAllPlayers(snap.docs
+                .map(d => ({ uid: d.id, ...d.data() }))
+                .filter(p => !!p.companyName)
+            )
         })
     }, [myUid])
 
