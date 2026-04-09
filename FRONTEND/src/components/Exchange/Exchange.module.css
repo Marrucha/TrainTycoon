@@ -10,6 +10,8 @@
     color: #ccc;
     font-family: 'Share Tech Mono', monospace;
     overflow: hidden;
+    padding: 40px;
+    box-sizing: border-box;
 }
 
 /* ── Tab bar ─────────────────────────────────────────────────────────────── */
@@ -54,7 +56,7 @@
 .tabContent {
     flex: 1;
     overflow-y: auto;
-    padding: 16px 20px;
+    padding: 20px 0;
     min-height: 0;
 }
 
@@ -601,15 +603,21 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 40px;
-    color: #4a6a4a;
+    padding: 24px 32px;
+    color: #8aab8a;
     font-size: 12px;
     text-align: center;
+    background: rgba(10, 21, 10, 0.7);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(138, 171, 138, 0.2);
+    border-radius: 10px;
+    margin-top: 8px;
 }
 
 .emptyIcon {
     font-size: 36px;
-    opacity: 0.4;
+    opacity: 0.7;
 }
 
 /* ── Personal balance widget ─────────────────────────────────────────────── */

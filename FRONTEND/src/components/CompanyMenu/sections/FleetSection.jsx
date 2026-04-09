@@ -18,14 +18,13 @@ const FleetSection = ({
     performMaintenance
 }) => (
     <>
-        <div className={styles.sectionHeader} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '15px' }}>
-            <div>
-                <h2>Stan Taboru</h2>
-                <p>Monitoring techniczny i harmonogram remontów Twojej floty.</p>
-            </div>
+        <div className={styles.sectionHeader}>
+            <h2>Stan Taboru</h2>
+            <p>Monitoring techniczny i harmonogram remontów Twojej floty.</p>
+        </div>
 
-            {/* Controls Line */}
-            <div style={{ display: 'flex', gap: '8px', width: '100%', background: 'rgba(0,20,0,0.2)', padding: '10px', borderRadius: '8px', border: '1px solid #2a4a2a' }}>
+        {/* Controls Line */}
+        <div style={{ display: 'flex', gap: '8px', width: '100%', background: 'rgba(0,20,0,0.2)', padding: '10px', borderRadius: '8px', border: '1px solid #2a4a2a', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', background: '#0a150a', padding: '3px', borderRadius: '6px', marginRight: '15px', border: '1px solid #2a4a2a' }}>
                     {[
                         { key: 'type',   label: 'Po typie'    },
@@ -60,7 +59,6 @@ const FleetSection = ({
                     </button>
                 </div>
             </div>
-        </div>
 
         {groupBy === 'detail' && (
             <div className={styles.taborList}>

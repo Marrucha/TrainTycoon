@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useGame } from '../../context/GameContext'
 import TrainStore from './TrainStore'
 import styles from './FleetMenu.module.css'
+import cmStyles from '../CompanyMenu/CompanyMenu.module.css'
 
 const fmtDate = (iso) => {
     if (!iso) return '—'
@@ -85,6 +86,10 @@ export default function FleetAssets() {
 
     return (
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+            <div className={cmStyles.sectionHeader} style={{ marginBottom: 10 }}>
+                <h2>Elementy Floty</h2>
+                <p>Zarządzaj posiadanym sprzętem kolejowym i wagonami.</p>
+            </div>
 
             {/* View toggle */}
             <div style={{ display: 'flex', background: '#0a150a', padding: '3px', borderRadius: '6px', border: '1px solid #2a4a2a', marginBottom: 20, alignSelf: 'flex-start', width: 'fit-content' }}>

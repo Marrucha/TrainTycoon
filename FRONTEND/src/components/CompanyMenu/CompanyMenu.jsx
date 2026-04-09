@@ -18,8 +18,10 @@ import ExchangeSection from '../Exchange/ExchangeSection'
 import FinanceLedger from './sections/finance/FinanceLedger';
 import FinancePL from './sections/finance/FinancePL';
 import FinanceBalance from './sections/finance/FinanceBalance';
+import MeSection from './sections/MeSection';
 
 const NAV = [
+  { id: 'me', label: 'Ja', icon: '👤' },
   { id: 'policy', label: 'Firma', icon: '📋' },
   { id: '__sep__', label: '', icon: '' },
   { id: 'map', label: 'Mapa Sieci', icon: '🗺️' },
@@ -67,12 +69,18 @@ export default function CompanyMenu() {
   const [groupBy, setGroupBy] = useState('type');
   const [expandedGroups, setExpandedGroups] = useState({});
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
+  const [meBg, setMeBg] = useState('blok');
+  const [meHidden, setMeHidden] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsLandscape(window.innerWidth > window.innerHeight);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (playerDoc?.personal?.currentBg) setMeBg(playerDoc.personal.currentBg);
+  }, [playerDoc?.personal?.currentBg]);
 
   const getBackgroundUrl = (imageName) => {
     if (!pictures) return null;
@@ -87,10 +95,23 @@ export default function CompanyMenu() {
     let url = searchInData(pictures);
     if (!url) url = searchInData(pictures.picture);
     if (!url) url = searchInData(pictures.views);
+    
     if (!url) {
-      const obj = pictures[imageName];
-      if (typeof obj === 'object' && obj !== null) url = isLandscape ? (obj.url2 || obj.url) : obj.url;
-      else if (typeof obj === 'string') url = obj;
+      const matchKey = (obj) => {
+        if (!obj || typeof obj !== 'object') return null;
+        let entry = obj[imageName];
+        if (!entry) {
+          const foundKey = Object.keys(obj).find(k => k.toLowerCase() === String(imageName).toLowerCase());
+          if (foundKey) entry = obj[foundKey];
+        }
+        if (entry) {
+          if (typeof entry === 'object' && entry !== null) return isLandscape ? (entry.url2 || entry.url) : entry.url;
+          if (typeof entry === 'string') return entry;
+        }
+        return null;
+      };
+      
+      url = matchKey(pictures) || matchKey(pictures.picture) || matchKey(pictures.views);
     }
     return url;
   };
@@ -104,6 +125,11 @@ export default function CompanyMenu() {
   const hallOfFameUrl = useMemo(() => getBackgroundUrl('HallOfFame'), [pictures, isLandscape]);
   const tloUrl = useMemo(() => getBackgroundUrl('Tlo'), [pictures, isLandscape]);
   const gieldaUrl = useMemo(() => getBackgroundUrl('Gielda'), [pictures, isLandscape]);
+  
+  const domUrl = useMemo(() => getBackgroundUrl('Dom'), [pictures, isLandscape]);
+  const garazUrl = useMemo(() => getBackgroundUrl('Garaz'), [pictures, isLandscape]);
+  const galeriaUrl = useMemo(() => getBackgroundUrl('Galeria'), [pictures, isLandscape]);
+  const ladowiskoUrl = useMemo(() => getBackgroundUrl('Ladowisko'), [pictures, isLandscape]);
 
   const toggleGroup = (groupId) =>
     setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -180,7 +206,8 @@ export default function CompanyMenu() {
   }, [trains, trainsSets, sortOrder, groupBy, nowMs]);
 
   const bgImage = (() => {
-    const url =
+    let url =
+      activeTab === 'me' ? (getBackgroundUrl(meBg) || tloUrl) :
       activeTab === 'fleet' ? lokomotywowniaUrl :
         activeTab === 'fleet-compositions' ? lokomotywowniaWnUrl :
           activeTab === 'finance-exchange' ? gieldaUrl :
@@ -203,12 +230,24 @@ export default function CompanyMenu() {
     <div
       className={styles.companyMenu}
       style={{
+        position: 'relative',
         backgroundImage: bgImage,
         backgroundSize: 'cover',
         backgroundPosition: 'center center',
         backgroundColor: '#060f06',
       }}
     >
+      {activeTab === 'me' && (
+          <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 9999 }}>
+              <button 
+                  onClick={() => setMeHidden(!meHidden)} 
+                  style={{ background: 'rgba(0,0,0,0.15)', padding: '10px 20px', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: 'pointer', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}>
+                  {meHidden ? 'Pokaż wszystko' : 'Ukryj wszystko'}
+              </button>
+          </div>
+      )}
+      {!(activeTab === 'me' && meHidden) && (
+      <>
       {/* ── Sidebar ── */}
       <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${Object.values(openGroups).some(v => v) ? (collapsed ? styles.sidebarCollapsedWide : styles.sidebarWide) : ''}`}>
         <div className={styles.sidebarHeader}>
@@ -271,6 +310,7 @@ export default function CompanyMenu() {
 
       {/* ── Content ── */}
       <div className={isFullTab ? styles.contentFull : styles.content} style={isFinanceLedger ? { overflowY: 'auto' } : undefined}>
+        {activeTab === 'me' && <MeSection currentBg={meBg} setBg={setMeBg} />}
         {activeTab === 'map' && <><section className={styles.mapSection}><PolandMap /></section><Sidebar /></>}
         {activeTab === 'fleet-assets' && <FleetAssets />}
         {activeTab === 'fleet-compositions' && <FleetCompositions />}
@@ -278,6 +318,10 @@ export default function CompanyMenu() {
         {activeTab === 'finance-exchange' && <ExchangeSection />}
         {activeTab === 'finance-ledger' && (
           <>
+            <div className={styles.sectionHeader}>
+                <h2>Księgowość</h2>
+                <p>Pełne zestawienie przychodów, kosztów i bilansu firmy.</p>
+            </div>
             <FinanceBalance budget={budget} trains={trains} baseTrains={baseTrains} deposits={deposits} playerDoc={playerDoc} />
             <FinancePL />
             <FinanceLedger />
@@ -307,6 +351,8 @@ export default function CompanyMenu() {
           />
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

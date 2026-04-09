@@ -21,11 +21,23 @@ def _pay_ceo_salary_and_lifestyle(db, today=None):
 
         data = p_doc.to_dict() or {}
         company = data.get('company') or {}
-        ceo_salary = company.get('ceoSalary', 0)
         finance_balance = (data.get('finance') or {}).get('balance', 0)
         personal_balance = (data.get('personal') or {}).get('balance', 0)
 
         updates = {}
+
+        # Oblicz pensję CEO: 30_000 + 0.1% zysku netto z zeszłego miesiąca
+        ceo_salary = 30000
+        
+        first_of_this = today.replace(day=1)
+        last_month_end = first_of_this - dt.timedelta(days=1)
+        month_str = last_month_end.strftime('%Y-%m')
+        
+        last_month_snap = db.collection(f'players/{pid}/financeLedger').document(f'monthly-{month_str}').get()
+        if last_month_snap.exists:
+            net_res = last_month_snap.to_dict().get('netResult', 0)
+            if net_res > 0:
+                ceo_salary += int(net_res * 0.001)
 
         # 1. CEO salary: firma → osobisty
         if ceo_salary > 0 and finance_balance >= ceo_salary:

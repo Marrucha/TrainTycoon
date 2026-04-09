@@ -83,7 +83,7 @@ const PolicySection = ({ companyName, defaultPricing, reputation, playerDoc }) =
     return (
         <>
             <div className={styles.sectionHeader}>
-                <h2>Polityka Firmy</h2>
+                <h2>Firma</h2>
                 <p>Definiuj tożsamość i kierunki rozwoju swojej korporacji.</p>
             </div>
             <div className={styles.grid}>

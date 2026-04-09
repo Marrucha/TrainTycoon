@@ -1,5 +1,5 @@
 .container {
-    padding: 32px;
+    padding: 40px;
     overflow-y: auto;
     width: 100%;
     color: #c0d0c0;
@@ -13,17 +13,11 @@
     border-bottom: 1px solid rgba(42, 74, 42, 0.5);
     padding-bottom: 24px;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
+    flex-direction: column;
+    gap: 16px;
 }
 
-.header h2 {
-    font-size: 36px;
-    font-weight: 700;
-    margin: 0;
-    color: #fff;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
-}
+
 
 .tabNav {
     display: flex;
@@ -65,6 +59,7 @@
 
 .sumCard {
     background: rgba(0, 0, 0, 0.72);
+    -webkit-backdrop-filter: none;
     backdrop-filter: none;
     border: 2px solid rgba(42, 74, 42, 0.7);
     border-radius: 16px;

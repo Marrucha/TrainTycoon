@@ -3,6 +3,7 @@ import { useGame } from '../../context/GameContext'
 import TrainComposer from './TrainComposer'
 import TrainSetCard from './TrainSetCard'
 import styles from './FleetCompositions.module.css'
+import cmStyles from '../CompanyMenu/CompanyMenu.module.css'
 
 const SORT_OPTS = [
     { key: 'status',       label: 'Status'           },
@@ -82,6 +83,10 @@ export default function FleetCompositions() {
 
     return (
         <div className={styles.compositionsContainer}>
+            <div className={cmStyles.sectionHeader} style={{ marginBottom: 10 }}>
+                <h2>Zarządzanie flotą</h2>
+                <p>Zarządzaj zespołami trakcyjnymi, układaj składy i planuj ich obsługę.</p>
+            </div>
             <div className={styles.compositionBoard}>
                 <div className={styles.boardHeader}>
                     <h3>Aktualnie zmontowane pociągi na bazie ({trainsSets?.length || 0})</h3>

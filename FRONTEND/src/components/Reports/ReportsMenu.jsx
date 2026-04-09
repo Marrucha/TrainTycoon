@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import styles from './ReportsMenu.module.css'
+import cmStyles from '../CompanyMenu/CompanyMenu.module.css'
 import { useGame } from '../../context/GameContext'
 import { useReportsData, coverageDate, MONTH_NAMES_PL } from './useReportsData'
 import { DailyTable, PeriodTable } from './TrainSetTable'
@@ -132,9 +133,9 @@ export default function ReportsMenu() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <div>
-          <h2 style={{background: 'rgba(6,15,6,0.75)', display: 'inline-block', padding: '6px 14px', borderRadius: 6, border: '1px solid rgba(42,74,42,0.4)'}}>Raporty i Analizy</h2>
-          <p style={{color: '#8aab8a', margin: '4px 0 0 0', background: 'rgba(6,15,6,0.75)', display: 'inline-block', padding: '4px 10px', borderRadius: 4, border: '1px solid rgba(42,74,42,0.4)'}}>Wyniki finansowe i operacyjne twojej floty</p>
+        <div className={cmStyles.sectionHeader} style={{ marginBottom: 0 }}>
+          <h2>Raporty operacyjne</h2>
+          <p>Wyniki finansowe i operacyjne twojej floty.</p>
         </div>
         <nav className={styles.tabNav}>
           {['daily','weekly','monthly','yearly','trends'].map(tab => (

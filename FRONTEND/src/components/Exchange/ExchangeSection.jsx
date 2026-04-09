@@ -3,10 +3,10 @@ import ExchangeMarketList from './ExchangeMarketList'
 import ExchangeMyCompany from './ExchangeMyCompany'
 import ExchangePortfolio from './ExchangePortfolio'
 import s from './Exchange.module.css'
+import cmStyles from '../CompanyMenu/CompanyMenu.module.css'
 
 const TABS = [
   { id: 'market',    label: 'Rynek' },
-  { id: 'portfolio', label: 'Mój portfel' },
   { id: 'company',   label: 'Moja spółka' },
 ]
 
@@ -15,6 +15,10 @@ export default function ExchangeSection() {
 
   return (
     <div className={s.container}>
+      <div className={cmStyles.sectionHeader} style={{ flexShrink: 0 }}>
+        <h2>Giełda</h2>
+        <p>Handluj akcjami innych firm i zarządzaj swoimi udziałami.</p>
+      </div>
       <div className={s.tabs}>
         {TABS.map(t => (
           <button
@@ -28,7 +32,6 @@ export default function ExchangeSection() {
       </div>
       <div className={s.tabContent}>
         {activeTab === 'market'    && <ExchangeMarketList />}
-        {activeTab === 'portfolio' && <ExchangePortfolio />}
         {activeTab === 'company'   && <ExchangeMyCompany />}
       </div>
     </div>

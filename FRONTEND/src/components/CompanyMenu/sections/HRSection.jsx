@@ -97,12 +97,8 @@ export default function HRSection() {
       )}
 
       <div className={styles.sectionHeader}>
-        <h2 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Kadry</span>
-          <span style={{ fontSize: 13, fontWeight: 'normal', color: '#aaa' }}>
-            Mies. koszt: <span style={{ color: '#f1c40f' }}>{monthlyCost.toLocaleString()} PLN</span>
-          </span>
-        </h2>
+        <h2>Kadry</h2>
+        <p>Zarządzaj załogą pociągów. Mies. koszt utrzymania kadr to <span style={{ color: '#f1c40f', fontWeight: 'bold' }}>{monthlyCost.toLocaleString()} PLN</span>.</p>
       </div>
 
       {/* Role tabs */}

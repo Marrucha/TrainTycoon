@@ -151,12 +151,28 @@ export default function FinancePL() {
                 const amt = ot.amount || 0
                 if (ot.type === 'salaries')         acc.salaries     = (acc.salaries     || 0) + amt
                 else if (ot.type === 'loanPayment') acc.loanPayments = (acc.loanPayments || 0) + amt
+                else if (ot.type === 'ceoSalary')   acc.ceoSalary    = (acc.ceoSalary    || 0) + amt
                 else                               acc.oneTime      = (acc.oneTime      || 0) + amt
             }
             return acc
         }, {})
         return result
     }, [latestMonthly, dailyDocs])
+
+    const estimatedCeoSalary = useMemo(() => {
+        if (latestMonthly) {
+            if (latestMonthly.costs?.ceoSalary) return latestMonthly.costs.ceoSalary
+        }
+        let lastNetResult = 0
+        if (financeLedger) {
+            const monthlyDocs = financeLedger.filter(d => d.id?.startsWith('monthly-'))
+            if (monthlyDocs.length > 0) {
+                lastNetResult = monthlyDocs[0].netResult || 0
+            }
+        }
+        const bonus = lastNetResult > 0 ? lastNetResult * 0.001 : 0
+        return Math.round(30000 + bonus)
+    }, [latestMonthly, financeLedger])
 
     const monthly = useMemo(() => {
         const rev = {
@@ -173,7 +189,7 @@ export default function FinancePL() {
             trackFees:      baseCosts.trackFees      || 0,
             salaries:       monthlySalaries,
             office:         OFFICE_RENT,
-            management:     MANAGEMENT_COST,
+            management:     MANAGEMENT_COST + (baseCosts.ceoSalary || estimatedCeoSalary),
             depreciation:   monthlyDepreciation,
             creditInterest: baseCosts.creditInterest || 0,
             loanPayments:   baseCosts.loanPayments   || 0,
@@ -248,7 +264,7 @@ export default function FinancePL() {
 
                                 <SectionLabel title="Koszty stałe" color="#e74c3c" />
                                 <PLRow label="Wynajem biur"   value={C('office')}      indent />
-                                <PLRow label="Koszty zarządu" value={C('management')}  indent />
+                                <PLRow label="Koszty zarządu (w tym pensja CEO)" value={C('management')}  indent />
 
                                 <SectionLabel title="Amortyzacja" color="#e74c3c" />
                                 <PLRow label="Amortyzacja taboru" value={C('depreciation')} indent />
