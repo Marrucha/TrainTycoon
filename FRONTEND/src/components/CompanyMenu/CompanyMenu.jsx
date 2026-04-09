@@ -56,7 +56,7 @@ export default function CompanyMenu() {
     defaultPricing, performMaintenance,
     pictures, playerDoc,
     openCreditLine, takeLoan,
-    deposits, depositRates, openDeposit, redeemDeposit, breakDeposit,
+    deposits, depositRates, openDeposit, redeemDeposit, breakDeposit, emitShares,
     gameDate: now,
   } = useGame();
 
@@ -293,6 +293,7 @@ export default function CompanyMenu() {
             toggleGroup={toggleGroup} expandedGroups={expandedGroups}
             deposits={deposits} depositRates={depositRates}
             openDeposit={openDeposit} redeemDeposit={redeemDeposit} breakDeposit={breakDeposit}
+            emitShares={emitShares}
           />
         )}
         {activeTab === 'fleet' && (

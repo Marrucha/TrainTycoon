@@ -1,6 +1,7 @@
 import styles from '../CompanyMenu.module.css'
 import FinanceDebt from './finance/FinanceDebt'
 import FinanceDeposits from './finance/FinanceDeposits'
+import FinanceStock from './finance/FinanceStock'
 
 const FinanceSection = ({
     budget,
@@ -14,12 +15,13 @@ const FinanceSection = ({
     openDeposit,
     redeemDeposit,
     breakDeposit,
+    emitShares,
 }) => {
     return (
         <>
             <div className={styles.sectionHeader}>
                 <h2>Mój Bank</h2>
-                <p>Zarządzaj kredytami, lokatami i płynnością finansową firmy.</p>
+                <p>Zarządzaj kredytami, lokatami i akcjami swojej firmy.</p>
             </div>
 
             <div className={styles.grid}>
@@ -39,6 +41,11 @@ const FinanceSection = ({
                     breakDeposit={breakDeposit}
                 />
             </div>
+
+            <FinanceStock
+                playerDoc={playerDoc}
+                emitShares={emitShares}
+            />
         </>
     )
 }
