@@ -60,17 +60,35 @@ def _pay_ceo_salary_and_lifestyle(db, today=None):
             db.collection('players').document(pid).update(updates)
 
 def _write_daily_ledger(db, pid: str, date_str: str, revenues: dict, costs: dict, one_time=None):
+    """Zapisuje dzienny wpis do financeLedger i aktualizuje finance.balance.
+
+    Backend jest źródłem prawdy na koniec dnia: czyta bieżący balans
+    i zapisuje nową wartość = balans + przychody dnia - koszty dnia.
+    Frontend przez cały dzień wyświetla wizualnie balans + narastające przychody
+    (bez zapisu do Firebase w trakcie dnia).
+    """
     if one_time is None:
         one_time = []
-    p_snap  = db.collection('players').document(pid).get()
+
+    total_revenue = sum(revenues.values())
+    total_cost    = sum(costs.values())
+    net_daily     = total_revenue - total_cost
+
+    p_ref   = db.collection('players').document(pid)
+    p_snap  = p_ref.get()
     balance = ((p_snap.to_dict() or {}).get('finance') or {}).get('balance', 0)
+    new_balance = balance + net_daily   # pełna korekta: przychody - koszty
+
+    p_ref.update({'finance.balance': new_balance})
+
     doc_ref = db.collection(f'players/{pid}/financeLedger').document(date_str)
     doc_ref.set({
         'date':         date_str,
         'revenues':     revenues,
         'costs':        costs,
         'oneTimeCosts': one_time,
-        'balanceEnd':   balance,
+        'netDaily':     net_daily,
+        'balanceEnd':   new_balance,
     }, merge=True)
 
 def _aggregate_monthly_ledger(db, today=None, constants=None):

@@ -85,7 +85,7 @@ export function GameProvider({ children }) {
     }
   }, [gameConstants])
 
-  const budget = playerDoc.finance?.balance ?? INITIAL_BUDGET
+  const savedBalance = playerDoc.finance?.balance ?? INITIAL_BUDGET
   const companyName = playerDoc.companyName ?? ''
   const reputation = playerDoc.reputation ?? 0.5
 
@@ -176,6 +176,20 @@ export function GameProvider({ children }) {
   // gameTimeMin is stable per virtual minute, avoiding excessive re-renders.
   const gameTimeMin = gameDate ? gameDate.getHours() * 60 + gameDate.getMinutes() : -1
   const boardingState = useBoardingSimulation(trainsSets, cities, trains, gameTimeMin, defaultPricing)
+
+  // Live budget = saved balance (from Firebase) + revenue accrued so far today (local boarding sim)
+  // No Firebase writes during the day — backend reconciles fully at EOD via save_daily_report
+  const todayRevenue = useMemo(() => {
+    let total = 0
+    for (const tsState of Object.values(boardingState)) {
+      for (const kt of Object.values(tsState.transferredToday || {})) {
+        total += kt.revenue ?? 0
+      }
+    }
+    return Math.round(total)
+  }, [boardingState])
+
+  const budget = savedBalance + todayRevenue
 
   const trainActions = useTrainActions({ baseTrains, budget, gameDate })
   const financeActions = useFinanceActions({ budget, playerDoc, gameConstants, gameDate })
