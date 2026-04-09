@@ -25,14 +25,18 @@ export default function ExchangePortfolio() {
   return (
     <div>
       <div className={s.personalBadge}>
-        <div className={s.personalBadgeLabel}>Majątek osobisty (personal.balance)</div>
-        <div className={s.personalBadgeValue}>{personalBalance.toLocaleString('pl-PL')} PLN</div>
-      </div>
-
-      <div className={s.portfolioHeader}>
-        <div>
-          <div className={s.portfolioLabel}>Wartość portfela akcji</div>
-          <div className={s.portfolioTotal}>{Math.round(totalValue).toLocaleString('pl-PL')} PLN</div>
+        <div className={s.personalBadgeLabel}>Majątek osobisty (Łącznie)</div>
+        <div className={s.personalBadgeValue} style={{ marginBottom: 16 }}>{(personalBalance + Math.round(totalValue)).toLocaleString('pl-PL')} PLN</div>
+        
+        <div style={{ marginLeft: 16, borderLeft: '2px solid rgba(138, 171, 138, 0.3)', paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div className={s.personalBadgeLabel} style={{ marginBottom: 2, fontSize: 11 }}>w tym gotówka (personal.balance)</div>
+            <div className={s.personalBadgeValue} style={{ fontSize: 15, color: '#bbb' }}>{personalBalance.toLocaleString('pl-PL')} PLN</div>
+          </div>
+          <div>
+            <div className={s.personalBadgeLabel} style={{ marginBottom: 2, fontSize: 11 }}>w tym wartość portfela akcji</div>
+            <div className={s.personalBadgeValue} style={{ fontSize: 15, color: '#bbb' }}>{Math.round(totalValue).toLocaleString('pl-PL')} PLN</div>
+          </div>
         </div>
       </div>
 

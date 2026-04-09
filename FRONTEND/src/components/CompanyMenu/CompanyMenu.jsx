@@ -103,6 +103,7 @@ export default function CompanyMenu() {
   const raportyUrl = useMemo(() => getBackgroundUrl('Raporty'), [pictures, isLandscape]);
   const hallOfFameUrl = useMemo(() => getBackgroundUrl('HallOfFame'), [pictures, isLandscape]);
   const tloUrl = useMemo(() => getBackgroundUrl('Tlo'), [pictures, isLandscape]);
+  const gieldaUrl = useMemo(() => getBackgroundUrl('Gielda'), [pictures, isLandscape]);
 
   const toggleGroup = (groupId) =>
     setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -182,7 +183,8 @@ export default function CompanyMenu() {
     const url =
       activeTab === 'fleet' ? lokomotywowniaUrl :
         activeTab === 'fleet-compositions' ? lokomotywowniaWnUrl :
-          activeTab === 'finance' || activeTab === 'finance-ledger' || activeTab === 'finance-exchange' ? bankUrl :
+          activeTab === 'finance-exchange' ? gieldaUrl :
+            activeTab === 'finance' || activeTab === 'finance-ledger' ? bankUrl :
             activeTab === 'hr' ? kadryUrl :
               activeTab === 'fleet-assets' ? salonUrl :
                 activeTab === 'finance-reports' ? raportyUrl :

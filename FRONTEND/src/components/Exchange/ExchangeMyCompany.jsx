@@ -162,7 +162,12 @@ export default function ExchangeMyCompany() {
               step={0.01}
               onChange={e => setDivPerShare(e.target.value)}
             />
-            <button className={s.actionBtn} style={{ marginTop: 0 }} onClick={handlePayDividend} disabled={divLoading || !divPerShare}>
+            <button 
+              className={s.actionBtn} 
+              style={{ marginTop: 0, background: '#2a4a2a', color: '#f0c040', border: '1px solid #2a4a2a', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} 
+              onClick={handlePayDividend} 
+              disabled={divLoading || !divPerShare}
+            >
               {divLoading && <span className={s.spinner} />}
               Wypłać dywidendę
             </button>

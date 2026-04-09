@@ -122,15 +122,17 @@ export default function ExchangeMarketList() {
 
   if (sorted.length === 0) {
     return (
-      <div className={s.emptyState}>
-        <span className={s.emptyIcon}>📈</span>
-        <span>Brak spółek notowanych na giełdzie</span>
+      <div className={s.marketContainer}>
+        <div className={s.emptyState}>
+          <span className={s.emptyIcon}>📈</span>
+          <span>Brak spółek notowanych na giełdzie</span>
+        </div>
       </div>
     )
   }
 
   return (
-    <>
+    <div className={s.marketContainer}>
       <table className={s.table}>
         <thead>
           <tr>
@@ -212,6 +214,6 @@ export default function ExchangeMarketList() {
           onClose={() => setTradeModal(null)}
         />
       )}
-    </>
+    </div>
   )
 }

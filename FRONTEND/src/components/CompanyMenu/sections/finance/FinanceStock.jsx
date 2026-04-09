@@ -1,10 +1,20 @@
+import { useGame } from '../../../../context/GameContext'
+import { auth } from '../../../../firebase/config'
 import styles from '../../CompanyMenu.module.css'
 
 const fmt = (n) => Math.round(n).toLocaleString('pl-PL')
 
 export default function FinanceStock({ playerDoc, emitShares }) {
+    const { listedCompanies } = useGame()
+    const myUid = auth.currentUser?.uid
+    const liveExchange = listedCompanies?.find(c => c.id === myUid)
+    
     const co = playerDoc.company ?? { totalShares: 1000000, playerShares: 1000000, stockPrice: 100, freeFloat: 0, shareholders: [], emissions: [] }
-    const { totalShares, playerShares, stockPrice, freeFloat = 0, shareholders = [], emissions = [] } = co
+    const { totalShares, playerShares, freeFloat = 0, shareholders = [], emissions = [] } = co
+    const stockPrice = liveExchange?.marketPrice || liveExchange?.fundamentalPrice || co.stockPrice || 100
+    const prevDayPrice = liveExchange?.prevDayPrice || stockPrice
+    const chg = (prevDayPrice && prevDayPrice > 0) ? ((stockPrice - prevDayPrice) / prevDayPrice) * 100 : null
+    
     const playerPct = (playerShares / totalShares * 100).toFixed(2)
     const marketCap = totalShares * stockPrice
 
@@ -16,8 +26,15 @@ export default function FinanceStock({ playerDoc, emitShares }) {
                     <p style={{ margin: '5px 0 0', fontSize: '11px', color: '#666' }}>Zarządzaj kapitałem własnym i przejmuj dominację na rynku.</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#2ecc71' }}>{fmt(stockPrice)} PLN</div>
-                    <div style={{ fontSize: '11px', color: '#a0c0a0', fontWeight: '800', letterSpacing: '1px' }}>KURS AKCJI</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                        <div style={{ fontSize: '24px', fontWeight: '800', color: '#fff' }}>{stockPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN</div>
+                        {chg !== null && (
+                            <div style={{ fontSize: '13px', fontWeight: '800', color: chg > 0 ? '#2ecc71' : chg < 0 ? '#e74c3c' : '#888' }}>
+                                {chg > 0 ? '▲' : chg < 0 ? '▼' : '—'} {Math.abs(chg).toFixed(2)}%
+                            </div>
+                        )}
+                        <div style={{ fontSize: '11px', color: '#a0c0a0', fontWeight: '800', letterSpacing: '1px', marginTop: '2px' }}>KURS AKCJI</div>
+                    </div>
                 </div>
             </div>
 

@@ -6,7 +6,7 @@
     width: 100%;
     height: 100%;
     min-height: 0;
-    background: #060f06;
+    background: transparent;
     color: #ccc;
     font-family: 'Share Tech Mono', monospace;
     overflow: hidden;
@@ -16,35 +16,39 @@
 
 .tabs {
     display: flex;
-    gap: 0;
-    border-bottom: 1px solid #1a331a;
-    flex-shrink: 0;
+    gap: 4px;
+    background: #0a150a;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid #2a4a2a;
+    margin-bottom: 20px;
+    align-self: flex-start;
 }
 
 .tab {
-    padding: 10px 20px;
-    font-size: 11px;
+    padding: 8px 16px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
-    color: #4a6a4a;
+    color: #8aab8a;
     cursor: pointer;
-    border-bottom: 2px solid transparent;
-    background: none;
-    border-top: none;
-    border-left: none;
-    border-right: none;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
     font-family: inherit;
-    transition: color 0.15s, border-color 0.15s;
+    transition: all 0.15s;
 }
 
 .tab:hover {
-    color: #8ab88a;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .tabActive {
-    color: #4CAF50;
-    border-bottom-color: #4CAF50;
+    color: #f0c040;
+    background: #2a4a2a;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .tabContent {
@@ -67,6 +71,15 @@
 
 /* ── Market table ────────────────────────────────────────────────────────── */
 
+.marketContainer {
+    background: rgba(22, 38, 22, 0.75);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(138, 171, 138, 0.35);
+}
+
 .table {
     width: 100%;
     border-collapse: collapse;
@@ -75,13 +88,14 @@
 
 .table th {
     text-align: left;
-    padding: 6px 10px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    padding: 12px 10px;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    color: #4a6a4a;
-    border-bottom: 1px solid #1a331a;
+    color: #ffffff;
+    background: rgba(10, 25, 10, 0.85);
+    border-bottom: 2px solid #2a4a2a;
 }
 
 .table th.right {
@@ -380,10 +394,12 @@
 /* ── My company panel ────────────────────────────────────────────────────── */
 
 .statusCard {
-    background: #0a150a;
-    border: 1px solid #1a331a;
-    border-radius: 6px;
-    padding: 16px;
+    background: rgba(22, 38, 22, 0.75);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(138, 171, 138, 0.35);
+    border-radius: 8px;
+    padding: 24px;
     margin-bottom: 16px;
 }
 
@@ -423,10 +439,10 @@
 }
 
 .valuationCell {
-    background: #060f06;
-    border: 1px solid #1a331a;
-    border-radius: 4px;
-    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(138, 171, 138, 0.25);
+    border-radius: 6px;
+    padding: 12px 14px;
 }
 
 .valuationCellLabel {
@@ -599,19 +615,22 @@
 /* ── Personal balance widget ─────────────────────────────────────────────── */
 
 .personalBadge {
-    background: #0a150a;
-    border: 1px solid #1a331a;
-    border-radius: 6px;
-    padding: 12px 16px;
+    background: rgba(22, 38, 22, 0.75);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(138, 171, 138, 0.35);
+    border-radius: 8px;
+    padding: 16px 20px;
     margin-bottom: 16px;
 }
 
 .personalBadgeLabel {
-    font-size: 9px;
-    color: #4a6a4a;
+    font-size: 13px;
+    font-weight: 700;
+    color: #8aab8a;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .personalBadgeValue {
