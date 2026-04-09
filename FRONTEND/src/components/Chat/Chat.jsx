@@ -90,6 +90,40 @@ function MessageList({ messages, myUid, messagesEndRef }) {
     )
 }
 
+function PlayerSearch({ players, selected, onToggle, onAdd, mode = 'toggle' }) {
+    const [query, setQuery] = useState('')
+    const filtered = players.filter(p =>
+        p.companyName?.toLowerCase().includes(query.toLowerCase())
+    )
+    return (
+        <>
+            <input
+                className={styles.modalInput}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Szukaj po nazwie firmy…"
+            />
+            <div className={styles.playerList}>
+                {filtered.length === 0
+                    ? <div className={styles.emptyGroups}>Brak wyników.</div>
+                    : filtered.map(p => (
+                        <div
+                            key={p.uid}
+                            className={`${styles.playerItem} ${selected?.includes(p.uid) ? styles.playerItemSelected : ''}`}
+                            onClick={() => mode === 'toggle' ? onToggle(p.uid) : onAdd(p.uid, p.companyName)}
+                        >
+                            <span className={styles.playerCheck}>
+                                {mode === 'toggle' ? (selected?.includes(p.uid) ? '✓' : '') : '＋'}
+                            </span>
+                            <span className={styles.playerName}>{p.companyName}</span>
+                        </div>
+                    ))
+                }
+            </div>
+        </>
+    )
+}
+
 function NewGroupModal({ allPlayers, myUid, onCreate, onClose }) {
     const [name, setName] = useState('')
     const [selected, setSelected] = useState([])
@@ -102,6 +136,8 @@ function NewGroupModal({ allPlayers, myUid, onCreate, onClose }) {
         if (!name.trim()) return
         onCreate(name.trim(), selected)
     }
+
+    const candidates = allPlayers.filter(p => p.uid !== myUid)
 
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
@@ -118,21 +154,10 @@ function NewGroupModal({ allPlayers, myUid, onCreate, onClose }) {
                 />
 
                 <label className={styles.modalLabel}>Dodaj graczy</label>
-                <div className={styles.playerList}>
-                    {allPlayers.filter(p => p.uid !== myUid).map(p => (
-                        <div
-                            key={p.uid}
-                            className={`${styles.playerItem} ${selected.includes(p.uid) ? styles.playerItemSelected : ''}`}
-                            onClick={() => toggle(p.uid)}
-                        >
-                            <span className={styles.playerCheck}>{selected.includes(p.uid) ? '✓' : ''}</span>
-                            <span className={styles.playerName}>{p.companyName}</span>
-                        </div>
-                    ))}
-                    {allPlayers.filter(p => p.uid !== myUid).length === 0 && (
-                        <div className={styles.emptyGroups}>Brak innych graczy.</div>
-                    )}
-                </div>
+                {candidates.length === 0
+                    ? <div className={styles.emptyGroups}>Brak innych graczy.</div>
+                    : <PlayerSearch players={candidates} selected={selected} onToggle={toggle} mode="toggle" />
+                }
 
                 <div className={styles.modalActions}>
                     <button className={styles.cancelBtn} onClick={onClose}>Anuluj</button>
@@ -180,18 +205,11 @@ function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, 
                             {adding ? '▲ Ukryj' : '＋ Dodaj gracza'}
                         </button>
                         {adding && (
-                            <div className={styles.playerList}>
-                                {nonMembers.map(p => (
-                                    <div
-                                        key={p.uid}
-                                        className={styles.playerItem}
-                                        onClick={() => { onAddMember(p.uid, p.companyName); setAdding(false) }}
-                                    >
-                                        <span className={styles.playerCheck}>＋</span>
-                                        <span className={styles.playerName}>{p.companyName}</span>
-                                    </div>
-                                ))}
-                            </div>
+                            <PlayerSearch
+                                players={nonMembers}
+                                mode="add"
+                                onAdd={(uid, name) => { onAddMember(uid, name); setAdding(false) }}
+                            />
                         )}
                     </>
                 )}
