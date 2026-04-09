@@ -19,14 +19,13 @@ const tsFormat = (ts) => {
 
 const globalIds = new Set(GLOBAL_GROUPS.map(g => g.id))
 
-function GroupList({ groups, activeId, onSelect, onNew, myUid, totalPlayers }) {
+function GroupList({ groups, activeId, onSelect, onNew, myUid }) {
     const publicGroups  = groups.filter(g => globalIds.has(g.id))
     const privateGroups = groups.filter(g => !globalIds.has(g.id))
 
     const renderItem = (g) => {
         const isGlobal = globalIds.has(g.id)
         const unread   = g.unread?.[myUid] || 0
-        const count    = isGlobal ? totalPlayers : (g.members?.length || 0)
         return (
             <div
                 key={g.id}
@@ -34,10 +33,11 @@ function GroupList({ groups, activeId, onSelect, onNew, myUid, totalPlayers }) {
                 onClick={() => onSelect(g.id)}
             >
                 <div className={styles.groupItemName}>{g.name}</div>
-                <div className={styles.groupItemMeta}>
-                    <span className={styles.groupMemberCount}>{count} os.</span>
-                    {!isGlobal && unread > 0 && <span className={styles.unreadBadge}>{unread}</span>}
-                </div>
+                {!isGlobal && unread > 0 && (
+                    <div className={styles.groupItemMeta}>
+                        <span className={styles.unreadBadge}>{unread}</span>
+                    </div>
+                )}
             </div>
         )
     }
@@ -266,7 +266,6 @@ export default function Chat() {
                 onSelect={setActiveGroupId}
                 onNew={() => setShowNewGroup(true)}
                 myUid={myUid}
-                totalPlayers={allPlayers.length}
             />
 
             <div className={styles.chatArea}>
@@ -275,7 +274,9 @@ export default function Chat() {
                         <div className={styles.chatHeader}>
                             <div>
                                 <div className={styles.chatGroupName}>{activeGroup.name}</div>
-                                <div className={styles.chatGroupMeta}>{activeGroup.members?.length || 0} uczestników</div>
+                                <div className={styles.chatGroupMeta}>
+                                    {globalIds.has(activeGroup.id) ? allPlayers.length : (activeGroup.members?.length || 0)} uczestników
+                                </div>
                             </div>
                             <button className={styles.settingsBtn} onClick={() => setShowSettings(true)} title="Ustawienia grupy">⚙</button>
                         </div>
