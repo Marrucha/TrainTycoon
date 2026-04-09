@@ -24,9 +24,9 @@ const NAV = [
   {
     id: 'fleet-group', label: 'Flota Pociągów', icon: '🚃',
     children: [
-      { id: 'fleet', label: 'Stan Taboru', icon: '🔧' },
-      { id: 'fleet-assets', label: 'Elementy Floty', icon: '🚂' },
       { id: 'fleet-compositions', label: 'Zarządzanie flotą', icon: '🔗' },
+      { id: 'fleet-assets', label: 'Elementy Floty', icon: '🚂' },
+      { id: 'fleet', label: 'Stan Taboru', icon: '🔧' },
     ],
   },
   { id: '__sep2__', label: '', icon: '' },
@@ -225,7 +225,11 @@ export default function CompanyMenu() {
               <div key={item.id}>
                 <div
                   className={`${styles.navItem} ${childActive && isOpen ? styles.activeNavItem : ''} ${isOpen ? styles.navGroupOpen : ''}`}
-                  onClick={() => setOpenGroups(p => ({ ...p, [item.id]: !p[item.id] }))}
+                  onClick={() => {
+                    const opening = !openGroups[item.id]
+                    setOpenGroups(p => ({ ...p, [item.id]: opening }))
+                    if (opening) setActiveTab(item.children[0].id)
+                  }}
                   title={collapsed ? item.label : undefined}
                 >
                   <span className={styles.navIcon}>{item.icon}</span>
