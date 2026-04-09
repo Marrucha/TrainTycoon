@@ -161,34 +161,41 @@ export function useFinanceActions({ budget, playerDoc, gameConstants, gameDate }
   }
 
   async function emitShares(dilutionPct) {
-    const company = playerDoc.company ?? { totalShares: 1000000, playerShares: 1000000, stockPrice: 100, freeFloat: 0, shareholders: [], emissions: [] }
-    const { totalShares, playerShares, stockPrice, freeFloat = 0, shareholders, emissions } = company
+    const company = playerDoc.company ?? {}
+    const totalShares  = company.totalShares  ?? 1_000_000
+    const playerShares = company.playerShares ?? totalShares
+    const stockPrice   = company.stockPrice   ?? 100
+    const freeFloat    = company.freeFloat    ?? 0
+    const shareholders = company.shareholders ?? []
+    const emissions    = company.emissions    ?? []
 
-    const newShares = Math.round(totalShares * dilutionPct / (1 - dilutionPct))
+    const newShares     = Math.round(totalShares * dilutionPct / (1 - dilutionPct))
     const newTotalShares = totalShares + newShares
 
     const emission = {
-      id: `em_${Date.now()}`,
-      date: gameDate.toISOString(),
+      id:           `em_${Date.now()}`,
+      date:         gameDate instanceof Date ? gameDate.toISOString() : new Date().toISOString(),
       sharesIssued: newShares,
       pricePerShare: stockPrice,
-      buyers: [],
+      buyers:       [],
     }
 
     try {
       await setDoc(doc(db, 'players', auth.currentUser.uid), {
         company: {
-          totalShares: newTotalShares,
+          totalShares:  newTotalShares,
           playerShares,
           stockPrice,
-          freeFloat: freeFloat + newShares,
+          freeFloat:    freeFloat + newShares,
           shareholders,
-          emissions: [...emissions, emission],
+          emissions:    [...emissions, emission],
         },
       }, { merge: true })
+      alert(`Wyemitowano ${newShares.toLocaleString('pl-PL')} nowych akcji (+${(dilutionPct * 100).toFixed(0)}% rozcieńczenie). Wolny obrót: ${(freeFloat + newShares).toLocaleString('pl-PL')} akcji.`)
       return true
     } catch (e) {
       console.error('Błąd emisji akcji:', e)
+      alert('Błąd emisji akcji: ' + e.message)
       return false
     }
   }
