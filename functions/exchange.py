@@ -50,15 +50,17 @@ def _compute_nav(db, pid, player_data):
         for t in db.collection(f'players/{pid}/trains').stream()
     )
 
-    # Długi
+    # Długi z kredytów inwestycyjnych
     loans_remaining = sum(
         (l.get('monthlyPayment', 0) * l.get('remainingMonths', 0))
         for l in (finance.get('loans') or [])
     )
+    # Linia kredytowa: limit został już dodany do finance.balance przy otwarciu,
+    # więc odejmujemy go jako zobowiązanie (by nie liczyć dwa razy)
     credit_line = finance.get('creditLine') or {}
-    credit_used = max(0, credit_line.get('limit', 0) - cash) if credit_line.get('limit') else 0
+    credit_liability = credit_line.get('limit', 0) if credit_line.get('limit') else 0
 
-    return cash + deposits + fleet_value - loans_remaining - credit_used
+    return cash + deposits + fleet_value - loans_remaining - credit_liability
 
 
 def _compute_trailing_earnings(db, pid, game_date, days=7):
@@ -127,14 +129,13 @@ def _check_listing_eligibility(db, pid, player_data, game_date):
     created_at = player_data.get('createdAt')
     if created_at:
         try:
-            created = datetime.date.fromisoformat(created_at[:10])
+            created = datetime.date.fromisoformat(str(created_at)[:10])
             age_days = (game_date - created).days
             if age_days < LISTING_REQUIREMENTS['min_history_game_days']:
                 failed.append(f"Historia konta: {age_days}/{LISTING_REQUIREMENTS['min_history_game_days']} game-dni")
         except Exception:
-            failed.append("Brak daty założenia konta")
-    else:
-        failed.append("Brak daty założenia konta")
+            pass  # nie blokuj z powodu błędu parsowania daty
+    # brak createdAt = konto założone przed wprowadzeniem pola — pomijamy wymóg historii
 
     # 2. Przychody (z ostatnich 7 Raporty)
     rev_days = []

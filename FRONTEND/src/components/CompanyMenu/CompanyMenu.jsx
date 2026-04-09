@@ -16,6 +16,8 @@ import ReportsMenu from '../Reports/ReportsMenu';
 import Chat from '../Chat/Chat'
 import ExchangeSection from '../Exchange/ExchangeSection'
 import FinanceLedger from './sections/finance/FinanceLedger';
+import FinancePL from './sections/finance/FinancePL';
+import FinanceBalance from './sections/finance/FinanceBalance';
 
 const NAV = [
   { id: 'policy', label: 'Firma', icon: '📋' },
@@ -33,9 +35,9 @@ const NAV = [
   {
     id: 'finance-group', label: 'Finanse', icon: '💰',
     children: [
+      { id: 'finance-ledger',   label: 'Księgowość',           icon: '📒' },
       { id: 'finance',          label: 'Mój Bank',             icon: '🏦' },
       { id: 'finance-reports',  label: 'Raporty operacyjne',   icon: '📊' },
-      { id: 'finance-ledger',   label: 'Księgowość',           icon: '📒' },
       { id: 'finance-exchange', label: 'Giełda',               icon: '📈' },
     ],
   },
@@ -180,10 +182,10 @@ export default function CompanyMenu() {
     const url =
       activeTab === 'fleet' ? lokomotywowniaUrl :
         activeTab === 'fleet-compositions' ? lokomotywowniaWnUrl :
-          activeTab === 'finance' ? bankUrl :
+          activeTab === 'finance' || activeTab === 'finance-ledger' || activeTab === 'finance-exchange' ? bankUrl :
             activeTab === 'hr' ? kadryUrl :
               activeTab === 'fleet-assets' ? salonUrl :
-                activeTab === 'reports' ? raportyUrl :
+                activeTab === 'finance-reports' ? raportyUrl :
                   activeTab === 'shop' ? bankUrl :
                     activeTab === 'hall-of-fame' ? hallOfFameUrl :
                       activeTab === 'policy' ? tloUrl : null;
@@ -193,6 +195,7 @@ export default function CompanyMenu() {
 
   const isMgmtTab = ['policy', 'hr', 'finance', 'fleet'].includes(activeTab);
   const isFullTab = ['map', 'fleet-assets', 'fleet-compositions', 'chat', 'finance-reports', 'finance-exchange'].includes(activeTab);
+  const isFinanceLedger = activeTab === 'finance-ledger';
 
   return (
     <div
@@ -265,13 +268,19 @@ export default function CompanyMenu() {
       </aside>
 
       {/* ── Content ── */}
-      <div className={isFullTab ? styles.contentFull : styles.content}>
+      <div className={isFullTab ? styles.contentFull : styles.content} style={isFinanceLedger ? { overflowY: 'auto' } : undefined}>
         {activeTab === 'map' && <><section className={styles.mapSection}><PolandMap /></section><Sidebar /></>}
         {activeTab === 'fleet-assets' && <FleetAssets />}
         {activeTab === 'fleet-compositions' && <FleetCompositions />}
         {activeTab === 'finance-reports'  && <ReportsMenu />}
         {activeTab === 'finance-exchange' && <ExchangeSection />}
-        {activeTab === 'finance-ledger'   && <FinanceLedger />}
+        {activeTab === 'finance-ledger' && (
+          <>
+            <FinanceBalance budget={budget} trains={trains} baseTrains={baseTrains} deposits={deposits} playerDoc={playerDoc} />
+            <FinancePL />
+            <FinanceLedger />
+          </>
+        )}
         {activeTab === 'shop' && <ShopSection />}
         {activeTab === 'hall-of-fame' && <HallOfFame />}
         {activeTab === 'chat' && <Chat />}
@@ -279,8 +288,7 @@ export default function CompanyMenu() {
         {activeTab === 'hr' && <HRSection />}
         {activeTab === 'finance' && (
           <FinanceSection
-            budget={budget} reputation={reputation} playerDoc={playerDoc}
-            trains={trains} baseTrains={baseTrains}
+            budget={budget} playerDoc={playerDoc}
             openCreditLine={openCreditLine} takeLoan={takeLoan}
             toggleGroup={toggleGroup} expandedGroups={expandedGroups}
             deposits={deposits} depositRates={depositRates}

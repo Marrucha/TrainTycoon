@@ -1,13 +1,10 @@
 import styles from '../CompanyMenu.module.css'
-import FinanceBalance from './finance/FinanceBalance'
 import FinanceDebt from './finance/FinanceDebt'
 import FinanceDeposits from './finance/FinanceDeposits'
 
 const FinanceSection = ({
     budget,
     playerDoc,
-    trains = [],
-    baseTrains = [],
     openCreditLine,
     takeLoan,
     toggleGroup,
@@ -24,14 +21,6 @@ const FinanceSection = ({
                 <h2>Mój Bank</h2>
                 <p>Zarządzaj kredytami, lokatami i płynnością finansową firmy.</p>
             </div>
-
-            <FinanceBalance
-                budget={budget}
-                trains={trains}
-                baseTrains={baseTrains}
-                deposits={deposits}
-                playerDoc={playerDoc}
-            />
 
             <div className={styles.grid}>
                 <FinanceDebt
