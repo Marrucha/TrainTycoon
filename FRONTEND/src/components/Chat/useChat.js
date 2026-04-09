@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-    collection, doc, onSnapshot, addDoc, updateDoc,
+    collection, doc, onSnapshot, addDoc, updateDoc, setDoc,
     serverTimestamp, query, orderBy, limit, getDoc, getDocs,
 } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+
+export const GLOBAL_GROUPS = [
+    { id: 'global-pomoc',     name: '📋 Pomoc w grze' },
+    { id: 'global-oszustwo',  name: '🚨 Zgłoś oszustwo lub zachowania niezgodne z regulaminem' },
+    { id: 'global-blad',      name: '🐛 Zgłoś błąd lub pomysł na rozwój gry' },
+    { id: 'global-gielda',    name: '💹 Giełda slotów' },
+]
 
 export function useChat(myUid) {
     const [groups, setGroups] = useState([])
@@ -11,6 +18,20 @@ export function useChat(myUid) {
     const [activeGroupId, setActiveGroupId] = useState(null)
     const [messages, setMessages] = useState([])
     const unsubMsgs = useRef(null)
+
+    // Seed global groups (idempotent — merge: true won't overwrite existing data)
+    useEffect(() => {
+        if (!myUid) return
+        GLOBAL_GROUPS.forEach(g => {
+            setDoc(doc(db, 'chatGroups', g.id), {
+                name: g.name,
+                isGlobal: true,
+                members: [],
+                memberNames: [],
+                createdBy: 'system',
+            }, { merge: true })
+        })
+    }, [myUid])
 
     // Load all players once (for group creation)
     useEffect(() => {
@@ -20,19 +41,26 @@ export function useChat(myUid) {
         })
     }, [myUid])
 
-    // Listen to groups where current user is a member
+    // Listen to all chatGroups — show global ones + groups where user is member
     useEffect(() => {
         if (!myUid) return
         const unsub = onSnapshot(collection(db, 'chatGroups'), snap => {
-            const mine = snap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(g => g.members?.includes(myUid))
-                .sort((a, b) => {
-                    const ta = a.lastMessageAt?.toMillis?.() ?? 0
-                    const tb = b.lastMessageAt?.toMillis?.() ?? 0
-                    return tb - ta
-                })
-            setGroups(mine)
+            const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            const visible = all.filter(g => g.isGlobal || g.members?.includes(myUid))
+
+            // Global groups first (in defined order), then private by lastMessageAt desc
+            const globalOrder = GLOBAL_GROUPS.map(g => g.id)
+            visible.sort((a, b) => {
+                const ai = globalOrder.indexOf(a.id)
+                const bi = globalOrder.indexOf(b.id)
+                if (ai !== -1 && bi !== -1) return ai - bi   // both global: preserve order
+                if (ai !== -1) return -1                      // a global, b private
+                if (bi !== -1) return 1                       // b global, a private
+                const ta = a.lastMessageAt?.toMillis?.() ?? 0
+                const tb = b.lastMessageAt?.toMillis?.() ?? 0
+                return tb - ta
+            })
+            setGroups(visible)
         })
         return unsub
     }, [myUid])
@@ -55,15 +83,22 @@ export function useChat(myUid) {
 
     const sendMessage = async (groupId, text, authorName) => {
         if (!text || !groupId || !myUid) return
-        const ref = collection(db, `chatGroups/${groupId}/messages`)
-        await addDoc(ref, { text, authorUid: myUid, authorName, createdAt: serverTimestamp() })
-        // Increment unread for all OTHER members
+        await addDoc(collection(db, `chatGroups/${groupId}/messages`), {
+            text, authorUid: myUid, authorName, createdAt: serverTimestamp(),
+        })
         const groupRef = doc(db, 'chatGroups', groupId)
         const snap = await getDoc(groupRef)
-        const members = snap.data()?.members || []
+        const data = snap.data() || {}
+
+        // Global groups: no per-member unread (no members list), just timestamp
+        if (data.isGlobal) {
+            await updateDoc(groupRef, { lastMessageAt: serverTimestamp() })
+            return
+        }
+        const members = data.members || []
         const unreadUpdate = {}
         members.forEach(uid => {
-            if (uid !== myUid) unreadUpdate[`unread.${uid}`] = (snap.data()?.unread?.[uid] || 0) + 1
+            if (uid !== myUid) unreadUpdate[`unread.${uid}`] = (data.unread?.[uid] || 0) + 1
         })
         await updateDoc(groupRef, { ...unreadUpdate, lastMessageAt: serverTimestamp() })
     }
@@ -71,9 +106,7 @@ export function useChat(myUid) {
     const createGroup = async (name, memberUids, myName) => {
         if (!name || !myUid) return
         const allMembers = [myUid, ...memberUids]
-        // Fetch display names for all members
-        const nameMap = {}
-        nameMap[myUid] = myName
+        const nameMap = { [myUid]: myName }
         await Promise.all(memberUids.map(async uid => {
             const s = await getDoc(doc(db, 'players', uid))
             nameMap[uid] = s.data()?.companyName || uid
@@ -93,9 +126,10 @@ export function useChat(myUid) {
         const groupRef = doc(db, 'chatGroups', groupId)
         const snap = await getDoc(groupRef)
         const data = snap.data() || {}
-        const members = [...(data.members || []), uid]
-        const memberNames = [...(data.memberNames || []), name]
-        await updateDoc(groupRef, { members, memberNames })
+        await updateDoc(groupRef, {
+            members: [...(data.members || []), uid],
+            memberNames: [...(data.memberNames || []), name],
+        })
     }
 
     const removeMember = async (groupId, uid) => {
@@ -103,20 +137,21 @@ export function useChat(myUid) {
         const snap = await getDoc(groupRef)
         const data = snap.data() || {}
         const idx = (data.members || []).indexOf(uid)
-        const members = (data.members || []).filter(u => u !== uid)
-        const memberNames = (data.memberNames || []).filter((_, i) => i !== idx)
-        await updateDoc(groupRef, { members, memberNames })
+        await updateDoc(groupRef, {
+            members: (data.members || []).filter(u => u !== uid),
+            memberNames: (data.memberNames || []).filter((_, i) => i !== idx),
+        })
+    }
+
+    const leaveGroup = async (groupId) => {
+        await removeMember(groupId, myUid)
+        setActiveGroupId(null)
     }
 
     const markRead = async (groupId) => {
         if (!myUid || !groupId) return
         const groupRef = doc(db, 'chatGroups', groupId)
         await updateDoc(groupRef, { [`unread.${myUid}`]: 0 }).catch(() => {})
-    }
-
-    const leaveGroup = async (groupId) => {
-        await removeMember(groupId, myUid)
-        setActiveGroupId(null)
     }
 
     return {

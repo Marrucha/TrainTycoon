@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useGame } from '../../context/GameContext'
-import { useChat } from './useChat'
+import { useChat, GLOBAL_GROUPS } from './useChat'
 import styles from './Chat.module.css'
 import { auth } from '../../firebase/config'
 
@@ -17,32 +17,46 @@ const tsFormat = (ts) => {
 
 // ── sub-components ──────────────────────────────────────────────────────────
 
+const globalIds = new Set(GLOBAL_GROUPS.map(g => g.id))
+
 function GroupList({ groups, activeId, onSelect, onNew, myUid }) {
+    const publicGroups  = groups.filter(g => globalIds.has(g.id))
+    const privateGroups = groups.filter(g => !globalIds.has(g.id))
+
+    const renderItem = (g) => {
+        const unread = g.unread?.[myUid] || 0
+        return (
+            <div
+                key={g.id}
+                className={`${styles.groupItem} ${g.id === activeId ? styles.groupItemActive : ''} ${globalIds.has(g.id) ? styles.groupItemGlobal : ''}`}
+                onClick={() => onSelect(g.id)}
+            >
+                <div className={styles.groupItemName}>{g.name}</div>
+                {!globalIds.has(g.id) && (
+                    <div className={styles.groupItemMeta}>
+                        <span className={styles.groupMemberCount}>{g.members?.length || 0} os.</span>
+                        {unread > 0 && <span className={styles.unreadBadge}>{unread}</span>}
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     return (
         <div className={styles.groupList}>
             <div className={styles.groupListHeader}>
-                <span>Rozmowy</span>
+                <span>Kanały</span>
+            </div>
+            {publicGroups.map(renderItem)}
+
+            <div className={styles.groupListHeader} style={{ marginTop: 8 }}>
+                <span>Prywatne</span>
                 <button className={styles.newGroupBtn} onClick={onNew} title="Nowa grupa">＋</button>
             </div>
-            {groups.length === 0 && (
-                <div className={styles.emptyGroups}>Brak rozmów. Utwórz pierwszą.</div>
-            )}
-            {groups.map(g => {
-                const unread = g.unread?.[myUid] || 0
-                return (
-                    <div
-                        key={g.id}
-                        className={`${styles.groupItem} ${g.id === activeId ? styles.groupItemActive : ''}`}
-                        onClick={() => onSelect(g.id)}
-                    >
-                        <div className={styles.groupItemName}>{g.name}</div>
-                        <div className={styles.groupItemMeta}>
-                            <span className={styles.groupMemberCount}>{g.members?.length || 0} os.</span>
-                            {unread > 0 && <span className={styles.unreadBadge}>{unread}</span>}
-                        </div>
-                    </div>
-                )
-            })}
+            {privateGroups.length === 0
+                ? <div className={styles.emptyGroups}>Brak rozmów. Utwórz pierwszą.</div>
+                : privateGroups.map(renderItem)
+            }
         </div>
     )
 }
@@ -129,7 +143,7 @@ function NewGroupModal({ allPlayers, myUid, onCreate, onClose }) {
     )
 }
 
-function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, onLeave, onClose }) {
+function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, onLeave, onClose, isGlobal }) {
     const [adding, setAdding] = useState(false)
     const nonMembers = allPlayers.filter(p => p.uid !== myUid && !group.members?.includes(p.uid))
 
@@ -183,7 +197,7 @@ function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, 
                 )}
 
                 <div className={styles.modalActions}>
-                    <button className={styles.leaveBtn} onClick={onLeave}>Opuść grupę</button>
+                    {!isGlobal && <button className={styles.leaveBtn} onClick={onLeave}>Opuść grupę</button>}
                     <button className={styles.createBtn} onClick={onClose}>Zamknij</button>
                 </div>
             </div>
@@ -308,6 +322,7 @@ export default function Chat() {
                     group={activeGroup}
                     allPlayers={allPlayers}
                     myUid={myUid}
+                    isGlobal={!!activeGroup.isGlobal}
                     onAddMember={(uid, name) => addMember(activeGroupId, uid, name)}
                     onRemoveMember={(uid) => removeMember(activeGroupId, uid)}
                     onLeave={() => { leaveGroup(activeGroupId); setShowSettings(false) }}
