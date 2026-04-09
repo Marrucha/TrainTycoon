@@ -107,53 +107,35 @@ export default function ExchangeMyCompany() {
         <div className={s.statusCard}>
           <p className={s.sectionTitle}>Debiut giełdowy (IPO)</p>
 
-          <div className={s.checklist} style={{ marginBottom: 12 }}>
-            <div className={s.checkItem}>
-              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
-              <span className={s.checkText}>Min. 14 game-dni historii konta</span>
-            </div>
-            <div className={s.checkItem}>
-              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
-              <span className={s.checkText}>Śr. przychód ≥ 500 000 PLN/dzień (ostatnie 7 dni)</span>
-            </div>
-            <div className={s.checkItem}>
-              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
-              <span className={s.checkText}>Firma nie może być na stracie</span>
-            </div>
-            <div className={s.checkItem}>
-              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
-              <span className={s.checkText}>Reputacja ≥ 0.35</span>
-            </div>
-            <div className={s.checkItem}>
-              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
-              <span className={s.checkText}>Co najmniej 1 aktywny skład w trasie</span>
-            </div>
-            <div className={s.checkItem}>
-              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
-              <span className={s.checkText}>Wyemitowane akcje w wolnym obrocie (Finanse → Mój Bank → Emisja)</span>
-            </div>
-          </div>
+          {listingResult?.eligible && (
+            <p style={{ color: '#4CAF50', fontSize: 12, margin: '0 0 12px' }}>
+              ✓ Spółka zadebiutowała na giełdzie!
+            </p>
+          )}
 
-          {listingResult && (
-            <div className={s.checklist} style={{ marginBottom: 12, padding: '10px 12px', background: '#060f06', borderRadius: 4, border: '1px solid #1a331a' }}>
-              {listingResult.eligible
-                ? <p style={{ color: '#4CAF50', fontSize: 12, margin: 0 }}>✓ Spółka zadebiutowała na giełdzie! Odśwież stronę.</p>
-                : <>
-                    <p style={{ color: '#e74c3c', fontSize: 11, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: 1 }}>Niespełnione warunki:</p>
-                    {listingResult.failedChecks?.map((f, i) => (
-                      <div key={i} className={s.checkItem}>
-                        <span className={s.checkIcon}>✗</span>
-                        <span className={`${s.checkText} ${s.checkFailed}`}>{f}</span>
-                      </div>
-                    ))}
-                  </>
-              }
+          {listingResult?.checks ? (
+            <div className={s.checklist} style={{ marginBottom: 12 }}>
+              {listingResult.checks.map((c, i) => (
+                <div key={i} className={s.checkItem}>
+                  <span className={s.checkIcon} style={{ color: c.passed ? '#4CAF50' : '#e74c3c' }}>
+                    {c.passed ? '✓' : '✗'}
+                  </span>
+                  <span className={`${s.checkText} ${c.passed ? '' : s.checkFailed}`}>
+                    {c.label}
+                    {c.detail && <span style={{ color: '#6a8a6a', marginLeft: 6 }}>({c.detail})</span>}
+                  </span>
+                </div>
+              ))}
             </div>
+          ) : (
+            <p style={{ fontSize: 12, color: '#6a8a6a', margin: '0 0 12px' }}>
+              Kliknij przycisk aby sprawdzić wymagania i złożyć wniosek.
+            </p>
           )}
 
           <button className={s.actionBtn} onClick={handleRequestListing} disabled={listingLoading}>
             {listingLoading && <span className={s.spinner} />}
-            Złóż wniosek o IPO
+            {listingResult ? 'Sprawdź ponownie / Złóż wniosek' : 'Sprawdź wymagania i złóż wniosek'}
           </button>
         </div>
       )}

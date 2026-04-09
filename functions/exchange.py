@@ -50,25 +50,26 @@ def _compute_nav(db, pid, player_data):
         for t in db.collection(f'players/{pid}/trains').stream()
     )
 
-    # Pozostały kapitał kredytów (bez przyszłych odsetek — nie są jeszcze zobowiązaniem)
-    # Wzór: principal × remainingMonths / monthsOriginal
-    # monthsOriginal = totalToRepay / monthlyPayment
+    # Pozostały kapitał kredytów inwestycyjnych
+    # principal × (remainingMonths / originalMonths) — bez przyszłych odsetek
     loans_remaining = 0
     for l in (finance.get('loans') or []):
         principal      = l.get('principal', 0)
         remaining      = l.get('remainingMonths', 0)
         monthly        = l.get('monthlyPayment', 0)
-        total_to_repay = l.get('totalToRepay', monthly * remaining)
-        if monthly > 0 and total_to_repay > 0:
-            loans_remaining += principal * (monthly * remaining) / total_to_repay
-        else:
-            loans_remaining += principal * remaining
+        total_to_repay = l.get('totalToRepay', 0) or monthly * remaining
+        if total_to_repay > 0 and monthly > 0:
+            original_months = total_to_repay / monthly
+            loans_remaining += principal * (remaining / original_months)
+        elif remaining > 0:
+            loans_remaining += principal
 
-    # Linia kredytowa: limit dodany do balance przy otwarciu → odejmujemy jako zobowiązanie
-    credit_line = finance.get('creditLine') or {}
-    credit_liability = credit_line.get('limit', 0) if credit_line.get('limit') else 0
+    # Linia kredytowa: limit dodany do finance.balance przy otwarciu.
+    # Nie odejmamy go — balance już odzwierciedla rzeczywisty stan po wydatkach.
+    # (odejmanie limitu byłoby double-count: cash jest niskie bo wydano z kredytu,
+    #  a liability liczyłoby jeszcze raz pełny limit)
 
-    return cash + deposits + fleet_value - loans_remaining - credit_liability
+    return cash + deposits + fleet_value - loans_remaining
 
 
 def _compute_trailing_earnings(db, pid, game_date, days=7):
@@ -127,25 +128,30 @@ def _compute_fundamental_price(nav, trailing_daily_net, reputation, rev_growth_p
 def _check_listing_eligibility(db, pid, player_data, game_date):
     """
     Sprawdza wymagania IPO.
-    Zwraca (eligible: bool, failed: list[str])
+    Zwraca (eligible: bool, checks: list[{label, passed, detail}])
     """
-    failed = []
-    finance  = player_data.get('finance') or {}
-    company  = player_data.get('company') or {}
+    checks = []
+    finance = player_data.get('finance') or {}
+    company = player_data.get('company') or {}
+
+    def add(label, passed, detail=''):
+        checks.append({'label': label, 'passed': passed, 'detail': detail})
 
     # 1. Historia konta
+    req_days = LISTING_REQUIREMENTS['min_history_game_days']
     created_at = player_data.get('createdAt')
     if created_at:
         try:
-            created = datetime.date.fromisoformat(str(created_at)[:10])
+            created  = datetime.date.fromisoformat(str(created_at)[:10])
             age_days = (game_date - created).days
-            if age_days < LISTING_REQUIREMENTS['min_history_game_days']:
-                failed.append(f"Historia konta: {age_days}/{LISTING_REQUIREMENTS['min_history_game_days']} game-dni")
+            add(f'Historia konta (min. {req_days} game-dni)',
+                age_days >= req_days,
+                f'{age_days}/{req_days} dni')
         except Exception:
-            pass  # nie blokuj z powodu błędu parsowania daty
-    # brak createdAt = konto założone przed wprowadzeniem pola — pomijamy wymóg historii
+            pass  # pomijamy jeśli nie da się sparsować
+    # brak createdAt — konto założone przed polem, pomijamy wymóg
 
-    # 2. Przychody (z ostatnich 7 Raporty)
+    # 2. Przychody (ostatnie 7 dni)
     rev_days = []
     for i in range(1, 8):
         d = game_date - datetime.timedelta(days=i)
@@ -156,39 +162,42 @@ def _check_listing_eligibility(db, pid, player_data, game_date):
                 for ts in (rep.to_dict() or {}).get('trainSets', {}).values()
             ))
     avg_rev = sum(rev_days) / len(rev_days) if rev_days else 0
-    if avg_rev < LISTING_REQUIREMENTS['min_daily_revenue']:
-        failed.append(f"Śr. przychód: {int(avg_rev):,}/{LISTING_REQUIREMENTS['min_daily_revenue']:,} PLN/dzień")
+    req_rev = LISTING_REQUIREMENTS['min_daily_revenue']
+    add(f'Śr. przychód dzienny (min. {req_rev:,} PLN)',
+        avg_rev >= req_rev,
+        f'{int(avg_rev):,} PLN/dzień')
 
-    # 3. Zysk (nie na stracie)
+    # 3. Zysk netto
     avg_net = _compute_trailing_earnings(db, pid, game_date, days=7)
-    if avg_net < LISTING_REQUIREMENTS['min_daily_net']:
-        failed.append("Firma jest na stracie")
+    add('Firma nie jest na stracie',
+        avg_net >= LISTING_REQUIREMENTS['min_daily_net'],
+        f'{int(avg_net):,} PLN/dzień (śr. 7d)')
 
     # 4. Reputacja
-    rep = player_data.get('reputation', 0)
-    if rep < LISTING_REQUIREMENTS['min_reputation']:
-        failed.append(f"Reputacja: {rep:.2f}/{LISTING_REQUIREMENTS['min_reputation']}")
+    reputation = player_data.get('reputation', 0)
+    req_rep = LISTING_REQUIREMENTS['min_reputation']
+    add(f'Reputacja (min. {req_rep})',
+        reputation >= req_rep,
+        f'{reputation:.2f}')
 
-    # 5. NAV
-    nav = _compute_nav(db, pid, player_data)
-    if nav < LISTING_REQUIREMENTS['min_nav']:
-        failed.append(f"NAV: {int(nav):,}/{LISTING_REQUIREMENTS['min_nav']:,} PLN")
-
-    # 6. Aktywne składy
+    # 5. Aktywne składy
     active_ts = sum(
         1 for ts in db.collection(f'players/{pid}/trainSet').stream()
         if (ts.to_dict() or {}).get('rozklad')
     )
-    if active_ts < LISTING_REQUIREMENTS['min_active_trainsets']:
-        failed.append("Brak aktywnych składów w trasie")
+    req_ts = LISTING_REQUIREMENTS['min_active_trainsets']
+    add(f'Aktywne składy w trasie (min. {req_ts})',
+        active_ts >= req_ts,
+        f'{active_ts} aktywnych')
 
-    # 7. Wyemitowane akcje (freeFloat > 0)
-    if LISTING_REQUIREMENTS['require_free_float']:
-        free_float = company.get('freeFloat', 0)
-        if free_float <= 0:
-            failed.append("Brak akcji w wolnym obrocie (wyemituj akcje najpierw)")
+    # 6. Wyemitowane akcje
+    free_float = company.get('freeFloat', 0)
+    add('Akcje w wolnym obrocie (emisja)',
+        free_float > 0,
+        f'{int(free_float):,} akcji')
 
-    return len(failed) == 0, failed
+    eligible = all(c['passed'] for c in checks)
+    return eligible, checks
 
 
 # ── Główna funkcja dzienna ──────────────────────────────────────────────────

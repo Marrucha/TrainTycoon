@@ -682,9 +682,9 @@ def request_listing(req: https_fn.Request) -> https_fn.Response:
         if company.get('isListed'):
             return https_fn.Response(json.dumps({'error': 'Spółka jest już notowana na giełdzie'}), status=400, headers=_CORS)
 
-        eligible, failed = _check_listing_eligibility(db, uid, player_data, game_date)
+        eligible, checks = _check_listing_eligibility(db, uid, player_data, game_date)
         if not eligible:
-            return https_fn.Response(json.dumps({'eligible': False, 'failedChecks': failed}),
+            return https_fn.Response(json.dumps({'eligible': False, 'checks': checks}),
                                      status=200, headers={**_CORS, 'Content-Type': 'application/json'})
 
         # Debiut giełdowy
@@ -724,6 +724,7 @@ def request_listing(req: https_fn.Request) -> https_fn.Response:
 
         return https_fn.Response(json.dumps({
             'eligible':    True,
+            'checks':      checks,
             'fundPrice':   fund_price,
             'marketPrice': fund_price,
         }), status=200, headers={**_CORS, 'Content-Type': 'application/json'})
