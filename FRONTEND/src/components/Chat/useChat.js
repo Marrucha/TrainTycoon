@@ -114,10 +114,15 @@ export function useChat(myUid) {
         await updateDoc(groupRef, { [`unread.${myUid}`]: 0 }).catch(() => {})
     }
 
+    const leaveGroup = async (groupId) => {
+        await removeMember(groupId, myUid)
+        setActiveGroupId(null)
+    }
+
     return {
         groups, allPlayers,
         activeGroupId, setActiveGroupId,
         messages,
-        sendMessage, createGroup, addMember, removeMember, markRead,
+        sendMessage, createGroup, addMember, removeMember, leaveGroup, markRead,
     }
 }

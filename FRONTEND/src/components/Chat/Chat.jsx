@@ -129,7 +129,7 @@ function NewGroupModal({ allPlayers, myUid, onCreate, onClose }) {
     )
 }
 
-function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, onClose }) {
+function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, onLeave, onClose }) {
     const [adding, setAdding] = useState(false)
     const nonMembers = allPlayers.filter(p => p.uid !== myUid && !group.members?.includes(p.uid))
 
@@ -183,6 +183,7 @@ function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, 
                 )}
 
                 <div className={styles.modalActions}>
+                    <button className={styles.leaveBtn} onClick={onLeave}>Opuść grupę</button>
                     <button className={styles.createBtn} onClick={onClose}>Zamknij</button>
                 </div>
             </div>
@@ -203,7 +204,7 @@ export default function Chat() {
         messages,
         sendMessage,
         createGroup,
-        addMember, removeMember,
+        addMember, removeMember, leaveGroup,
         markRead,
     } = useChat(myUid)
 
@@ -267,20 +268,22 @@ export default function Chat() {
                         <MessageList messages={messages} myUid={myUid} messagesEndRef={messagesEndRef} />
 
                         <div className={styles.inputArea}>
-                            <textarea
-                                ref={inputRef}
-                                className={styles.input}
-                                value={text}
-                                onChange={e => setText(e.target.value)}
-                                onKeyDown={handleKey}
-                                placeholder="Napisz wiadomość… (Enter = wyślij)"
-                                rows={2}
-                            />
-                            <button
-                                className={styles.sendBtn}
-                                onClick={handleSend}
-                                disabled={!text.trim()}
-                            >Wyślij</button>
+                            <div className={styles.inputRow}>
+                                <textarea
+                                    ref={inputRef}
+                                    className={styles.input}
+                                    value={text}
+                                    onChange={e => setText(e.target.value)}
+                                    onKeyDown={handleKey}
+                                    placeholder="Napisz wiadomość… (Enter = wyślij)"
+                                    rows={3}
+                                />
+                                <button
+                                    className={styles.sendBtn}
+                                    onClick={handleSend}
+                                    disabled={!text.trim()}
+                                >Wyślij</button>
+                            </div>
                         </div>
                     </>
                 ) : (
@@ -307,6 +310,7 @@ export default function Chat() {
                     myUid={myUid}
                     onAddMember={(uid, name) => addMember(activeGroupId, uid, name)}
                     onRemoveMember={(uid) => removeMember(activeGroupId, uid)}
+                    onLeave={() => { leaveGroup(activeGroupId); setShowSettings(false) }}
                     onClose={() => setShowSettings(false)}
                 />
             )}

@@ -2,6 +2,8 @@
 
 .container {
     display: flex;
+    flex: 1;
+    width: 100%;
     height: 100%;
     min-height: 0;
     background: #060f06;
@@ -243,14 +245,22 @@
 
 .inputArea {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 6px;
     padding: 10px 16px;
     border-top: 1px solid #1a331a;
     flex-shrink: 0;
 }
 
+.inputRow {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
 .input {
     flex: 1;
+    width: 100%;
     background: #0a150a;
     border: 1px solid #2a4a2a;
     color: #ddd;
@@ -262,6 +272,7 @@
     outline: none;
     line-height: 1.4;
     transition: border-color 0.15s;
+    box-sizing: border-box;
 }
 
 .input:focus {
@@ -273,13 +284,14 @@
     border: 1px solid #2d6a4f;
     color: #4CAF50;
     border-radius: 6px;
-    padding: 0 18px;
+    padding: 8px 18px;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
     white-space: nowrap;
     font-family: inherit;
+    flex-shrink: 0;
 }
 
 .sendBtn:hover:not(:disabled) {
@@ -452,6 +464,23 @@
     justify-content: flex-end;
     gap: 8px;
     margin-top: 8px;
+}
+
+.leaveBtn {
+    background: rgba(231, 76, 60, 0.08);
+    border: 1px solid #c0392b;
+    color: #e74c3c;
+    border-radius: 4px;
+    padding: 7px 16px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+    margin-right: auto;
+}
+
+.leaveBtn:hover {
+    background: rgba(231, 76, 60, 0.2);
 }
 
 .cancelBtn {
