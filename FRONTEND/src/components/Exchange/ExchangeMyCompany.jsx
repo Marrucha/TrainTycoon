@@ -106,20 +106,47 @@ export default function ExchangeMyCompany() {
       {!isListed && (
         <div className={s.statusCard}>
           <p className={s.sectionTitle}>Debiut giełdowy (IPO)</p>
-          <p style={{ fontSize: 12, color: '#6a8a6a', margin: '0 0 12px' }}>
-            Sprawdź wymagania i złóż wniosek o notowanie spółki.
-          </p>
+
+          <div className={s.checklist} style={{ marginBottom: 12 }}>
+            <div className={s.checkItem}>
+              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
+              <span className={s.checkText}>Min. 14 game-dni historii konta</span>
+            </div>
+            <div className={s.checkItem}>
+              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
+              <span className={s.checkText}>Śr. przychód ≥ 500 000 PLN/dzień (ostatnie 7 dni)</span>
+            </div>
+            <div className={s.checkItem}>
+              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
+              <span className={s.checkText}>Firma nie może być na stracie</span>
+            </div>
+            <div className={s.checkItem}>
+              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
+              <span className={s.checkText}>Reputacja ≥ 0.35</span>
+            </div>
+            <div className={s.checkItem}>
+              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
+              <span className={s.checkText}>Co najmniej 1 aktywny skład w trasie</span>
+            </div>
+            <div className={s.checkItem}>
+              <span className={s.checkIcon} style={{ color: '#6a8a6a' }}>•</span>
+              <span className={s.checkText}>Wyemitowane akcje w wolnym obrocie (Finanse → Mój Bank → Emisja)</span>
+            </div>
+          </div>
 
           {listingResult && (
-            <div className={s.checklist}>
+            <div className={s.checklist} style={{ marginBottom: 12, padding: '10px 12px', background: '#060f06', borderRadius: 4, border: '1px solid #1a331a' }}>
               {listingResult.eligible
-                ? <p style={{ color: '#4CAF50', fontSize: 12 }}>Spółka zadebiutowała na giełdzie!</p>
-                : listingResult.failedChecks?.map((f, i) => (
-                    <div key={i} className={s.checkItem}>
-                      <span className={s.checkIcon}>✗</span>
-                      <span className={`${s.checkText} ${s.checkFailed}`}>{f}</span>
-                    </div>
-                  ))
+                ? <p style={{ color: '#4CAF50', fontSize: 12, margin: 0 }}>✓ Spółka zadebiutowała na giełdzie! Odśwież stronę.</p>
+                : <>
+                    <p style={{ color: '#e74c3c', fontSize: 11, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: 1 }}>Niespełnione warunki:</p>
+                    {listingResult.failedChecks?.map((f, i) => (
+                      <div key={i} className={s.checkItem}>
+                        <span className={s.checkIcon}>✗</span>
+                        <span className={`${s.checkText} ${s.checkFailed}`}>{f}</span>
+                      </div>
+                    ))}
+                  </>
               }
             </div>
           )}

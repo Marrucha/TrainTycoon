@@ -23,7 +23,7 @@ LISTING_REQUIREMENTS = {
     'min_daily_revenue':    500_000,
     'min_daily_net':              0,
     'min_reputation':          0.35,
-    'min_nav':             2_000_000,
+    'min_nav':                     0,
     'min_active_trainsets':       1,
     'require_free_float':      True,
 }
@@ -50,13 +50,21 @@ def _compute_nav(db, pid, player_data):
         for t in db.collection(f'players/{pid}/trains').stream()
     )
 
-    # Długi z kredytów inwestycyjnych
-    loans_remaining = sum(
-        (l.get('monthlyPayment', 0) * l.get('remainingMonths', 0))
-        for l in (finance.get('loans') or [])
-    )
-    # Linia kredytowa: limit został już dodany do finance.balance przy otwarciu,
-    # więc odejmujemy go jako zobowiązanie (by nie liczyć dwa razy)
+    # Pozostały kapitał kredytów (bez przyszłych odsetek — nie są jeszcze zobowiązaniem)
+    # Wzór: principal × remainingMonths / monthsOriginal
+    # monthsOriginal = totalToRepay / monthlyPayment
+    loans_remaining = 0
+    for l in (finance.get('loans') or []):
+        principal      = l.get('principal', 0)
+        remaining      = l.get('remainingMonths', 0)
+        monthly        = l.get('monthlyPayment', 0)
+        total_to_repay = l.get('totalToRepay', monthly * remaining)
+        if monthly > 0 and total_to_repay > 0:
+            loans_remaining += principal * (monthly * remaining) / total_to_repay
+        else:
+            loans_remaining += principal * remaining
+
+    # Linia kredytowa: limit dodany do balance przy otwarciu → odejmujemy jako zobowiązanie
     credit_line = finance.get('creditLine') or {}
     credit_liability = credit_line.get('limit', 0) if credit_line.get('limit') else 0
 
