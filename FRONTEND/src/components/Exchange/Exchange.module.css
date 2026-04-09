@@ -1,0 +1,665 @@
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+
+.container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    background: #060f06;
+    color: #ccc;
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+}
+
+/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+
+.tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #1a331a;
+    flex-shrink: 0;
+}
+
+.tab {
+    padding: 10px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #4a6a4a;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: inherit;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+    color: #8ab88a;
+}
+
+.tabActive {
+    color: #4CAF50;
+    border-bottom-color: #4CAF50;
+}
+
+.tabContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    min-height: 0;
+}
+
+/* ── Section headers ─────────────────────────────────────────────────────── */
+
+.sectionTitle {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #6a8a6a;
+    margin: 0 0 12px;
+}
+
+/* ── Market table ────────────────────────────────────────────────────────── */
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.table th {
+    text-align: left;
+    padding: 6px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #4a6a4a;
+    border-bottom: 1px solid #1a331a;
+}
+
+.table th.right {
+    text-align: right;
+}
+
+.table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(26, 51, 26, 0.3);
+    color: #ccc;
+}
+
+.table td.right {
+    text-align: right;
+}
+
+.table tr:hover td {
+    background: rgba(42, 74, 42, 0.15);
+}
+
+.companyName {
+    color: #e0e0e0;
+    font-weight: 700;
+}
+
+.price {
+    color: #4CAF50;
+    font-weight: 700;
+}
+
+.priceUp {
+    color: #4CAF50;
+}
+
+.priceDown {
+    color: #e74c3c;
+}
+
+.priceNeutral {
+    color: #888;
+}
+
+.fundamentalPrice {
+    color: #6a8a6a;
+    font-size: 11px;
+}
+
+.changeCell {
+    font-size: 11px;
+}
+
+/* ── Sparkline ───────────────────────────────────────────────────────────── */
+
+.sparkline {
+    display: block;
+}
+
+/* ── Trade buttons ───────────────────────────────────────────────────────── */
+
+.tradeButtons {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.buyBtn {
+    background: rgba(76, 175, 80, 0.12);
+    border: 1px solid #2d6a4f;
+    color: #4CAF50;
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+}
+
+.buyBtn:hover {
+    background: rgba(76, 175, 80, 0.25);
+}
+
+.sellBtn {
+    background: rgba(231, 76, 60, 0.08);
+    border: 1px solid #c0392b;
+    color: #e74c3c;
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+}
+
+.sellBtn:hover {
+    background: rgba(231, 76, 60, 0.2);
+}
+
+.ownLabel {
+    font-size: 10px;
+    color: #4a6a4a;
+    font-style: italic;
+}
+
+/* ── Trade modal ─────────────────────────────────────────────────────────── */
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: #0a150a;
+    border: 1px solid #2a4a2a;
+    border-radius: 8px;
+    padding: 24px;
+    min-width: 340px;
+    max-width: 440px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.modalTitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e0e0e0;
+    margin: 0;
+}
+
+.modalSubtitle {
+    font-size: 11px;
+    color: #6a8a6a;
+    margin: -6px 0 0;
+}
+
+.modalRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 12px;
+}
+
+.modalLabel {
+    color: #6a8a6a;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modalValue {
+    color: #ddd;
+    font-weight: 700;
+}
+
+.modalValueGreen {
+    color: #4CAF50;
+    font-weight: 700;
+}
+
+.modalValueRed {
+    color: #e74c3c;
+    font-weight: 700;
+}
+
+.sliderRow {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.slider {
+    width: 100%;
+    accent-color: #4CAF50;
+    cursor: pointer;
+}
+
+.sliderLabels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #4a6a4a;
+}
+
+.sharesInput {
+    background: #060f06;
+    border: 1px solid #2a4a2a;
+    color: #ddd;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    width: 100%;
+    text-align: right;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+
+.sharesInput:focus {
+    border-color: #4CAF50;
+}
+
+.divider {
+    border: none;
+    border-top: 1px solid #1a331a;
+    margin: 0;
+}
+
+.totalCost {
+    font-size: 16px;
+    font-weight: 700;
+    text-align: right;
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.cancelBtn {
+    background: none;
+    border: 1px solid #2a4a2a;
+    color: #6a8a6a;
+    border-radius: 4px;
+    padding: 8px 18px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s;
+}
+
+.cancelBtn:hover {
+    border-color: #4a6a4a;
+}
+
+.confirmBuyBtn {
+    background: #1a3a1a;
+    border: 1px solid #2d6a4f;
+    color: #4CAF50;
+    border-radius: 4px;
+    padding: 8px 20px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+}
+
+.confirmBuyBtn:hover:not(:disabled) {
+    background: #2a4a2a;
+}
+
+.confirmBuyBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.confirmSellBtn {
+    background: rgba(231, 76, 60, 0.12);
+    border: 1px solid #c0392b;
+    color: #e74c3c;
+    border-radius: 4px;
+    padding: 8px 20px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+}
+
+.confirmSellBtn:hover:not(:disabled) {
+    background: rgba(231, 76, 60, 0.25);
+}
+
+.confirmSellBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.errorMsg {
+    color: #e74c3c;
+    font-size: 11px;
+    text-align: center;
+}
+
+/* ── My company panel ────────────────────────────────────────────────────── */
+
+.statusCard {
+    background: #0a150a;
+    border: 1px solid #1a331a;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.statusRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.statusBadge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 12px;
+}
+
+.badgeListed {
+    background: rgba(76, 175, 80, 0.15);
+    border: 1px solid #2d6a4f;
+    color: #4CAF50;
+}
+
+.badgeUnlisted {
+    background: rgba(100, 100, 100, 0.1);
+    border: 1px solid #333;
+    color: #666;
+}
+
+.valuationGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.valuationCell {
+    background: #060f06;
+    border: 1px solid #1a331a;
+    border-radius: 4px;
+    padding: 10px 12px;
+}
+
+.valuationCellLabel {
+    font-size: 9px;
+    color: #4a6a4a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.valuationCellValue {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e0e0e0;
+}
+
+/* ── Checklist ───────────────────────────────────────────────────────────── */
+
+.checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.checkItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.checkIcon {
+    width: 18px;
+    text-align: center;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.checkText {
+    color: #ccc;
+}
+
+.checkFailed {
+    color: #e74c3c;
+}
+
+/* ── Action btn ──────────────────────────────────────────────────────────── */
+
+.actionBtn {
+    background: #1a3a1a;
+    border: 1px solid #2d6a4f;
+    color: #4CAF50;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+    margin-top: 12px;
+}
+
+.actionBtn:hover:not(:disabled) {
+    background: #2a4a2a;
+}
+
+.actionBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.actionBtnDanger {
+    background: rgba(231, 76, 60, 0.08);
+    border: 1px solid #c0392b;
+    color: #e74c3c;
+}
+
+.actionBtnDanger:hover:not(:disabled) {
+    background: rgba(231, 76, 60, 0.2);
+}
+
+/* ── Portfolio ───────────────────────────────────────────────────────────── */
+
+.portfolioHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 16px;
+}
+
+.portfolioTotal {
+    font-size: 22px;
+    font-weight: 700;
+    color: #4CAF50;
+}
+
+.portfolioLabel {
+    font-size: 10px;
+    color: #4a6a4a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.holdingCard {
+    background: #0a150a;
+    border: 1px solid #1a331a;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.holdingInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.holdingName {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e0e0e0;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.holdingMeta {
+    font-size: 11px;
+    color: #6a8a6a;
+}
+
+.holdingPnl {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.pnlValue {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.pnlPct {
+    font-size: 10px;
+    color: #6a8a6a;
+}
+
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px;
+    color: #4a6a4a;
+    font-size: 12px;
+    text-align: center;
+}
+
+.emptyIcon {
+    font-size: 36px;
+    opacity: 0.4;
+}
+
+/* ── Personal balance widget ─────────────────────────────────────────────── */
+
+.personalBadge {
+    background: #0a150a;
+    border: 1px solid #1a331a;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+
+.personalBadgeLabel {
+    font-size: 9px;
+    color: #4a6a4a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.personalBadgeValue {
+    font-size: 20px;
+    font-weight: 700;
+    color: #4CAF50;
+}
+
+/* ── Dividend form ───────────────────────────────────────────────────────── */
+
+.dividendInput {
+    background: #060f06;
+    border: 1px solid #2a4a2a;
+    color: #ddd;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.dividendInput:focus {
+    border-color: #4CAF50;
+}
+
+.dividendRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+
+.spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(76, 175, 80, 0.3);
+    border-top-color: #4CAF50;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

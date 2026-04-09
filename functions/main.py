@@ -4,7 +4,7 @@ import math
 import random
 
 from firebase_functions import scheduler_fn, https_fn, firestore_fn, tasks_fn, options
-from firebase_admin import initialize_app, firestore, functions as admin_functions
+from firebase_admin import initialize_app, firestore, functions as admin_functions, auth as fb_auth
 
 from demand_calc import calc_demand_for_train_sets, _collect_segments_for_debug
 from boarding_sim import (
@@ -15,6 +15,7 @@ from reports import save_daily_report, _calc_ticket_price, DEFAULT_PRICING
 from reputation import update_reputation_metrics
 from staff import run_daily_staff, run_monthly_staff, _generate_agency_lists
 from hall_of_fame import update_hall_of_fame
+from exchange import update_exchange_prices, _check_listing_eligibility, _compute_nav, _get_market_price
 from finance_ops import (
     _get_game_date, _accrue_credit_line_interest,
     _process_loan_payments, _calc_daily_breakdowns,
@@ -114,6 +115,7 @@ def _check_game_day_rollover(db) -> None:
     run_monthly_staff(db, today=game_date)
     update_reputation_metrics(db)
     update_hall_of_fame(db, game_date=game_date)
+    update_exchange_prices(db, game_date=game_date)
 
 
 @scheduler_fn.on_schedule(schedule='0 3 * * *', timezone='Europe/Warsaw')
@@ -407,6 +409,460 @@ def debug_demand(req: https_fn.Request) -> https_fn.Response:
                         if k.startswith(stop['city_id'] + ':') and (k.split(':')[1] in set(stop.get('forward_ids', []))) }
                 })
     return https_fn.Response(json.dumps(result, ensure_ascii=False, indent=2), status=200, headers={'Content-Type': 'application/json'})
+
+
+_CORS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+}
+
+BUY_SPREAD  = 1.02   # kupujący płaci 2% powyżej market
+SELL_SPREAD = 0.98   # sprzedający otrzymuje 2% poniżej market
+PRESSURE_PER_FLOAT = 0.50   # kupno/sprzedaż 10% freeFloat → ±5% presji
+DAILY_VOLUME_CAP   = 0.05   # max 5% freeFloat na parę kupujący-spółka dziennie
+DAILY_VOLUME_ABS   = 50_000 # max 50 000 akcji dziennie (hard cap)
+MIN_ACCOUNT_DAYS   = 14     # cooldown konta (game-dni)
+DIVIDEND_COOLDOWN  = 30     # min game-dni między dywidendami
+
+
+def _verify_token(req) -> str:
+    """Sprawdza Bearer token i zwraca uid. Rzuca ValueError jeśli brak/błąd."""
+    auth_header = req.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        raise ValueError('Brak tokenu autoryzacji')
+    token = auth_header[7:]
+    decoded = fb_auth.verify_id_token(token)
+    return decoded['uid']
+
+
+def _cors_preflight(req):
+    if req.method == 'OPTIONS':
+        return https_fn.Response('', status=204, headers=_CORS)
+    return None
+
+
+@https_fn.on_request()
+def exchange_trade(req: https_fn.Request) -> https_fn.Response:
+    """Kupno lub sprzedaż akcji przez gracza.
+
+    Body JSON: { type: 'buy'|'sell', targetUid: str, shares: int }
+    """
+    pre = _cors_preflight(req)
+    if pre:
+        return pre
+
+    try:
+        buyer_uid = _verify_token(req)
+    except Exception as e:
+        return https_fn.Response(json.dumps({'error': str(e)}), status=401, headers=_CORS)
+
+    try:
+        body = req.get_json(silent=True) or {}
+        trade_type = body.get('type')           # 'buy' | 'sell'
+        target_uid = body.get('targetUid')
+        shares     = int(body.get('shares', 0))
+
+        if trade_type not in ('buy', 'sell'):
+            return https_fn.Response(json.dumps({'error': 'Nieprawidłowy typ transakcji'}), status=400, headers=_CORS)
+        if not target_uid:
+            return https_fn.Response(json.dumps({'error': 'Brak targetUid'}), status=400, headers=_CORS)
+        if shares <= 0:
+            return https_fn.Response(json.dumps({'error': 'Liczba akcji musi być > 0'}), status=400, headers=_CORS)
+        if buyer_uid == target_uid:
+            return https_fn.Response(json.dumps({'error': 'Nie możesz kupować własnych akcji'}), status=400, headers=_CORS)
+
+        db = firestore.client()
+        game_date = _get_game_date(db)
+        date_str  = game_date.isoformat() if game_date else datetime.date.today().isoformat()
+
+        # Dane spółki z giełdy
+        ex_ref  = db.collection('exchange').document(target_uid)
+        ex_snap = ex_ref.get()
+        if not ex_snap.exists or not (ex_snap.to_dict() or {}).get('isListed'):
+            return https_fn.Response(json.dumps({'error': 'Spółka nie jest notowana na giełdzie'}), status=400, headers=_CORS)
+        ex_data      = ex_snap.to_dict()
+        market_price = ex_data.get('marketPrice', 1.0)
+        free_float   = ex_data.get('freeFloat', 0)
+        pressure     = ex_data.get('pressureAccumulator', 0.0)
+        fund_price   = ex_data.get('fundamentalPrice', market_price)
+
+        # Dane kupującego
+        buyer_snap = db.collection('players').document(buyer_uid).get()
+        if not buyer_snap.exists:
+            return https_fn.Response(json.dumps({'error': 'Gracz nie istnieje'}), status=400, headers=_CORS)
+        buyer_data       = buyer_snap.to_dict() or {}
+        personal_balance = (buyer_data.get('personal') or {}).get('balance', 0)
+
+        # Cooldown konta (min 14 game-dni)
+        if game_date:
+            created_at = buyer_data.get('createdAt', '')
+            if created_at:
+                try:
+                    created = datetime.date.fromisoformat(created_at[:10])
+                    if (game_date - created).days < MIN_ACCOUNT_DAYS:
+                        return https_fn.Response(
+                            json.dumps({'error': f'Konto musi mieć co najmniej {MIN_ACCOUNT_DAYS} game-dni historii'}),
+                            status=400, headers=_CORS,
+                        )
+                except ValueError:
+                    pass
+
+        # Portfel kupującego
+        port_ref  = db.collection('portfolios').document(buyer_uid)
+        port_snap = port_ref.get()
+        port_data = port_snap.to_dict() if port_snap.exists else {}
+        holdings  = port_data.get('holdings') or {}
+        holding   = holdings.get(target_uid) or {'shares': 0, 'avgBuyPrice': 0.0, 'totalInvested': 0.0}
+
+        if trade_type == 'buy':
+            # Limit dzienny (5% freeFloat lub 50 000 akcji)
+            daily_cap = min(int(free_float * DAILY_VOLUME_CAP), DAILY_VOLUME_ABS)
+            if shares > daily_cap:
+                return https_fn.Response(
+                    json.dumps({'error': f'Limit dzienny: max {daily_cap:,} akcji tej spółki'}),
+                    status=400, headers=_CORS,
+                )
+            if shares > free_float:
+                return https_fn.Response(
+                    json.dumps({'error': f'Niewystarczająca liczba akcji w wolnym obrocie ({free_float:,})'}),
+                    status=400, headers=_CORS,
+                )
+            price_per_share  = round(market_price * BUY_SPREAD, 2)
+            total_cost       = round(price_per_share * shares)
+            if personal_balance < total_cost:
+                return https_fn.Response(
+                    json.dumps({'error': f'Niewystarczające środki osobiste. Potrzeba {total_cost:,} PLN, masz {personal_balance:,} PLN'}),
+                    status=400, headers=_CORS,
+                )
+            new_personal     = personal_balance - total_cost
+            new_free_float   = free_float - shares
+            new_shares       = holding['shares'] + shares
+            total_invested   = holding.get('totalInvested', 0) + total_cost
+            new_avg          = round(total_invested / new_shares, 2) if new_shares else 0
+            pressure_delta   = PRESSURE_PER_FLOAT * (shares / max(1, free_float))
+
+        else:  # sell
+            owned_shares = holding.get('shares', 0)
+            if shares > owned_shares:
+                return https_fn.Response(
+                    json.dumps({'error': f'Masz tylko {owned_shares:,} akcji tej spółki'}),
+                    status=400, headers=_CORS,
+                )
+            price_per_share  = round(market_price * SELL_SPREAD, 2)
+            total_value      = round(price_per_share * shares)
+            new_personal     = personal_balance + total_value
+            new_free_float   = free_float + shares
+            new_shares       = owned_shares - shares
+            total_invested   = holding.get('totalInvested', 0) * (new_shares / owned_shares) if owned_shares else 0
+            new_avg          = holding.get('avgBuyPrice', 0)
+            total_cost       = 0
+            pressure_delta   = -PRESSURE_PER_FLOAT * (shares / max(1, free_float))
+
+        # Nowa presja i cena rynkowa
+        new_pressure = pressure + pressure_delta
+        raw_new_market = fund_price * (1 + new_pressure)
+        new_market = max(
+            fund_price * 0.85,
+            min(fund_price * 1.20, raw_new_market),
+        )
+        new_market = round(new_market, 2)
+
+        # Batch update
+        batch = db.batch()
+
+        # Kupujący: personal balance
+        batch.update(buyer_snap.reference, {'personal.balance': round(new_personal)})
+
+        # exchange/{target}: freeFloat, pressure, marketPrice
+        batch.update(ex_ref, {
+            'freeFloat':           new_free_float,
+            'pressureAccumulator': round(new_pressure, 6),
+            'marketPrice':         new_market,
+        })
+
+        # priceHistory: aktualizuj volume, high, low
+        hist_ref  = ex_ref.collection('priceHistory').document(date_str)
+        hist_snap = hist_ref.get()
+        if hist_snap.exists:
+            hd = hist_snap.to_dict() or {}
+            batch.update(hist_ref, {
+                'volume': hd.get('volume', 0) + shares,
+                'high':   max(hd.get('high', new_market), new_market),
+                'low':    min(hd.get('low', new_market), new_market),
+                'closePrice': new_market,
+            })
+        else:
+            batch.set(hist_ref, {
+                'date': date_str,
+                'volume': shares,
+                'high': new_market,
+                'low': new_market,
+                'openPrice': market_price,
+                'closePrice': new_market,
+                'fundamentalPrice': fund_price,
+            })
+
+        # Portfolio kupującego
+        new_holding = {
+            'shares':        new_shares,
+            'avgBuyPrice':   new_avg,
+            'totalInvested': round(total_invested),
+        }
+        if new_shares == 0:
+            # usuń holding jeśli sprzedano wszystko
+            import google.cloud.firestore
+            batch.update(port_ref, {f'holdings.{target_uid}': google.cloud.firestore.DELETE_FIELD})
+        else:
+            batch.set(port_ref, {
+                'uid': buyer_uid,
+                'holdings': {target_uid: new_holding},
+                'lastUpdated': date_str,
+            }, merge=True)
+
+        # tradeHistory
+        import uuid
+        trade_id  = str(uuid.uuid4())[:16]
+        trade_ref = db.collection(f'portfolios/{buyer_uid}/tradeHistory').document(trade_id)
+        batch.set(trade_ref, {
+            'type':          trade_type,
+            'targetUid':     target_uid,
+            'targetName':    ex_data.get('companyName', ''),
+            'shares':        shares,
+            'pricePerShare': price_per_share,
+            'totalValue':    round(price_per_share * shares),
+            'gameDate':      date_str,
+            'timestamp':     datetime.datetime.utcnow().isoformat(),
+            'sourceIp':      req.remote_addr,
+        })
+
+        batch.commit()
+
+        return https_fn.Response(json.dumps({
+            'success':       True,
+            'pricePerShare': price_per_share,
+            'totalValue':    round(price_per_share * shares),
+            'newMarketPrice': new_market,
+            'newBalance':    round(new_personal),
+            'newShares':     new_shares,
+        }), status=200, headers={**_CORS, 'Content-Type': 'application/json'})
+
+    except Exception as e:
+        return https_fn.Response(json.dumps({'error': str(e)}), status=500, headers=_CORS)
+
+
+@https_fn.on_request()
+def request_listing(req: https_fn.Request) -> https_fn.Response:
+    """Gracz składa wniosek o notowanie spółki na giełdzie.
+
+    Nie wymaga body — sprawdza dane uwierzytelnionego gracza.
+    """
+    pre = _cors_preflight(req)
+    if pre:
+        return pre
+
+    try:
+        uid = _verify_token(req)
+    except Exception as e:
+        return https_fn.Response(json.dumps({'error': str(e)}), status=401, headers=_CORS)
+
+    try:
+        db = firestore.client()
+        game_date = _get_game_date(db)
+        if not game_date:
+            return https_fn.Response(json.dumps({'error': 'Brak daty gry'}), status=500, headers=_CORS)
+
+        player_snap = db.collection('players').document(uid).get()
+        if not player_snap.exists:
+            return https_fn.Response(json.dumps({'error': 'Gracz nie istnieje'}), status=400, headers=_CORS)
+
+        player_data = player_snap.to_dict() or {}
+        company     = player_data.get('company') or {}
+
+        if company.get('isListed'):
+            return https_fn.Response(json.dumps({'error': 'Spółka jest już notowana na giełdzie'}), status=400, headers=_CORS)
+
+        eligible, failed = _check_listing_eligibility(db, uid, player_data, game_date)
+        if not eligible:
+            return https_fn.Response(json.dumps({'eligible': False, 'failedChecks': failed}),
+                                     status=200, headers={**_CORS, 'Content-Type': 'application/json'})
+
+        # Debiut giełdowy
+        date_str     = game_date.isoformat()
+        total_shares = company.get('totalShares', 1_000_000)
+        free_float   = company.get('freeFloat', 0)
+        reputation   = player_data.get('reputation', 0)
+        nav          = _compute_nav(db, uid, player_data)
+
+        # Prosta cena startowa — tylko NAV (brak historii earnings)
+        fund_price = max(1.0, round(max(1_000_000, nav) / max(1, total_shares), 2))
+
+        ex_ref = db.collection('exchange').document(uid)
+        ex_ref.set({
+            'ownerUid':            uid,
+            'companyName':         player_data.get('companyName', ''),
+            'isListed':            True,
+            'listedAt':            date_str,
+            'fundamentalPrice':    fund_price,
+            'marketPrice':         fund_price,
+            'prevDayPrice':        fund_price,
+            'pressureAccumulator': 0.0,
+            'totalShares':         total_shares,
+            'freeFloat':           free_float,
+            'uniqueHolders':       0,
+            'nav':                 round(nav),
+            'earningsValue':       0,
+            'peMultiple':          8.0,
+            'trailingDailyNet':    0,
+            'lastUpdated':         date_str,
+        })
+
+        db.collection('players').document(uid).update({
+            'company.isListed': True,
+            'company.listedAt': date_str,
+        })
+
+        return https_fn.Response(json.dumps({
+            'eligible':    True,
+            'fundPrice':   fund_price,
+            'marketPrice': fund_price,
+        }), status=200, headers={**_CORS, 'Content-Type': 'application/json'})
+
+    except Exception as e:
+        return https_fn.Response(json.dumps({'error': str(e)}), status=500, headers=_CORS)
+
+
+@https_fn.on_request()
+def pay_dividend(req: https_fn.Request) -> https_fn.Response:
+    """Właściciel wypłaca dywidendę akcjonariuszom.
+
+    Body JSON: { plnPerShare: number }
+    Min 30 game-dni od ostatniej dywidendy. Pobiera z finance.balance właściciela,
+    rozdaje do personal.balance każdego akcjonariusza.
+    """
+    pre = _cors_preflight(req)
+    if pre:
+        return pre
+
+    try:
+        owner_uid = _verify_token(req)
+    except Exception as e:
+        return https_fn.Response(json.dumps({'error': str(e)}), status=401, headers=_CORS)
+
+    try:
+        body          = req.get_json(silent=True) or {}
+        pln_per_share = float(body.get('plnPerShare', 0))
+        if pln_per_share <= 0:
+            return https_fn.Response(json.dumps({'error': 'plnPerShare musi być > 0'}), status=400, headers=_CORS)
+
+        db        = firestore.client()
+        game_date = _get_game_date(db)
+        if not game_date:
+            return https_fn.Response(json.dumps({'error': 'Brak daty gry'}), status=500, headers=_CORS)
+        date_str  = game_date.isoformat()
+
+        ex_ref  = db.collection('exchange').document(owner_uid)
+        ex_snap = ex_ref.get()
+        if not ex_snap.exists or not (ex_snap.to_dict() or {}).get('isListed'):
+            return https_fn.Response(json.dumps({'error': 'Spółka nie jest notowana'}), status=400, headers=_CORS)
+        ex_data = ex_snap.to_dict()
+
+        # Cooldown 30 game-dni
+        last_div = ex_data.get('lastDividendAt')
+        if last_div:
+            try:
+                last_div_date = datetime.date.fromisoformat(last_div[:10])
+                if (game_date - last_div_date).days < DIVIDEND_COOLDOWN:
+                    days_left = DIVIDEND_COOLDOWN - (game_date - last_div_date).days
+                    return https_fn.Response(
+                        json.dumps({'error': f'Kolejna dywidenda możliwa za {days_left} game-dni'}),
+                        status=400, headers=_CORS,
+                    )
+            except ValueError:
+                pass
+
+        # Kasa firmy właściciela
+        owner_snap    = db.collection('players').document(owner_uid).get()
+        owner_data    = owner_snap.to_dict() or {}
+        finance_bal   = (owner_data.get('finance') or {}).get('balance', 0)
+
+        # Zbierz wszystkich posiadaczy akcji
+        holders = []  # list of (port_uid, shares)
+        for port_doc in db.collection('portfolios').stream():
+            port_uid  = port_doc.id
+            port_data = port_doc.to_dict() or {}
+            h_shares  = (port_data.get('holdings') or {}).get(owner_uid, {}).get('shares', 0)
+            if h_shares > 0:
+                holders.append((port_uid, h_shares))
+
+        if not holders:
+            return https_fn.Response(json.dumps({'error': 'Brak akcjonariuszy z akcjami w obrocie'}), status=400, headers=_CORS)
+
+        total_payout = round(sum(shares * pln_per_share for _, shares in holders))
+        if finance_bal < total_payout:
+            return https_fn.Response(
+                json.dumps({'error': f'Niewystarczające środki firmy. Potrzeba {total_payout:,} PLN, masz {finance_bal:,} PLN'}),
+                status=400, headers=_CORS,
+            )
+
+        # Batch: odejmij z kasy firmy, dodaj do każdego akcjonariusza
+        batch = db.batch()
+        batch.update(owner_snap.reference, {'finance.balance': finance_bal - total_payout})
+
+        for port_uid, h_shares in holders:
+            holder_snap = db.collection('players').document(port_uid).get()
+            if not holder_snap.exists:
+                continue
+            holder_personal = (holder_snap.to_dict() or {}).get('personal', {}).get('balance', 0)
+            payout = round(h_shares * pln_per_share)
+            batch.update(holder_snap.reference, {'personal.balance': holder_personal + payout})
+
+            # tradeHistory dla akcjonariusza
+            import uuid
+            div_ref = db.collection(f'portfolios/{port_uid}/tradeHistory').document(str(uuid.uuid4())[:16])
+            batch.set(div_ref, {
+                'type':          'dividend',
+                'targetUid':     owner_uid,
+                'targetName':    ex_data.get('companyName', ''),
+                'shares':        h_shares,
+                'pricePerShare': pln_per_share,
+                'totalValue':    payout,
+                'gameDate':      date_str,
+                'timestamp':     datetime.datetime.utcnow().isoformat(),
+            })
+
+        # Zaktualizuj lastDividendAt w exchange
+        batch.update(ex_ref, {'lastDividendAt': date_str})
+
+        # Zapis do ledgera firmy
+        ledger_ref = db.collection(f'players/{owner_uid}/financeLedger').document(date_str)
+        batch.set(ledger_ref, {
+            'oneTimeCosts': [{'type': 'dividend', 'amount': total_payout,
+                              'desc': f'Dywidenda {pln_per_share} PLN/akcję ({len(holders)} akcjonariuszy)'}],
+        }, merge=True)
+
+        batch.commit()
+
+        return https_fn.Response(json.dumps({
+            'success':      True,
+            'totalPayout':  total_payout,
+            'holdersCount': len(holders),
+            'plnPerShare':  pln_per_share,
+        }), status=200, headers={**_CORS, 'Content-Type': 'application/json'})
+
+    except Exception as e:
+        return https_fn.Response(json.dumps({'error': str(e)}), status=500, headers=_CORS)
+
+
+@https_fn.on_request()
+def manual_update_exchange(req: https_fn.Request) -> https_fn.Response:
+    """HTTP trigger: ręczna aktualizacja cen giełdowych."""
+    db = firestore.client()
+    game_date = _get_game_date(db)
+    if not game_date:
+        return https_fn.Response('Brak daty gry.\n', status=500)
+    update_exchange_prices(db, game_date=game_date)
+    return https_fn.Response(f'Exchange prices updated for {game_date}.\n', status=200)
 
 
 @firestore_fn.on_document_written(document='players/{pid}/trainSet/{ts_id}')

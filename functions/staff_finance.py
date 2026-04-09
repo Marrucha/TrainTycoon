@@ -1,6 +1,52 @@
 """Księgowość dzienna i miesięczna operacji na koncie gracza i w logach financeLedger."""
 import datetime as dt
 
+LIFESTYLE_BASE = 10_000   # PLN/miesiąc stała opłata za styl życia CEO
+LIFESTYLE_RATE = 0.01     # 1% majątku osobistego / miesiąc
+
+
+def _pay_ceo_salary_and_lifestyle(db, today=None):
+    """Wypłata wynagrodzenia CEO z kasy firmy do personal.balance + lifestyle tax.
+    Uruchamiana raz na game-miesiąc (day == 1).
+    """
+    if today is None:
+        today = dt.date.today()
+    if today.day != 1:
+        return
+
+    for p_doc in db.collection('players').stream():
+        pid = p_doc.id
+        if pid == 'samorządowy':
+            continue
+
+        data = p_doc.to_dict() or {}
+        company = data.get('company') or {}
+        ceo_salary = company.get('ceoSalary', 0)
+        finance_balance = (data.get('finance') or {}).get('balance', 0)
+        personal_balance = (data.get('personal') or {}).get('balance', 0)
+
+        updates = {}
+
+        # 1. CEO salary: firma → osobisty
+        if ceo_salary > 0 and finance_balance >= ceo_salary:
+            updates['finance.balance'] = finance_balance - ceo_salary
+            personal_balance += ceo_salary
+            updates['personal.balance'] = personal_balance
+            # Zapisz do ledgera firmy
+            date_str = today.isoformat()
+            ledger_ref = db.collection(f'players/{pid}/financeLedger').document(date_str)
+            ledger_ref.set({'oneTimeCosts': [{'type': 'ceoSalary', 'amount': ceo_salary, 'desc': 'Wynagrodzenie CEO'}]}, merge=True)
+
+        # 2. Lifestyle tax: z personal.balance
+        lifestyle = round(LIFESTYLE_BASE + personal_balance * LIFESTYLE_RATE)
+        lifestyle = min(lifestyle, personal_balance)   # nie może zejść poniżej 0
+        if lifestyle > 0:
+            personal_balance = max(0, personal_balance - lifestyle)
+            updates['personal.balance'] = personal_balance
+
+        if updates:
+            db.collection('players').document(pid).update(updates)
+
 def _write_daily_ledger(db, pid: str, date_str: str, revenues: dict, costs: dict, one_time=None):
     if one_time is None:
         one_time = []
@@ -40,7 +86,7 @@ def _aggregate_monthly_ledger(db, today=None, constants=None):
         agg_rev   = {'courses': 0, 'wars': 0, 'fines': 0, 'depositInterest': 0}
         agg_costs = {
             'operational': 0, 'energy': 0, 'trackFees': 0, 'creditInterest': 0,
-            'salaries': 0, 'loanPayments': 0, 'oneTime': 0,
+            'salaries': 0, 'ceoSalary': 0, 'loanPayments': 0, 'oneTime': 0,
         }
 
         for doc in docs:
@@ -50,7 +96,11 @@ def _aggregate_monthly_ledger(db, today=None, constants=None):
             for k in ('operational', 'energy', 'trackFees', 'creditInterest'):
                 agg_costs[k] += int((d.get('costs') or {}).get(k, 0))
             for ot in (d.get('oneTimeCosts') or []):
-                agg_costs['oneTime'] += int(ot.get('amount', 0))
+                amt = int(ot.get('amount', 0))
+                if ot.get('type') == 'ceoSalary':
+                    agg_costs['ceoSalary'] += amt
+                else:
+                    agg_costs['oneTime'] += amt
 
         monthly_salary = sum(
             (constants.get('INTERN_SALARY', 4300) if constants else 4300) if (e.to_dict() or {}).get('isIntern')

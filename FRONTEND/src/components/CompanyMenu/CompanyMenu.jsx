@@ -13,7 +13,8 @@ import Sidebar from '../Sidebar/Sidebar';
 import FleetAssets from '../FleetMenu/FleetAssets';
 import FleetCompositions from '../FleetMenu/FleetCompositions';
 import ReportsMenu from '../Reports/ReportsMenu';
-import Chat from '../Chat/Chat';
+import Chat from '../Chat/Chat'
+import ExchangeSection from '../Exchange/ExchangeSection';
 
 const NAV = [
   { id: 'policy', label: 'Firma', icon: '📋' },
@@ -36,6 +37,8 @@ const NAV = [
   { id: 'hall-of-fame', label: 'Hall of Fame', icon: '🏆' },
   { id: '__sep4__', label: '', icon: '' },
   { id: 'chat', label: 'Chat', icon: '💬' },
+  { id: '__sep5__', label: '', icon: '' },
+  { id: 'exchange', label: 'Giełda', icon: '📈' },
 ]
 
 export default function CompanyMenu() {
@@ -184,7 +187,7 @@ export default function CompanyMenu() {
   })();
 
   const isMgmtTab = ['policy', 'hr', 'finance', 'fleet'].includes(activeTab);
-  const isFullTab = ['map', 'fleet-assets', 'fleet-compositions', 'reports', 'chat'].includes(activeTab);
+  const isFullTab = ['map', 'fleet-assets', 'fleet-compositions', 'reports', 'chat', 'exchange'].includes(activeTab);
 
   return (
     <div
@@ -261,6 +264,7 @@ export default function CompanyMenu() {
         {activeTab === 'shop' && <ShopSection />}
         {activeTab === 'hall-of-fame' && <HallOfFame />}
         {activeTab === 'chat' && <Chat />}
+        {activeTab === 'exchange' && <ExchangeSection />}
         {activeTab === 'policy' && <PolicySection companyName={companyName} defaultPricing={defaultPricing} reputation={reputation} playerDoc={playerDoc} />}
         {activeTab === 'hr' && <HRSection />}
         {activeTab === 'finance' && (

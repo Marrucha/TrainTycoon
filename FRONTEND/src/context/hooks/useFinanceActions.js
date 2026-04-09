@@ -193,6 +193,40 @@ export function useFinanceActions({ budget, playerDoc, gameConstants, gameDate }
     }
   }
 
-  return { takeLoan, openCreditLine, openDeposit, redeemDeposit, breakDeposit, emitShares }
+  const FUNCTIONS_BASE = `https://${import.meta.env.VITE_FUNCTIONS_HASH}-uc.a.run.app`
+
+  async function _callExchangeEndpoint(endpoint, body) {
+    const token = await auth.currentUser.getIdToken()
+    const res = await fetch(`${FUNCTIONS_BASE}/${endpoint}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return res.json()
+  }
+
+  async function buyShares(targetUid, shares) {
+    const data = await _callExchangeEndpoint('exchange_trade', { type: 'buy', targetUid, shares })
+    if (!data.success) throw new Error(data.error || 'Błąd transakcji')
+    return data
+  }
+
+  async function sellShares(targetUid, shares) {
+    const data = await _callExchangeEndpoint('exchange_trade', { type: 'sell', targetUid, shares })
+    if (!data.success) throw new Error(data.error || 'Błąd transakcji')
+    return data
+  }
+
+  async function requestListing() {
+    return _callExchangeEndpoint('request_listing', {})
+  }
+
+  async function payDividend(plnPerShare) {
+    const data = await _callExchangeEndpoint('pay_dividend', { plnPerShare })
+    if (!data.success) throw new Error(data.error || 'Błąd wypłaty dywidendy')
+    return data
+  }
+
+  return { takeLoan, openCreditLine, openDeposit, redeemDeposit, breakDeposit, emitShares, buyShares, sellShares, requestListing, payDividend }
 }
 ;

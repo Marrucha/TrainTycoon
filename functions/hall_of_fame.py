@@ -82,6 +82,8 @@ def update_hall_of_fame(db, game_date=None):
         rev_growth_w = rep_today['revenue'] - rep_week['revenue']
         rev_growth_m = rep_today['revenue'] - rep_month['revenue']
         
+        personal_balance = (data.get('personal') or {}).get('balance', 0)
+
         players.append({
             'pid': pid,
             'name': company_name,
@@ -92,6 +94,7 @@ def update_hall_of_fame(db, game_date=None):
             'revenue': rep_today['revenue'],
             'profit': rep_today['profit'],
             'equity': balance,
+            'personal_wealth': personal_balance,
             'dem_grow_d': dem_growth_d,
             'dem_grow_w': dem_growth_w,
             'dem_grow_m': dem_growth_m,
@@ -114,6 +117,7 @@ def update_hall_of_fame(db, game_date=None):
         'revenue': get_top('revenue'),
         'profit': get_top('profit'),
         'equity': get_top('equity'),
+        'personal_wealth': get_top('personal_wealth'),
         'dem_grow_d': get_top('dem_grow_d'),
         'dem_grow_w': get_top('dem_grow_w'),
         'dem_grow_m': get_top('dem_grow_m'),

@@ -18,6 +18,8 @@ export function useFirestoreData() {
   const [sunTimes, setSunTimes] = useState(null)
   const [hallOfFame, setHallOfFame] = useState({})
   const [gameConstants, setGameConstants] = useState(null)
+  const [listedCompanies, setListedCompanies] = useState([])
+  const [myPortfolio, setMyPortfolio] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -85,6 +87,16 @@ export function useFirestoreData() {
       (snap) => setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     )
 
+    // Giełda — notowane spółki
+    const unsubExchange = onSnapshot(collection(db, 'exchange'), (snap) => {
+      setListedCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+
+    // Portfel giełdowy gracza
+    const unsubPortfolio = onSnapshot(doc(db, 'portfolios', auth.currentUser.uid), (snap) => {
+      setMyPortfolio(snap.exists() ? snap.data() : null)
+    })
+
     // Księga finansowa – ostatnie 30 wpisów
     const ledgerQuery = query(
       collection(db, `players/${auth.currentUser.uid}/financeLedger`),
@@ -111,9 +123,11 @@ export function useFirestoreData() {
       unsubSun()
       unsubFame()
       unsubConstants()
+      unsubExchange()
+      unsubPortfolio()
     }
   }, [])
 
-  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, hallOfFame, gameConstants, loading }
+  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, hallOfFame, gameConstants, listedCompanies, myPortfolio, loading }
 }
 ;

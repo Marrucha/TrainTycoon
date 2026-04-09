@@ -59,6 +59,7 @@ export default function HallOfFame() {
       <h2 className={styles.header} style={{ marginTop: '3rem' }}>💰 Magnaci Finansjery 💰</h2>
       <div className={styles.grid}>
         {renderRanking('Kapitał Własny (Gotówka)', 'equity', v => `${v.toLocaleString('pl-PL')} PLN`)}
+        {renderRanking('Majątek Osobisty CEO', 'personal_wealth', v => `${v.toLocaleString('pl-PL')} PLN`)}
       </div>
       <div className={styles.footerInfo}>
         Ostatnia aktualizacja tablic: {new Date(hallOfFame.updatedAt).toLocaleString('pl-PL')}

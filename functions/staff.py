@@ -26,7 +26,7 @@ from staff_core import (
     calc_raw_comfort, calc_evaluation_salary, calc_severance,
     generate_candidate_exp, generate_candidate
 )
-from staff_finance import _write_daily_ledger, _aggregate_monthly_ledger
+from staff_finance import _write_daily_ledger, _aggregate_monthly_ledger, _pay_ceo_salary_and_lifestyle
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +54,7 @@ def run_monthly_staff(db, today=None):
     _accrue_staff_salaries(db, today, consts)
     _advance_experience_all(db, today)
     _monthly_evaluation(db, today)
+    _pay_ceo_salary_and_lifestyle(db, today)
     _aggregate_monthly_ledger(db, today, consts)
 
 
