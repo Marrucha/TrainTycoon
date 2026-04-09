@@ -168,7 +168,7 @@ function NewGroupModal({ allPlayers, myUid, onCreate, onClose }) {
     )
 }
 
-function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, onLeave, onClose, isGlobal }) {
+function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, onLeave, onDelete, onClose, isGlobal }) {
     const [adding, setAdding] = useState(false)
     const nonMembers = allPlayers.filter(p => p.uid !== myUid && !group.members?.includes(p.uid))
 
@@ -215,7 +215,12 @@ function GroupSettings({ group, allPlayers, myUid, onAddMember, onRemoveMember, 
                 )}
 
                 <div className={styles.modalActions}>
-                    {!isGlobal && <button className={styles.leaveBtn} onClick={onLeave}>Opuść grupę</button>}
+                    {!isGlobal && myUid === group.createdBy && (
+                        <button className={styles.deleteBtn} onClick={onDelete}>Usuń grupę</button>
+                    )}
+                    {!isGlobal && myUid !== group.createdBy && (
+                        <button className={styles.leaveBtn} onClick={onLeave}>Opuść grupę</button>
+                    )}
                     <button className={styles.createBtn} onClick={onClose}>Zamknij</button>
                 </div>
             </div>
@@ -236,7 +241,7 @@ export default function Chat() {
         messages,
         sendMessage,
         createGroup,
-        addMember, removeMember, leaveGroup,
+        addMember, removeMember, leaveGroup, deleteGroup,
         markRead,
     } = useChat(myUid)
 
@@ -346,6 +351,7 @@ export default function Chat() {
                     onAddMember={(uid, name) => addMember(activeGroupId, uid, name)}
                     onRemoveMember={(uid) => removeMember(activeGroupId, uid)}
                     onLeave={() => { leaveGroup(activeGroupId); setShowSettings(false) }}
+                    onDelete={() => { deleteGroup(activeGroupId); setShowSettings(false) }}
                     onClose={() => setShowSettings(false)}
                 />
             )}

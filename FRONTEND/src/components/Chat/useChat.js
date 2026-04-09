@@ -49,7 +49,7 @@ export function useChat(myUid) {
         if (!myUid) return
         const unsub = onSnapshot(collection(db, 'chatGroups'), snap => {
             const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-            const visible = all.filter(g => g.isGlobal || g.members?.includes(myUid))
+            const visible = all.filter(g => !g.deleted && (g.isGlobal || g.members?.includes(myUid)))
 
             // Global groups first (in defined order), then private by lastMessageAt desc
             const globalOrder = GLOBAL_GROUPS.map(g => g.id)
@@ -151,6 +151,11 @@ export function useChat(myUid) {
         setActiveGroupId(null)
     }
 
+    const deleteGroup = async (groupId) => {
+        await updateDoc(doc(db, 'chatGroups', groupId), { deleted: true })
+        setActiveGroupId(null)
+    }
+
     const markRead = async (groupId) => {
         if (!myUid || !groupId) return
         const groupRef = doc(db, 'chatGroups', groupId)
@@ -161,6 +166,6 @@ export function useChat(myUid) {
         groups, allPlayers,
         activeGroupId, setActiveGroupId,
         messages,
-        sendMessage, createGroup, addMember, removeMember, leaveGroup, markRead,
+        sendMessage, createGroup, addMember, removeMember, leaveGroup, deleteGroup, markRead,
     }
 }
