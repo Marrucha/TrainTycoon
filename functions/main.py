@@ -692,7 +692,7 @@ def request_listing(req: https_fn.Request) -> https_fn.Response:
         total_shares = company.get('totalShares', 1_000_000)
         free_float   = company.get('freeFloat', 0)
         reputation   = player_data.get('reputation', 0)
-        nav          = _compute_nav(db, uid, player_data)
+        nav, _nav_bd = _compute_nav(db, uid, player_data)
 
         # Prosta cena startowa — tylko NAV (brak historii earnings)
         fund_price = max(1.0, round(max(1_000_000, nav) / max(1, total_shares), 2))

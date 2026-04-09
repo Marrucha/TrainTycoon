@@ -32,7 +32,7 @@ LISTING_REQUIREMENTS = {
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
 def _compute_nav(db, pid, player_data):
-    """Wartość aktywów netto firmy."""
+    """Wartość aktywów netto firmy. Zwraca (nav, breakdown_dict)."""
     finance = player_data.get('finance') or {}
     cash = finance.get('balance', 0)
 
@@ -43,15 +43,14 @@ def _compute_nav(db, pid, player_data):
     )
 
     # Flota — cena × stan/100 × haircut
-    fleet_value = sum(
+    fleet_raw = sum(
         (t.to_dict() or {}).get('price', 0)
         * ((t.to_dict() or {}).get('condition', 100) / 100)
-        * FLEET_LIQUIDATION_HAIRCUT
         for t in db.collection(f'players/{pid}/trains').stream()
     )
+    fleet_value = fleet_raw * FLEET_LIQUIDATION_HAIRCUT
 
     # Pozostały kapitał kredytów inwestycyjnych
-    # principal × (remainingMonths / originalMonths) — bez przyszłych odsetek
     loans_remaining = 0
     for l in (finance.get('loans') or []):
         principal      = l.get('principal', 0)
@@ -64,12 +63,16 @@ def _compute_nav(db, pid, player_data):
         elif remaining > 0:
             loans_remaining += principal
 
-    # Linia kredytowa: limit dodany do finance.balance przy otwarciu.
-    # Nie odejmamy go — balance już odzwierciedla rzeczywisty stan po wydatkach.
-    # (odejmanie limitu byłoby double-count: cash jest niskie bo wydano z kredytu,
-    #  a liability liczyłoby jeszcze raz pełny limit)
-
-    return cash + deposits + fleet_value - loans_remaining
+    nav = cash + deposits + fleet_value - loans_remaining
+    breakdown = {
+        'navCash':         round(cash),
+        'navDeposits':     round(deposits),
+        'navFleetRaw':     round(fleet_raw),
+        'navFleetHaircut': round(fleet_value),
+        'navLoans':        round(loans_remaining),
+        'navTotal':        round(nav),
+    }
+    return nav, breakdown
 
 
 def _compute_trailing_earnings(db, pid, game_date, days=7):
@@ -223,9 +226,9 @@ def update_exchange_prices(db, game_date):
         free_float   = company.get('freeFloat', 0)
         reputation   = data.get('reputation', 0)
 
-        nav              = _compute_nav(db, pid, data)
-        trailing_net     = _compute_trailing_earnings(db, pid, game_date)
-        rev_growth       = _compute_revenue_growth(db, pid, game_date)
+        nav, nav_breakdown = _compute_nav(db, pid, data)
+        trailing_net       = _compute_trailing_earnings(db, pid, game_date)
+        rev_growth         = _compute_revenue_growth(db, pid, game_date)
 
         fund_price, pe_mult, nav_val, earn_val = _compute_fundamental_price(
             nav, trailing_net, reputation, rev_growth, total_shares
@@ -271,9 +274,11 @@ def update_exchange_prices(db, game_date):
             'freeFloat':          free_float,
             'uniqueHolders':      unique_holders,
             'nav':                round(nav_val),
+            'navBreakdown':       nav_breakdown,
             'earningsValue':      round(earn_val),
             'peMultiple':         round(pe_mult, 1),
             'trailingDailyNet':   round(trailing_net),
+            'annualizedNet':      round(trailing_net * 365),
             'lastUpdated':        date_str,
         }, merge=True)
 

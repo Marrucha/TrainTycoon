@@ -5,9 +5,101 @@ import ExchangeTradeModal from './ExchangeTradeModal'
 import ExchangePriceChart from './ExchangePriceChart'
 import s from './Exchange.module.css'
 
+const fmt = (n) => Math.round(n ?? 0).toLocaleString('pl-PL')
+
 function pctChange(current, prev) {
   if (!prev || prev === 0) return null
   return ((current - prev) / prev) * 100
+}
+
+function NavTooltip({ company }) {
+  const bd = company.navBreakdown || {}
+  const totalShares = company.totalShares || 1
+  const fundPrice   = company.fundamentalPrice || 0
+  const nav         = company.nav || 0
+  const earn        = company.earningsValue || 0
+  const pe          = company.peMultiple || 0
+  const trailing    = company.trailingDailyNet || 0
+  const annualized  = company.annualizedNet ?? Math.round(trailing * 365)
+
+  return (
+    <span className={s.navTooltipWrapper}>
+      {fundPrice.toLocaleString('pl-PL', { minimumFractionDigits: 2 })}
+      <span className={s.navTooltip}>
+        <div className={s.navTooltipTitle}>Składowe wyceny fundamentalnej</div>
+
+        <div className={s.navTooltipTitle} style={{ marginTop: 4 }}>Aktywa netto (NAV)</div>
+        <div className={s.navTooltipRow}>
+          <span className={s.navTooltipLabel}>Gotówka</span>
+          <span className={`${s.navTooltipValue} ${s.navTooltipPos}`}>{fmt(bd.navCash)} PLN</span>
+        </div>
+        {bd.navDeposits > 0 && (
+          <div className={s.navTooltipRow}>
+            <span className={s.navTooltipLabel}>Lokaty</span>
+            <span className={`${s.navTooltipValue} ${s.navTooltipPos}`}>{fmt(bd.navDeposits)} PLN</span>
+          </div>
+        )}
+        <div className={s.navTooltipRow}>
+          <span className={s.navTooltipLabel}>Flota (wart. rynk.)</span>
+          <span className={`${s.navTooltipValue} ${s.navTooltipPos}`}>{fmt(bd.navFleetRaw)} PLN</span>
+        </div>
+        <div className={s.navTooltipRow}>
+          <span className={s.navTooltipLabel}>Flota (haircut 60%)</span>
+          <span className={`${s.navTooltipValue} ${s.navTooltipPos}`}>{fmt(bd.navFleetHaircut)} PLN</span>
+        </div>
+        {bd.navLoans > 0 && (
+          <div className={s.navTooltipRow}>
+            <span className={s.navTooltipLabel}>Zobowiązania kredytowe</span>
+            <span className={`${s.navTooltipValue} ${s.navTooltipNeg}`}>−{fmt(bd.navLoans)} PLN</span>
+          </div>
+        )}
+        <div className={s.navTooltipRowTotal}>
+          <span className={s.navTooltipLabel}>NAV łącznie</span>
+          <span className={s.navTooltipValue}>{fmt(nav)} PLN</span>
+        </div>
+
+        <div className={s.navTooltipSection}>
+          <div className={s.navTooltipTitle}>Wartość zysku (earnings)</div>
+          <div className={s.navTooltipRow}>
+            <span className={s.navTooltipLabel}>Śr. zysk dzienny (7d)</span>
+            <span className={s.navTooltipValue}>{fmt(trailing)} PLN</span>
+          </div>
+          <div className={s.navTooltipRow}>
+            <span className={s.navTooltipLabel}>Zysk roczny (×365)</span>
+            <span className={s.navTooltipValue}>{fmt(annualized)} PLN</span>
+          </div>
+          <div className={s.navTooltipRow}>
+            <span className={s.navTooltipLabel}>Mnożnik P/E</span>
+            <span className={s.navTooltipValue}>{pe}×</span>
+          </div>
+          <div className={s.navTooltipRowTotal}>
+            <span className={s.navTooltipLabel}>Earnings value</span>
+            <span className={s.navTooltipValue}>{fmt(earn)} PLN</span>
+          </div>
+        </div>
+
+        <div className={s.navTooltipSection}>
+          <div className={s.navTooltipTitle}>Formuła wyceny</div>
+          <div className={s.navTooltipRow}>
+            <span className={s.navTooltipLabel}>NAV × 40%</span>
+            <span className={s.navTooltipValue}>{fmt(nav * 0.4)} PLN</span>
+          </div>
+          <div className={s.navTooltipRow}>
+            <span className={s.navTooltipLabel}>Earnings × 60%</span>
+            <span className={s.navTooltipValue}>{fmt(earn * 0.6)} PLN</span>
+          </div>
+          <div className={s.navTooltipRowTotal}>
+            <span className={s.navTooltipLabel}>Wartość spółki</span>
+            <span className={s.navTooltipValue}>{fmt(nav * 0.4 + earn * 0.6)} PLN</span>
+          </div>
+          <div className={s.navTooltipRowTotal}>
+            <span className={s.navTooltipLabel}>Cena / akcję ({fmt(totalShares)} akcji)</span>
+            <span className={`${s.navTooltipValue} ${s.navTooltipPos}`}>{fundPrice.toFixed(2)} PLN</span>
+          </div>
+        </div>
+      </span>
+    </span>
+  )
 }
 
 export default function ExchangeMarketList() {
