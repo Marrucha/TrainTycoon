@@ -104,8 +104,12 @@ def _check_game_day_rollover(db) -> None:
     # New game day — update state first to prevent double-run on concurrent ticks
     state_ref.set({'lastReportDate': game_date_str}, merge=True)
 
+    import datetime as _dt
+    yesterday = game_date - _dt.timedelta(days=1)
+    yesterday_str = yesterday.isoformat()
+
     run_boarding_rollover(db)              # 1. simulate full day → writes dailyTransfer
-    save_daily_report(db, date_str=game_date_str)  # 2. reads dailyTransfer → updates finance
+    save_daily_report(db, date_str=yesterday_str)  # 2. reads dailyTransfer → updates finance (date = day that just ended)
     calc_demand_for_train_sets(db)         # 3. writes new dailyDemand for next day
     _clear_daily_boarding_state(db)        # 4. reset dailyTransfer/currentTransfer for new day
     _accrue_credit_line_interest(db, today=game_date)
