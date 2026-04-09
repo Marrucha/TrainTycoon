@@ -13,7 +13,9 @@ import Sidebar from '../Sidebar/Sidebar';
 import FleetAssets from '../FleetMenu/FleetAssets';
 import FleetCompositions from '../FleetMenu/FleetCompositions';
 import ReportsMenu from '../Reports/ReportsMenu';
-import Chat from '../Chat/Chat';
+import Chat from '../Chat/Chat'
+import ExchangeSection from '../Exchange/ExchangeSection'
+import FinanceLedger from './sections/finance/FinanceLedger';
 
 const NAV = [
   { id: 'policy', label: 'Firma', icon: '📋' },
@@ -27,9 +29,16 @@ const NAV = [
       { id: 'fleet-compositions', label: 'Zarządzanie flotą', icon: '🔗' },
     ],
   },
-  { id: 'reports', label: 'Raporty', icon: '📊' },
   { id: '__sep2__', label: '', icon: '' },
-  { id: 'finance', label: 'Finanse', icon: '💰' },
+  {
+    id: 'finance-group', label: 'Finanse', icon: '💰',
+    children: [
+      { id: 'finance',          label: 'Mój Bank',             icon: '🏦' },
+      { id: 'finance-reports',  label: 'Raporty operacyjne',   icon: '📊' },
+      { id: 'finance-ledger',   label: 'Księgowość',           icon: '📒' },
+      { id: 'finance-exchange', label: 'Giełda',               icon: '📈' },
+    ],
+  },
   { id: 'hr', label: 'Kadry', icon: '👥' },
   { id: '__sep3__', label: '', icon: '' },
   { id: 'shop', label: 'Sklep Premium', icon: '🛒' },
@@ -51,7 +60,7 @@ export default function CompanyMenu() {
 
   const [activeTab, setActiveTab] = useState('policy');
   const [collapsed, setCollapsed] = useState(false);
-  const [openGroups, setOpenGroups] = useState({ 'fleet-group': true });
+  const [openGroups, setOpenGroups] = useState({ 'fleet-group': true, 'finance-group': true });
   const [sortOrder, setSortOrder] = useState('desc');
   const [groupBy, setGroupBy] = useState('type');
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -183,7 +192,7 @@ export default function CompanyMenu() {
   })();
 
   const isMgmtTab = ['policy', 'hr', 'finance', 'fleet'].includes(activeTab);
-  const isFullTab = ['map', 'fleet-assets', 'fleet-compositions', 'reports', 'chat'].includes(activeTab);
+  const isFullTab = ['map', 'fleet-assets', 'fleet-compositions', 'chat', 'finance-reports', 'finance-exchange'].includes(activeTab);
 
   return (
     <div
@@ -256,7 +265,9 @@ export default function CompanyMenu() {
         {activeTab === 'map' && <><section className={styles.mapSection}><PolandMap /></section><Sidebar /></>}
         {activeTab === 'fleet-assets' && <FleetAssets />}
         {activeTab === 'fleet-compositions' && <FleetCompositions />}
-        {activeTab === 'reports' && <ReportsMenu />}
+        {activeTab === 'finance-reports'  && <ReportsMenu />}
+        {activeTab === 'finance-exchange' && <ExchangeSection />}
+        {activeTab === 'finance-ledger'   && <FinanceLedger />}
         {activeTab === 'shop' && <ShopSection />}
         {activeTab === 'hall-of-fame' && <HallOfFame />}
         {activeTab === 'chat' && <Chat />}
