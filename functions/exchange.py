@@ -42,12 +42,20 @@ def _compute_nav(db, pid, player_data):
         for d in db.collection(f'players/{pid}/deposits').stream()
     )
 
-    # Flota — cena × stan/100 × haircut
-    fleet_raw = sum(
-        (t.to_dict() or {}).get('price', 0)
-        * ((t.to_dict() or {}).get('condition', 100) / 100)
-        for t in db.collection(f'players/{pid}/trains').stream()
-    )
+    # Flota — cena z katalogu (trains/{parent_id}) × stan/100 × haircut
+    # players/{pid}/trains zawiera tylko parent_id i condition — cena jest w bazowym dokumencie
+    base_trains_cache = {}
+    fleet_raw = 0
+    for t in db.collection(f'players/{pid}/trains').stream():
+        t_data    = t.to_dict() or {}
+        parent_id = t_data.get('parent_id', '')
+        if parent_id not in base_trains_cache:
+            base_snap = db.collection('trains').document(parent_id).get()
+            base_trains_cache[parent_id] = (base_snap.to_dict() or {}) if base_snap.exists else {}
+        base      = base_trains_cache[parent_id]
+        price     = base.get('price', 0)
+        condition = t_data.get('condition', base.get('condition', 100))
+        fleet_raw += price * (condition / 100)
     fleet_value = fleet_raw * FLEET_LIQUIDATION_HAIRCUT
 
     # Pozostały kapitał kredytów inwestycyjnych
