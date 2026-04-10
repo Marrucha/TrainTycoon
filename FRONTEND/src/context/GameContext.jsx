@@ -23,7 +23,7 @@ export const DEFAULT_PRICE_CONFIG = {
 
 export function GameProvider({ children }) {
   const firestoreData = useFirestoreData()
-  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, loading, hallOfFame, gameConstants, listedCompanies, myPortfolio, lastDailyReport } = firestoreData
+  const { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, loading, hallOfFame, gameConstants, listedCompanies, myPortfolio } = firestoreData
 
   const selection = useSelectionState()
   const { selectedCity, selectedRoute, selectedTrainSet: selectedTrainSetRef, selectCity, selectRoute, selectTrainSet } = selection
@@ -101,10 +101,13 @@ export function GameProvider({ children }) {
     })
   }, [baseTrains, playerTrains])
 
-  const dailyRevenue = useMemo(
-    () => routes.reduce((sum, r) => sum + (r.dailyRevenue || 0) + (r.subsidy || 0), 0),
-    [routes]
-  )
+  const lastDailyReport = useMemo(() => {
+    const entry = financeLedger.find(e => e.type !== 'monthly')
+    if (!entry) return null
+    const przychod = entry.revenues?.total ?? 0
+    const koszty   = entry.costs?.total   ?? 0
+    return { przychod, koszty, netto: przychod - koszty }
+  }, [financeLedger])
 
   const activeTrainsCount = useMemo(
     () => trainsSets?.filter(ts => ts.rozklad?.length > 0).length ?? 0,
@@ -266,7 +269,8 @@ export function GameProvider({ children }) {
       baseTrains, gameSettings, pictures, playerDoc,
       deposits, depositRates, gameConstants,
       employees, financeLedger, hallOfFame,
-      listedCompanies, myPortfolio, lastDailyReport,
+      listedCompanies, myPortfolio,
+      lastDailyReport,
       // Pochodne
       dailyRevenue, activeTrainsCount, defaultPricing, trainSetsByCity,
       companyName, reputation,
