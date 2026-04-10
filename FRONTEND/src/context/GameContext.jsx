@@ -272,7 +272,7 @@ export function GameProvider({ children }) {
       listedCompanies, myPortfolio,
       lastDailyReport,
       // Pochodne
-      dailyRevenue, activeTrainsCount, defaultPricing, trainSetsByCity,
+      activeTrainsCount, defaultPricing, trainSetsByCity,
       companyName, reputation,
       // Symulacja boardingu (frontend)
       boardingState,
