@@ -102,10 +102,11 @@ export function GameProvider({ children }) {
   }, [baseTrains, playerTrains])
 
   const lastDailyReport = useMemo(() => {
-    const entry = financeLedger.find(e => e.type !== 'monthly')
+    const entry = financeLedger.find(e => !e.id?.startsWith('monthly-'))
     if (!entry) return null
-    const przychod = entry.revenues?.total ?? 0
-    const koszty   = entry.costs?.total   ?? 0
+    const sum = obj => Object.values(obj || {}).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0)
+    const przychod = sum(entry.revenues)
+    const koszty   = sum(entry.costs)
     return { przychod, koszty, netto: przychod - koszty }
   }, [financeLedger])
 
