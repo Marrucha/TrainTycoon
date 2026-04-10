@@ -101,7 +101,7 @@ export function useFirestoreData() {
     // Ostatni raport dzienny (przychód + koszty)
     const lastReportQuery = query(
       collection(db, `players/${auth.currentUser.uid}/Raporty`),
-      orderBy('__name__', 'desc'),
+      orderBy('date', 'desc'),
       limit(1)
     )
     const unsubLastReport = onSnapshot(lastReportQuery, (snap) => {
