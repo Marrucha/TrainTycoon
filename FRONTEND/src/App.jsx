@@ -10,7 +10,7 @@ function AnalogClockWrapper() {
   const { gameDate } = useGame()
   if (!gameDate) return null
 
-  const size = 56
+  const size = 48
   const cx = size / 2, cy = size / 2
   const r = size / 2 - 2
 
@@ -29,17 +29,17 @@ function AnalogClockWrapper() {
     )
   }
 
-  // 12 kresek — grubsze i dłuższe przy pełnych godzinach (co 3)
-  const ticks = Array.from({ length: 60 }, (_, i) => {
-    const a = (i / 60) * 2 * Math.PI
-    const isHour = i % 5 === 0
-    const inner = isHour ? r - 7 : r - 4
+  // 12 kresek co 5 minut — grubsze przy 12/3/6/9
+  const ticks = Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * 2 * Math.PI
+    const isQuarter = i % 3 === 0
+    const inner = isQuarter ? r - 6 : r - 4
     return (
       <line key={i}
         x1={cx + Math.cos(a) * inner} y1={cy + Math.sin(a) * inner}
         x2={cx + Math.cos(a) * r}     y2={cy + Math.sin(a) * r}
-        stroke={isHour ? '#ffffff' : '#888888'}
-        strokeWidth={isHour ? 2.5 : 1}
+        stroke="#ffffff"
+        strokeWidth={isQuarter ? 2.5 : 1.5}
       />
     )
   })
