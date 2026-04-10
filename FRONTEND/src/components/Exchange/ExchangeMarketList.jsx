@@ -44,7 +44,7 @@ function NavTooltip({ company }) {
           <span className={`${s.navTooltipValue} ${s.navTooltipPos}`}>{fmt(bd.navFleetRaw)} PLN</span>
         </div>
         <div className={s.navTooltipRow}>
-          <span className={s.navTooltipLabel}>Flota (haircut 60%)</span>
+          <span className={s.navTooltipLabel}>Flota (wart. po amortyzacji)</span>
           <span className={`${s.navTooltipValue} ${s.navTooltipPos}`}>{fmt(bd.navFleetHaircut)} PLN</span>
         </div>
         {bd.navLoans > 0 && (

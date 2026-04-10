@@ -3,7 +3,7 @@ import datetime
 import math
 
 # ── Stałe wyceny ────────────────────────────────────────────────────────────
-FLEET_LIQUIDATION_HAIRCUT = 0.60  # 60% wartości floty przy likwidacji
+FLEET_LIQUIDATION_HAIRCUT = 0.85  # 85% ceny katalogowej (15% utrata przy zakupie, reszta przez condition)
 BASE_PE                   = 8
 PE_MIN                    = 4
 PE_MAX                    = 20
