@@ -15,7 +15,10 @@ from reports import save_daily_report, _calc_ticket_price, DEFAULT_PRICING
 from reputation import update_reputation_metrics
 from staff import run_daily_staff, run_monthly_staff, _generate_agency_lists
 from hall_of_fame import update_hall_of_fame
-from exchange import update_exchange_prices, _check_listing_eligibility, _compute_nav, _get_market_price
+from exchange import (update_exchange_prices, _check_listing_eligibility,
+                      _compute_nav, _compute_trailing_earnings,
+                      _compute_revenue_growth, _compute_fundamental_price,
+                      _get_market_price)
 from finance_ops import (
     _get_game_date, _accrue_credit_line_interest,
     _process_loan_payments, _calc_daily_breakdowns,
@@ -691,15 +694,17 @@ def request_listing(req: https_fn.Request) -> https_fn.Response:
             return https_fn.Response(json.dumps({'eligible': False, 'checks': checks}),
                                      status=200, headers={**_CORS, 'Content-Type': 'application/json'})
 
-        # Debiut giełdowy
+        # Debiut giełdowy — pełne obliczenia jak w rollowarze
         date_str     = game_date.isoformat()
         total_shares = company.get('totalShares', 1_000_000)
         free_float   = company.get('freeFloat', 0)
         reputation   = player_data.get('reputation', 0)
-        nav, _nav_bd = _compute_nav(db, uid, player_data)
-
-        # Prosta cena startowa — tylko NAV (brak historii earnings)
-        fund_price = max(1.0, round(max(1_000_000, nav) / max(1, total_shares), 2))
+        nav, nav_bd  = _compute_nav(db, uid, player_data)
+        trailing_net = _compute_trailing_earnings(db, uid, game_date)
+        rev_growth   = _compute_revenue_growth(db, uid, game_date)
+        fund_price, pe_mult, nav_val, earn_val = _compute_fundamental_price(
+            nav, trailing_net, reputation, rev_growth, total_shares
+        )
 
         ex_ref = db.collection('exchange').document(uid)
         ex_ref.set({
@@ -714,10 +719,12 @@ def request_listing(req: https_fn.Request) -> https_fn.Response:
             'totalShares':         total_shares,
             'freeFloat':           free_float,
             'uniqueHolders':       0,
-            'nav':                 round(nav),
-            'earningsValue':       0,
-            'peMultiple':          8.0,
-            'trailingDailyNet':    0,
+            'nav':                 round(nav_val),
+            'navBreakdown':        nav_bd,
+            'earningsValue':       round(earn_val),
+            'peMultiple':          round(pe_mult, 1),
+            'trailingDailyNet':    round(trailing_net),
+            'annualizedNet':       round(trailing_net * 365),
             'lastUpdated':         date_str,
         })
 
