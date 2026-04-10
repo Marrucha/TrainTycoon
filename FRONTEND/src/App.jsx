@@ -50,11 +50,11 @@ function MainApp() {
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
             <Clock />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid #2a4a2a', paddingLeft: '16px' }}>
-              <span style={{ fontWeight: 'bold', color: '#ff8c00' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', borderLeft: '1px solid #2a4a2a', paddingLeft: '16px' }}>
+              <span style={{ fontSize: '9px', letterSpacing: '1px', color: '#6a8a6a', fontFamily: "'Share Tech Mono', monospace" }}>
                 Witaj, {currentUser?.displayName || currentUser?.email?.split('@')[0]}!
               </span>
-              <button 
+              <button
                 onClick={logout} 
                 style={{ 
                   background: 'rgba(255, 68, 68, 0.1)', 
