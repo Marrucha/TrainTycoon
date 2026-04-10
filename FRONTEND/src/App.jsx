@@ -70,9 +70,14 @@ function Clock() {
   const dd = String(gameDate.getDate()).padStart(2, '0')
   const MM = String(gameDate.getMonth() + 1).padStart(2, '0')
   const yyyy = gameDate.getFullYear()
+  const dni = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota']
+  const dzien = dni[gameDate.getDay()]
 
   return (
     <div className={styles.clock} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
+      <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 9, color: '#4a6a4a', letterSpacing: '1px' }}>
+        {dzien}
+      </span>
       <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 16, color: '#8aab8a', letterSpacing: '1px' }}>
         {dd}.{MM}.{yyyy}
       </span>
