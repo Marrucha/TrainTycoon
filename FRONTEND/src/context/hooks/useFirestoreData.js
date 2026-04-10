@@ -20,6 +20,7 @@ export function useFirestoreData() {
   const [gameConstants, setGameConstants] = useState(null)
   const [listedCompanies, setListedCompanies] = useState([])
   const [myPortfolio, setMyPortfolio] = useState(null)
+  const [lastDailyReport, setLastDailyReport] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -97,6 +98,25 @@ export function useFirestoreData() {
       setMyPortfolio(snap.exists() ? snap.data() : null)
     })
 
+    // Ostatni raport dzienny (przychód + koszty)
+    const lastReportQuery = query(
+      collection(db, `players/${auth.currentUser.uid}/Raporty`),
+      orderBy('__name__', 'desc'),
+      limit(1)
+    )
+    const unsubLastReport = onSnapshot(lastReportQuery, (snap) => {
+      if (!snap.empty) {
+        const data = snap.docs[0].data() || {}
+        const trainSets = data.trainSets || {}
+        let przychod = 0, koszty = 0
+        for (const ts of Object.values(trainSets)) {
+          przychod += ts?.daily?.przychod || 0
+          koszty   += ts?.daily?.koszty   || 0
+        }
+        setLastDailyReport({ przychod: Math.round(przychod), koszty: Math.round(koszty), netto: Math.round(przychod - koszty) })
+      }
+    })
+
     // Księga finansowa – ostatnie 30 wpisów
     const ledgerQuery = query(
       collection(db, `players/${auth.currentUser.uid}/financeLedger`),
@@ -125,9 +145,10 @@ export function useFirestoreData() {
       unsubConstants()
       unsubExchange()
       unsubPortfolio()
+      unsubLastReport()
     }
   }, [])
 
-  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, hallOfFame, gameConstants, listedCompanies, myPortfolio, loading }
+  return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, hallOfFame, gameConstants, listedCompanies, myPortfolio, lastDailyReport, loading }
 }
 ;

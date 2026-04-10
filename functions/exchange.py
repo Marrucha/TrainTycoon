@@ -119,7 +119,7 @@ def _compute_revenue_growth(db, pid, game_date):
 
 def _compute_fundamental_price(nav, trailing_daily_net, reputation, rev_growth_pct, total_shares):
     annualized_net = trailing_daily_net * 365
-    rep_bonus    = reputation * 7
+    rep_bonus    = reputation * 4
     growth_bonus = max(-3, min(5, rev_growth_pct * 10))
     pe_multiple  = max(PE_MIN, min(PE_MAX, BASE_PE + rep_bonus + growth_bonus))
 
