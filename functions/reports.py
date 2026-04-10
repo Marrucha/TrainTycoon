@@ -178,6 +178,9 @@ def save_daily_report(db, date_str=None, ts_str=None):
         default_pricing = p_data.get('defaultPricing', DEFAULT_PRICING)
         player_default_pricing[pid] = default_pricing
 
+        # Pojazdy gracza — potrzebne do kalkulacji konserwacji (price + condition)
+        player_trains = {d.id: d.to_dict() for d in db.collection(f'players/{pid}/trains').stream()}
+
         ts_agg = {}  # ts_id -> report dict
 
         for ts_doc in db.collection(f'players/{pid}/trainSet').stream():
@@ -367,8 +370,22 @@ def save_daily_report(db, date_str=None, ts_str=None):
             day_orig    = day_orig_c1 + day_orig_c2
 
             cost_per_km = ts.get('totalCostPerKm', 0) or 0
-            daily_cost  = round(cost_per_km * daily_km)
-            netto        = round(day_rev) - daily_cost - day_energy
+            daily_cost  = round(cost_per_km * daily_km)  # opłata za tory
+
+            # Konserwacja taboru: 0.01% wartości pojazdu/dzień × (2 - stan)
+            # Przy stanie 1.0 → 0.01%, przy stanie 0.0 → 0.02% (im gorszy stan, tym drożej)
+            # Wzór: PLN/dzień = cena × 0.0001 × (2 - condition)
+            MAINTENANCE_RATE = 0.0001
+            daily_maintenance = 0
+            for tid in (ts.get('trainIds') or []):
+                pt = player_trains.get(tid, {})
+                price     = pt.get('price', 0) or 0
+                condition = pt.get('condition', 1.0) or 1.0
+                condition = max(0.0, min(1.0, float(condition)))
+                daily_maintenance += price * MAINTENANCE_RATE * (2.0 - condition)
+            daily_maintenance = round(daily_maintenance)
+
+            netto = round(day_rev) - daily_cost - day_energy - daily_maintenance
 
             # Fleet composition
             train_ids   = train_ids_pre
@@ -390,8 +407,9 @@ def save_daily_report(db, date_str=None, ts_str=None):
                     'warsRevenue': day_wars,
                     'fineRevenue': day_fines,
                     'km':          daily_km,
-                    'koszt':       daily_cost,
+                    'koszt':       daily_cost,          # opłata za tory (PLN/km)
                     'energyCost':  energy_cost,
+                    'maintenanceCost': daily_maintenance,  # konserwacja taboru
                     'netto':       netto,
                     'wagonCount':  wagon_count,
                     'locoCount':   loco_count,
@@ -423,6 +441,9 @@ def save_daily_report(db, date_str=None, ts_str=None):
             player_energy = sum(
                 ts_info['daily'].get('energyCost', 0) for ts_info in ts_agg.values()
             )
+            player_maintenance = sum(
+                ts_info['daily'].get('maintenanceCost', 0) for ts_info in ts_agg.values()
+            )
 
             _write_daily_ledger(
                 db, pid, date_str,
@@ -432,9 +453,9 @@ def save_daily_report(db, date_str=None, ts_str=None):
                     'fines':   player_fines_rev,
                 },
                 costs={
-                    'operational':    player_operational,
-                    'energy':         player_energy,
-                    'trackFees':      0,
+                    'trackFees':     player_operational,   # opłata za tory (PLN/km)
+                    'energy':        player_energy,
+                    'maintenance':   player_maintenance,   # konserwacja taboru
                     'creditInterest': 0,
                 },
             )

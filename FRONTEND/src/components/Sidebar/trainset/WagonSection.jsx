@@ -41,7 +41,7 @@ export default function WagonSection({ wagonGroups, maxSpeed, totalCostPerKm, wa
                   <span className={styles.statValue}>{maxSpeed || '—'} km/h</span>
                 </div>
                 <div className={styles.statRow}>
-                  <span className={styles.statLabel}>Koszt / km</span>
+                  <span className={styles.statLabel}>Opłata za tory / km</span>
                   <span className={styles.statValue}>
                     {totalCostPerKm ? `${Math.round(totalCostPerKm * 100) / 100} PLN` : '—'}
                   </span>

@@ -115,7 +115,7 @@ def _aggregate_monthly_ledger(db, today=None, constants=None):
 
         agg_rev   = {'courses': 0, 'wars': 0, 'fines': 0, 'depositInterest': 0}
         agg_costs = {
-            'operational': 0, 'energy': 0, 'trackFees': 0, 'creditInterest': 0,
+            'trackFees': 0, 'energy': 0, 'maintenance': 0, 'creditInterest': 0,
             'salaries': 0, 'ceoSalary': 0, 'loanPayments': 0, 'oneTime': 0,
         }
 

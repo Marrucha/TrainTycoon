@@ -199,7 +199,7 @@ export default function TrainComposer({ onCancel, editTrainSet = null }) {
                 <div className={styles.boardArea}>
                     <div className={styles.statsBar}>
                         <div>Prędkość składu: <strong>{compositionSpeed} km/h</strong></div>
-                        <div>Konserwacja: <strong>{maxCostPerKm} PLN/km</strong></div>
+                        <div>Opłata za tory: <strong>{maxCostPerKm} PLN/km</strong></div>
                         <div>Pojemność SUMA: <strong>{totalSeats} os.</strong></div>
                     </div>
                     {speedWarning && (
