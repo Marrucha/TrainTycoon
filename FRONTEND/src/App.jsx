@@ -41,15 +41,19 @@ function MainApp() {
     <GameProvider>
       <div className={styles.app}>
         <header className={styles.header}>
-          <div className={styles.logo}>
-            <span className={styles.logoIcon}>🚂</span>
-            <span className={styles.logoText}>TRAIN<strong>MANAGER</strong></span>
+          <div className={styles.logo} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '1px' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span className={styles.logoIcon}>🚂</span>
+              <span className={styles.logoText}>TRAIN<strong>MANAGER</strong></span>
+            </div>
+            <div style={{ transform: 'scale(0.7)', transformOrigin: 'left center', marginTop: '-2px' }}>
+              <Clock />
+            </div>
           </div>
-          
+
           <ResourceBar />
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
-            <Clock />
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', borderLeft: '1px solid #2a4a2a', paddingLeft: '16px' }}>
               <span style={{ fontSize: '9px', letterSpacing: '1px', color: '#6a8a6a', fontFamily: "'Share Tech Mono', monospace" }}>
                 Witaj, {currentUser?.displayName || currentUser?.email?.split('@')[0]}!
