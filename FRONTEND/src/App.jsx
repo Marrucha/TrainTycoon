@@ -41,12 +41,12 @@ function MainApp() {
     <GameProvider>
       <div className={styles.app}>
         <header className={styles.header}>
-          <div className={styles.logo} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '1px' }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className={styles.logo}>
               <span className={styles.logoIcon}>🚂</span>
               <span className={styles.logoText}>TRAIN<strong>MANAGER</strong></span>
             </div>
-            <div style={{ transform: 'scale(0.7)', transformOrigin: 'left center', marginTop: '-2px' }}>
+            <div style={{ transform: 'scale(0.75)', transformOrigin: 'left center' }}>
               <Clock />
             </div>
           </div>
