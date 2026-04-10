@@ -20,12 +20,14 @@ function Clock() {
   const yyyy = time.getFullYear()
 
   return (
-    <div className={styles.clock}>
-      <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 16, color: '#8aab8a', marginRight: 8, letterSpacing: '1px' }}>
+    <div className={styles.clock} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
+      <span style={{ fontFamily: 'Share Tech Mono, monospace', fontSize: 16, color: '#8aab8a', letterSpacing: '1px' }}>
         {dd}.{MM}.{yyyy}
       </span>
-      <span className={styles.clockTime}>{hh}:{mm}</span>
-      <span className={styles.clockSec}>{ss}</span>
+      <div>
+        <span className={styles.clockTime}>{hh}:{mm}</span>
+        <span className={styles.clockSec}>{ss}</span>
+      </div>
     </div>
   )
 }
