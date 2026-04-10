@@ -42,6 +42,41 @@
   color: #6a8a6a;
 }
 
+.dailyTable {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 16px;
+}
+
+.dailyRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.dailyRowTotal {
+  border-top: 1px solid #2a4a2a;
+  margin-top: 1px;
+  padding-top: 2px;
+}
+
+.dailyLabel {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #4a6a4a;
+  white-space: nowrap;
+}
+
+.dailyValue {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #c0d0c0;
+  white-space: nowrap;
+}
+
 .divider {
   width: 1px;
   height: 28px;
