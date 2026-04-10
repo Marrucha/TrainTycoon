@@ -6,18 +6,86 @@ import CompanyMenu from './components/CompanyMenu/CompanyMenu'
 import Login from './components/Login/Login'
 import styles from './App.module.css'
 
+function AnalogClockWrapper() {
+  const { gameDate } = useGame()
+  if (!gameDate) return null
+
+  const size = 56
+  const cx = size / 2, cy = size / 2
+  const r = size / 2 - 2
+
+  const h = gameDate.getHours() % 12
+  const m = gameDate.getMinutes()
+  const hourAngle = (h + m / 60) / 12 * 360 - 90
+  const minAngle  = m / 60 * 360 - 90
+
+  const hand = (angle, len, width, color) => {
+    const rad = angle * Math.PI / 180
+    return (
+      <line x1={cx} y1={cy}
+        x2={cx + Math.cos(rad) * len} y2={cy + Math.sin(rad) * len}
+        stroke={color} strokeWidth={width} strokeLinecap="round"
+      />
+    )
+  }
+
+  // 12 kresek — grubsze i dłuższe przy pełnych godzinach (co 3)
+  const ticks = Array.from({ length: 60 }, (_, i) => {
+    const a = (i / 60) * 2 * Math.PI
+    const isHour = i % 5 === 0
+    const inner = isHour ? r - 7 : r - 4
+    return (
+      <line key={i}
+        x1={cx + Math.cos(a) * inner} y1={cy + Math.sin(a) * inner}
+        x2={cx + Math.cos(a) * r}     y2={cy + Math.sin(a) * r}
+        stroke={isHour ? '#ffffff' : '#888888'}
+        strokeWidth={isHour ? 2.5 : 1}
+      />
+    )
+  })
+
+  // Cyfry 12, 3, 6, 9
+  const labels = [
+    { n: '12', a: -90 }, { n: '3', a: 0 }, { n: '6', a: 90 }, { n: '9', a: 180 }
+  ].map(({ n, a }) => {
+    const rad = a * Math.PI / 180
+    const lr = r - 14
+    return (
+      <text key={n}
+        x={cx + Math.cos(rad) * lr} y={cy + Math.sin(rad) * lr}
+        textAnchor="middle" dominantBaseline="central"
+        fontSize="8" fontFamily="'Share Tech Mono', monospace"
+        fontWeight="bold" fill="#f0c040"
+      >{n}</text>
+    )
+  })
+
+  return (
+    <svg width={size} height={size} style={{ flexShrink: 0 }}>
+      {/* Tarcza */}
+      <circle cx={cx} cy={cy} r={r} fill="#111111" stroke="#555555" strokeWidth={2} />
+      <circle cx={cx} cy={cy} r={r - 1} fill="none" stroke="#333333" strokeWidth={1} />
+      {ticks}
+      {labels}
+      {/* Wskazówki */}
+      {hand(hourAngle, r * 0.5, 3,   '#ffffff')}
+      {hand(minAngle,  r * 0.78, 2,  '#ffffff')}
+      {/* Środek */}
+      <circle cx={cx} cy={cy} r={3} fill="#f0c040" />
+    </svg>
+  )
+}
+
 function Clock() {
   const { gameDate } = useGame()
   if (!gameDate) return null
-  const time = gameDate
 
-  const hh = String(time.getHours()).padStart(2, '0')
-  const mm = String(time.getMinutes()).padStart(2, '0')
-  const ss = String(time.getSeconds()).padStart(2, '0')
-
-  const dd = String(time.getDate()).padStart(2, '0')
-  const MM = String(time.getMonth() + 1).padStart(2, '0')
-  const yyyy = time.getFullYear()
+  const hh = String(gameDate.getHours()).padStart(2, '0')
+  const mm = String(gameDate.getMinutes()).padStart(2, '0')
+  const ss = String(gameDate.getSeconds()).padStart(2, '0')
+  const dd = String(gameDate.getDate()).padStart(2, '0')
+  const MM = String(gameDate.getMonth() + 1).padStart(2, '0')
+  const yyyy = gameDate.getFullYear()
 
   return (
     <div className={styles.clock} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
@@ -48,6 +116,7 @@ function MainApp() {
               <span className={styles.logoIcon}>🚂</span>
               <span className={styles.logoText}>TRAIN<strong>MANAGER</strong></span>
             </div>
+            <AnalogClockWrapper />
             <div style={{ transform: 'scale(0.75)', transformOrigin: 'left center' }}>
               <Clock />
             </div>
