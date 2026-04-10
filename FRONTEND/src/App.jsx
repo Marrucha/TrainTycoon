@@ -44,21 +44,6 @@ function AnalogClockWrapper() {
     )
   })
 
-  // Cyfry 12, 3, 6, 9
-  const labels = [
-    { n: '12', a: -90 }, { n: '3', a: 0 }, { n: '6', a: 90 }, { n: '9', a: 180 }
-  ].map(({ n, a }) => {
-    const rad = a * Math.PI / 180
-    const lr = r - 14
-    return (
-      <text key={n}
-        x={cx + Math.cos(rad) * lr} y={cy + Math.sin(rad) * lr}
-        textAnchor="middle" dominantBaseline="central"
-        fontSize="8" fontFamily="'Share Tech Mono', monospace"
-        fontWeight="bold" fill="#f0c040"
-      >{n}</text>
-    )
-  })
 
   return (
     <svg width={size} height={size} style={{ flexShrink: 0 }}>
@@ -66,7 +51,6 @@ function AnalogClockWrapper() {
       <circle cx={cx} cy={cy} r={r} fill="#111111" stroke="#555555" strokeWidth={2} />
       <circle cx={cx} cy={cy} r={r - 1} fill="none" stroke="#333333" strokeWidth={1} />
       {ticks}
-      {labels}
       {/* Wskazówki */}
       {hand(hourAngle, r * 0.5, 3,   '#ffffff')}
       {hand(minAngle,  r * 0.78, 2,  '#ffffff')}
