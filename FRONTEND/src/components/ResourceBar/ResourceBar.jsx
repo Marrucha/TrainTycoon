@@ -31,7 +31,7 @@ export default function ResourceBar() {
 
       <div className={styles.stat}>
         <span className={styles.label}>PRZYCHÓD / DOBA</span>
-        <span className={`${styles.value} ${styles.revenue}`}>
+        <span className={`${styles.value} ${styles.valueSmall} ${styles.revenue}`}>
           {przychod !== null ? `+${przychod.toLocaleString('pl-PL')}` : '—'}
           <span className={styles.unit}> PLN</span>
         </span>
@@ -41,7 +41,7 @@ export default function ResourceBar() {
 
       <div className={styles.stat}>
         <span className={styles.label}>KOSZTY / DOBA</span>
-        <span className={`${styles.value} ${styles.cost}`}>
+        <span className={`${styles.value} ${styles.valueSmall} ${styles.cost}`}>
           {koszty !== null ? `-${koszty.toLocaleString('pl-PL')}` : '—'}
           <span className={styles.unit}> PLN</span>
         </span>
@@ -51,7 +51,7 @@ export default function ResourceBar() {
 
       <div className={styles.stat}>
         <span className={styles.label}>WYNIK / DOBA</span>
-        <span className={`${styles.value} ${netto !== null ? (netto >= 0 ? styles.revenue : styles.cost) : ''}`}>
+        <span className={`${styles.value} ${styles.valueSmall} ${netto !== null ? (netto >= 0 ? styles.revenue : styles.cost) : ''}`}>
           {netto !== null ? `${netto >= 0 ? '+' : ''}${netto.toLocaleString('pl-PL')}` : '—'}
           <span className={styles.unit}> PLN</span>
         </span>
