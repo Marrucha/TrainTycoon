@@ -65,7 +65,7 @@ function NavTooltip({ company }) {
             <span className={s.navTooltipValue}>{fmt(trailing)} PLN</span>
           </div>
           <div className={s.navTooltipRow}>
-            <span className={s.navTooltipLabel}>Zysk roczny (×365)</span>
+            <span className={s.navTooltipLabel}>Zysk roczny {(company.dailyNetHistory?.length ?? 0) >= 365 ? '(12m kroczące)' : '(ekstrapolacja)'}</span>
             <span className={s.navTooltipValue}>{fmt(annualized)} PLN</span>
           </div>
           <div className={s.navTooltipRow}>

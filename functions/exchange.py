@@ -251,6 +251,27 @@ def update_exchange_prices(db, game_date):
         prev_price    = ex_data.get('marketPrice', fund_price)
         open_price    = prev_price
 
+        # Aktualizuj historię dziennych zysków netto (max 365 wpisów)
+        daily_history = list(ex_data.get('dailyNetHistory') or [])
+        # Pobierz zysk netto z wczoraj (jeden raport, nie średnia)
+        yesterday = game_date - datetime.timedelta(days=1)
+        rep = db.collection(f'players/{pid}/Raporty').document(yesterday.isoformat()).get()
+        yesterday_net = 0
+        if rep.exists:
+            yesterday_net = sum(
+                ts.get('daily', {}).get('netto', 0)
+                for ts in (rep.to_dict() or {}).get('trainSets', {}).values()
+            )
+        daily_history.append(round(yesterday_net))
+        if len(daily_history) > 365:
+            daily_history = daily_history[-365:]
+
+        # Zysk roczny: suma jeśli ≥365 dni, ekstrapolacja jeśli mniej
+        if len(daily_history) >= 365:
+            annualized_net = sum(daily_history)
+        else:
+            annualized_net = round(trailing_net * 365)
+
         # Decay presji
         new_pressure = prev_pressure * PRESSURE_DECAY
 
@@ -286,7 +307,8 @@ def update_exchange_prices(db, game_date):
             'earningsValue':      round(earn_val),
             'peMultiple':         round(pe_mult, 1),
             'trailingDailyNet':   round(trailing_net),
-            'annualizedNet':      round(trailing_net * 365),
+            'annualizedNet':      annualized_net,
+            'dailyNetHistory':    daily_history,
             'lastUpdated':        date_str,
         }, merge=True)
 
