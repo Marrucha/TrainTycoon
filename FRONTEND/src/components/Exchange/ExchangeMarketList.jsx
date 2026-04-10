@@ -165,7 +165,7 @@ export default function ExchangeMarketList() {
                   {company.marketPrice?.toLocaleString('pl-PL', { minimumFractionDigits: 2 })}
                 </td>
                 <td className={`${s.right} ${s.fundamentalPrice}`}>
-                  {company.fundamentalPrice?.toLocaleString('pl-PL', { minimumFractionDigits: 2 })}
+                  <NavTooltip company={company} />
                 </td>
                 <td className={`${s.right} ${s.changeCell}`}>
                   {chg === null ? (
