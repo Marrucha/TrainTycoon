@@ -11,6 +11,7 @@ import PositionSection from './trainset/PositionSection'
 import TrafficStats from './trainset/TrafficStats'
 import DemandMatrix from './trainset/DemandMatrix'
 import CrewSection from './trainset/CrewSection'
+import MaintenanceSection from './trainset/MaintenanceSection'
 
 export default function TrainSetPanel() {
   const { selectedTrainSet, selectTrainSet, trains, getCityById, companyName, cities, getTicketPrice, gameConstants, boardingState, gameDate: now } = useGame()
@@ -289,6 +290,7 @@ export default function TrainSetPanel() {
         <PositionSection positionState={positionState} />
         <CrewSection ts={ts} />
         <WagonSection wagonGroups={wagonGroups} maxSpeed={ts.maxSpeed} totalCostPerKm={ts.totalCostPerKm} wagons={wagons} />
+        <MaintenanceSection trainSet={ts} wagons={wagons} />
         <RevenueSection byKurs={byKurs} cities={cities} totalCostPerKm={ts.totalCostPerKm} totalDailyRevenue={totalDailyRevenue} />
         <CourseSchedule
           ts={ts} coursesCount={coursesCount} firstStops={firstStops}

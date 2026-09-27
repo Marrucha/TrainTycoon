@@ -43,16 +43,59 @@ export function useTrainActions({ baseTrains, budget, gameDate }) {
     }
   }
 
-  async function performMaintenance(trainId) {
+  /**
+   * Uruchamia konserwację jednego wagonu.
+   * Zapisuje maintenanceStartedAt (real ms) i maintenanceDurationMs
+   * proporcjonalne do stopnia zużycia (condition).
+   * Frontend może wyliczyć progress: (now - start) / duration.
+   * Po zakończeniu (progress >= 1) backend przy EOD / lub frontend
+   * po upływie czasu resetuje condition do 1.0.
+   */
+  async function startMaintenance(trainId, currentCondition = 1.0) {
     try {
+      // Czas konserwacji: 0% zużycia = 0 min, 100% zużycia = 2 wirtualne doby
+      // W grze ×30: 2 doby wirtualne = 2*24*60*60*1000 / 30 = ~96min realnych
+      const timeMultiplier = gameDate ? 30 : 30
+      const damage = Math.max(0, 1.0 - currentCondition)
+      const maxRepairRealMs = (2 * 24 * 60 * 60 * 1000) / timeMultiplier  // 96 min real przy ×30
+      const durationMs = Math.round(damage * maxRepairRealMs)
+
+      const now = Date.now()
       await updateDoc(doc(db, `players/${auth.currentUser.uid}/trains/${trainId}`), {
-        lastMaintenance: gameDate.toISOString(),
+        maintenanceStartedAt: now,
+        maintenanceDurationMs: durationMs || 1000, // min 1s żeby pasek był widoczny
+        maintenanceComplete: false,
+        lastMaintenance: gameDate?.toISOString() ?? new Date().toISOString(),
       })
       return true
     } catch (e) {
-      console.error('Błąd podczas ręcznej konserwacji:', e)
+      console.error('Błąd podczas uruchamiania konserwacji:', e)
       return false
     }
+  }
+
+  /**
+   * Finalizes maintenance — sets condition = 1.0, clears maintenance fields.
+   * Called by frontend when progress bar reaches 100%.
+   */
+  async function completeMaintenance(trainId) {
+    try {
+      await updateDoc(doc(db, `players/${auth.currentUser.uid}/trains/${trainId}`), {
+        condition: 1.0,
+        maintenanceComplete: true,
+        maintenanceStartedAt: null,
+        maintenanceDurationMs: null,
+      })
+      return true
+    } catch (e) {
+      console.error('Błąd podczas finalizacji konserwacji:', e)
+      return false
+    }
+  }
+
+  /** Legacy — kept for compatibility */
+  async function performMaintenance(trainId) {
+    return startMaintenance(trainId, 1.0)
   }
 
   async function disbandTrainSet(trainSetId, allEmployees) {
@@ -89,5 +132,5 @@ export function useTrainActions({ baseTrains, budget, gameDate }) {
     }
   }
 
-  return { buyTrain, performMaintenance, disbandTrainSet }
+  return { buyTrain, performMaintenance, startMaintenance, completeMaintenance, disbandTrainSet }
 }
