@@ -12,6 +12,12 @@
   user-select: none;
 }
 
+/* Ciemny filtr na kafelki OSM — zastępuje Carto dark_nolabels bez API key */
+.mapWrapper :global(.leaflet-tile) {
+  filter: invert(1) hue-rotate(180deg) brightness(0.65) saturate(0.25) contrast(0.9);
+}
+
+
 .mapSvg {
   display: block;
   width: 100%;
