@@ -33,15 +33,18 @@ from staff_finance import _write_daily_ledger, _aggregate_monthly_ledger, _pay_c
 # Firestore functions
 # ---------------------------------------------------------------------------
 
-def run_daily_staff(db):
+def run_daily_staff(db, today=None):
     c_snap = db.collection('gameConfig').document('constants').get()
     consts = c_snap.to_dict() or {} if c_snap.exists else {}
+    if today is None:
+        from finance_ops import _get_game_date
+        today = _get_game_date(db) or dt.date.today()
     """Dispatch all daily staff-related tasks."""
     _update_gapowicze(db)
     _generate_agency_lists(db, consts)
     _advance_intern_experience(db)
-    _update_intern_status(db)
-    _check_retirements(db)
+    _update_intern_status(db, today, consts)
+    _check_retirements(db, today)
 
 
 def run_monthly_staff(db, today=None):
@@ -49,7 +52,8 @@ def run_monthly_staff(db, today=None):
     consts = c_snap.to_dict() or {} if c_snap.exists else {}
     """Dispatch monthly staff tasks (only executes on the 1st of the month)."""
     if today is None:
-        today = dt.date.today()
+        from finance_ops import _get_game_date
+        today = _get_game_date(db) or dt.date.today()
     
     _accrue_staff_salaries(db, today, consts)
     _advance_experience_all(db, today)
@@ -77,9 +81,11 @@ def _unassign_emp_from_crew(db, pid: str, emp_id: str, assigned_to: str):
         ts_ref.update(updates)
 
 
-def _check_retirements(db):
+def _check_retirements(db, today=None):
     """Daily: delete employees who have reached retirement age (65)."""
-    today = dt.date.today()
+    if today is None:
+        from finance_ops import _get_game_date
+        today = _get_game_date(db) or dt.date.today()
     for p_doc in db.collection('players').stream():
         pid = p_doc.id
         if pid == 'samorządowy':
@@ -198,9 +204,12 @@ def _advance_intern_experience(db):
             emp_doc.reference.update({'experience': new_exp})
 
 
-def _update_intern_status(db):
+def _update_intern_status(db, today=None, consts=None):
     """Daily: graduate interns who have completed their 1-year training."""
-    today = dt.date.today()
+    if today is None:
+        from finance_ops import _get_game_date
+        today = _get_game_date(db) or dt.date.today()
+    salaries = (consts or {}).get('SALARIES', SALARIES)
     for p_doc in db.collection('players').stream():
         pid = p_doc.id
         if pid == 'samorządowy':
@@ -218,7 +227,7 @@ def _update_intern_status(db):
                 ts_id     = e.get('assignedTo')
                 emp_doc.reference.update({
                     'isIntern':          False,
-                    'monthlySalary':     SALARIES.get(role, 5000),
+                    'monthlySalary':     salaries.get(role, 5000),
                     'internGraduatesAt': None,
                     'mentorId':          None,
                     'assignedTo':        None,   # free to be properly assigned to a role
@@ -230,11 +239,12 @@ def _update_intern_status(db):
                     ts_ref.update({'crew.stazysci': ArrayRemove([emp_doc.id])})
 
 
-def _accrue_staff_salaries(db, today=None):
+def _accrue_staff_salaries(db, today=None, consts=None):
     """1st of month: deduct all employee salaries from player balance."""
     if today is None:
         today = dt.date.today()
-    
+    salaries = (consts or {}).get('SALARIES', SALARIES)
+    intern_sal = (consts or {}).get('INTERN_SALARY', INTERN_SALARY)
 
     for p_doc in db.collection('players').stream():
         pid = p_doc.id
@@ -246,9 +256,9 @@ def _accrue_staff_salaries(db, today=None):
         for emp in employees:
             e = emp.to_dict() or {}
             if e.get('isIntern'):
-                total_salary += INTERN_SALARY
+                total_salary += intern_sal
             else:
-                total_salary += e.get('monthlySalary', SALARIES.get(e.get('role', ''), 0))
+                total_salary += e.get('monthlySalary', salaries.get(e.get('role', ''), 0))
 
         if total_salary > 0:
             p_data  = p_doc.to_dict() or {}

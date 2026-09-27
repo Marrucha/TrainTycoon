@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, useMemo } from 'react'
+import { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react'
 import { useBoardingSimulation } from '../hooks/useBoardingSimulation'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, updateDoc, arrayRemove } from 'firebase/firestore'
 import { db, auth } from '../firebase/config'
 import { INITIAL_BUDGET } from '../data/gameData'
 import { timeToMin } from '../components/Map/modules/MapUtils'
@@ -84,6 +84,108 @@ export function GameProvider({ children }) {
       setDoc(doc(db, 'gameConfig', 'constants'), defaultConstants, { merge: true }).catch(console.error)
     }
   }, [gameConstants])
+
+  // 1. Automatyczny awans stażystów po upływie terminu uprawnień (internGraduatesAt <= gameDate)
+  const graduatingRef = useRef(new Set())
+  useEffect(() => {
+    if (!gameDate || !employees || employees.length === 0 || !auth.currentUser) return
+    const nowIso = `${gameDate.getFullYear()}-${String(gameDate.getMonth() + 1).padStart(2, '0')}-${String(gameDate.getDate()).padStart(2, '0')}`
+    const readyInterns = employees.filter(e => e.isIntern && e.internGraduatesAt && nowIso >= e.internGraduatesAt && !graduatingRef.current.has(e.id))
+    if (readyInterns.length === 0) return
+
+    readyInterns.forEach(async (intern) => {
+      graduatingRef.current.add(intern.id)
+      try {
+        const empRef = doc(db, `players/${auth.currentUser.uid}/kadry`, intern.id)
+        const roleSalary = gameConstants?.SALARIES?.[intern.role] || (intern.role === 'maszynista' ? 9000 : 7000)
+        await updateDoc(empRef, {
+          isIntern: false,
+          internGraduatesAt: null,
+          mentorId: null,
+          assignedTo: null,
+          monthlySalary: roleSalary,
+        })
+        if (intern.assignedTo) {
+          const tsRef = doc(db, `players/${auth.currentUser.uid}/trainSet`, intern.assignedTo)
+          await updateDoc(tsRef, {
+            'crew.stazysci': arrayRemove(intern.id),
+          }).catch(() => {})
+        }
+      } catch (err) {
+        console.error('[InternGraduation] Błąd awansu stażysty:', intern.name, err)
+        graduatingRef.current.delete(intern.id)
+      }
+    })
+  }, [gameDate, employees, gameConstants])
+
+  // 2. Automatyczna comiesięczna wypłata pensji Prezesa i aktualizacja majątku osobistego
+  const lastPaidProcessedRef = useRef(null)
+  useEffect(() => {
+    if (!gameDate || !playerDoc || !auth.currentUser || Object.keys(playerDoc).length === 0) return
+    const currentMonthStr = `${gameDate.getFullYear()}-${String(gameDate.getMonth() + 1).padStart(2, '0')}`
+    const lastPaid = playerDoc.personal?.lastPaidMonth
+
+    if (lastPaid === currentMonthStr || lastPaidProcessedRef.current === currentMonthStr) return
+    lastPaidProcessedRef.current = currentMonthStr
+
+    let monthsToPay = 1
+    if (!lastPaid) {
+      // Inicjalizacja / wyrównanie zaległych miesięcy od startu gry (2026-01) do obecnej daty gry
+      const startYear = 2026
+      const startMonth = 1
+      const cYear = gameDate.getFullYear()
+      const cMonth = gameDate.getMonth() + 1
+      monthsToPay = Math.max(1, (cYear - startYear) * 12 + (cMonth - startMonth))
+    } else {
+      const [lYear, lMonth] = lastPaid.split('-').map(Number)
+      const cYear = gameDate.getFullYear()
+      const cMonth = gameDate.getMonth() + 1
+      monthsToPay = Math.max(1, (cYear - lYear) * 12 + (cMonth - lMonth))
+    }
+
+    const monthlyGross = 30000
+    const monthlyNetSavings = 20000 // 30k pensja - 10k koszty życia
+    const totalGross = monthsToPay * monthlyGross
+    const totalNet = monthsToPay * monthlyNetSavings
+
+    const currentCompanyBalance = playerDoc.finance?.balance ?? 0
+    const currentPersonalBalance = playerDoc.personal?.balance ?? 0
+
+    const newCompanyBalance = currentCompanyBalance - totalGross
+    const newPersonalBalance = currentPersonalBalance + totalNet
+
+    const playerRef = doc(db, 'players', auth.currentUser.uid)
+    setDoc(playerRef, {
+      finance: { balance: newCompanyBalance },
+      personal: {
+        balance: newPersonalBalance,
+        lastPaidMonth: currentMonthStr,
+      }
+    }, { merge: true }).catch(console.error)
+  }, [gameDate, playerDoc])
+
+  // 3. Automatyczne uzupełnienie brakującego purchasedAt (data gry minus 15 lat)
+  const patchedPurchasedRef = useRef(new Set())
+  useEffect(() => {
+    if (!gameDate || !playerTrains || playerTrains.length === 0 || !auth.currentUser) return
+    const missing = playerTrains.filter(t => !t.purchasedAt && !patchedPurchasedRef.current.has(t.id))
+    if (missing.length === 0) return
+
+    const defaultDate = new Date(gameDate)
+    defaultDate.setFullYear(defaultDate.getFullYear() - 15)
+    const defaultIso = defaultDate.toISOString()
+
+    missing.forEach(async (t) => {
+      patchedPurchasedRef.current.add(t.id)
+      try {
+        await updateDoc(doc(db, `players/${auth.currentUser.uid}/trains`, t.id), {
+          purchasedAt: defaultIso,
+        })
+      } catch (err) {
+        patchedPurchasedRef.current.delete(t.id)
+      }
+    })
+  }, [gameDate, playerTrains])
 
   const savedBalance = playerDoc.finance?.balance ?? INITIAL_BUDGET
   const companyName = playerDoc.companyName ?? ''

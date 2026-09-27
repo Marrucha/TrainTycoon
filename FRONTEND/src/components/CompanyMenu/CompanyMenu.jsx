@@ -55,7 +55,7 @@ export default function CompanyMenu() {
   const {
     budget, reputation, companyName,
     trains, baseTrains, trainsSets,
-    defaultPricing, performMaintenance,
+    defaultPricing, performMaintenance, startMaintenance, completeMaintenance,
     pictures, playerDoc,
     openCreditLine, takeLoan,
     deposits, depositRates, openDeposit, redeemDeposit, breakDeposit, emitShares,
@@ -140,19 +140,25 @@ export default function CompanyMenu() {
   const fleetData = useMemo(() => {
     if (!nowMs) return []
     const analyzedTrains = trains.map(t => {
-      const purchaseMs   = t.purchasedAt   ? new Date(t.purchasedAt).getTime()   : null
+      // Jeśli brak daty zakupu — domyślnie data gry minus 15 lat
+      const defaultPurchaseMs = now ? (new Date(new Date(now).setFullYear(new Date(now).getFullYear() - 15))).getTime() : null
+      const purchaseMs   = t.purchasedAt   ? new Date(t.purchasedAt).getTime()   : defaultPurchaseMs
       const lastMainMs   = t.lastMaintenance ? new Date(t.lastMaintenance).getTime() : purchaseMs
       const lastOverMs   = t.lastOverhaul   ? new Date(t.lastOverhaul).getTime()   : purchaseMs
-      const ageYears     = purchaseMs != null ? (nowMs - purchaseMs)   / (1000 * 60 * 60 * 24 * 365) : null
+      const ageYears     = purchaseMs != null ? (nowMs - purchaseMs) / (1000 * 60 * 60 * 24 * 365) : 15.0
       const timeSinceMainDays  = lastMainMs != null ? (nowMs - lastMainMs) / (1000 * 60 * 60 * 24)        : 0
       const timeSinceOverYears = lastOverMs != null ? (nowMs - lastOverMs) / (1000 * 60 * 60 * 24 * 365) : 0
-      const isMaintenance = timeSinceMainDays >= 365 && timeSinceMainDays < 368;
-      const isOverhaul = timeSinceOverYears >= 10 && timeSinceOverYears < 10.083;
+      const isMaintenance = t.maintenanceStartedAt && !t.maintenanceComplete
       let status = 'READY';
-      if (isOverhaul) status = 'OVERHAUL';
-      else if (isMaintenance) status = 'MAINTENANCE';
-      const condition = Math.round(Math.max(0, 100 - (timeSinceOverYears / 10) * 40));
-      return { ...t, ageYears: ageYears != null ? ageYears.toFixed(1) : null, condition, status };
+      if (isMaintenance) status = 'MAINTENANCE';
+      else if (timeSinceOverYears >= 10 && timeSinceOverYears < 10.083) status = 'OVERHAUL';
+      else if (timeSinceMainDays >= 365 && timeSinceMainDays < 368) status = 'MAINTENANCE';
+      
+      const rawCondition = t.condition !== undefined
+        ? (t.condition <= 1.0 ? t.condition * 100 : t.condition)
+        : Math.max(0, 100 - (timeSinceOverYears / 10) * 40);
+      const condition = Math.round(rawCondition);
+      return { ...t, ageYears: ageYears != null ? ageYears.toFixed(1) : '15.0', condition, status };
     });
 
     if (groupBy === 'set') {
@@ -348,6 +354,10 @@ export default function CompanyMenu() {
             sortOrder={sortOrder} setSortOrder={setSortOrder}
             expandedGroups={expandedGroups} toggleGroup={toggleGroup}
             performMaintenance={performMaintenance}
+            startMaintenance={startMaintenance}
+            completeMaintenance={completeMaintenance}
+            gameDate={now}
+            budget={budget}
           />
         )}
       </div>

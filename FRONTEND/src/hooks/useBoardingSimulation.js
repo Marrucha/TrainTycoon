@@ -252,6 +252,12 @@ export function useBoardingSimulation(trainsSets, cities, trains, gameTimeMin, d
             const crew = ts.crew || {}
             if (!crew.maszynista || !crew.kierownik) continue
             if (ts.speedMismatchBlock) continue
+            // Pociągi z elementami w trakcie konserwacji nie mogą kursować
+            const hasMaintenance = (ts.trainIds || []).some(id => {
+                const wagon = (trains || []).find(t => t.id === id)
+                return wagon?.maintenanceStartedAt && !wagon?.maintenanceComplete
+            })
+            if (hasMaintenance) continue
             // Pricing: trainSet-level → player defaultPricing → built-in fallback
             const pricing = ts.pricing ?? defaultPricing ?? FALLBACK_PRICING
             if (!pricing?.class2Per100km) continue

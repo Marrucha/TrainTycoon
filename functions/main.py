@@ -118,7 +118,7 @@ def _check_game_day_rollover(db) -> None:
     _accrue_credit_line_interest(db, today=game_date)
     _process_loan_payments(db, today=game_date)
     _calc_daily_breakdowns(db)
-    run_daily_staff(db)
+    run_daily_staff(db, today=game_date)
     run_monthly_staff(db, today=game_date)
     update_reputation_metrics(db)
     update_hall_of_fame(db, game_date=game_date)

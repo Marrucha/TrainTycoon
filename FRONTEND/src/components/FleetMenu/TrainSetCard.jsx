@@ -298,8 +298,24 @@ export default function TrainSetCard({
                             >
                                 {crewOpenFor === trainSet.id ? '▲ Kadry' : '▼ Kadry'}
                             </button>
-                            {trainSet.rozklad && trainSet.rozklad.length > 0 && (
-                                isPublished ? (
+                            {trainSet.rozklad && trainSet.rozklad.length > 0 && (() => {
+                                const hasMaintenance = (trainSet.trainIds || []).some(id => {
+                                    const w = (trains || []).find(t => t.id === id)
+                                    return w?.maintenanceStartedAt && !w?.maintenanceComplete
+                                })
+                                if (hasMaintenance) {
+                                    return (
+                                        <button
+                                            className={styles.pricingBtn}
+                                            style={{ background: '#7f1d1d', border: '1px solid #ef4444', color: '#fca5a5', cursor: 'not-allowed' }}
+                                            disabled
+                                            title="Skład nie może kursować - elementy w konserwacji"
+                                        >
+                                            🔧 W Konserwacji
+                                        </button>
+                                    )
+                                }
+                                return isPublished ? (
                                     <button
                                         className={`${styles.pricingBtn} ${styles.cancelRouteBtn}`}
                                         onClick={() => { updateCitySchedules(trainSet.id, [], {}) }}
@@ -319,7 +335,7 @@ export default function TrainSetCard({
                                         Wyślij w Trasę
                                     </button>
                                 )
-                            )}
+                            })()}
                             <ConfirmButton
                                 label="Rozwiąż"
                                 confirmLabel="Rozwiązać skład?"

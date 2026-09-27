@@ -7,12 +7,11 @@ LIFESTYLE_RATE = 0.01     # 1% majątku osobistego / miesiąc
 
 def _pay_ceo_salary_and_lifestyle(db, today=None):
     """Wypłata wynagrodzenia CEO z kasy firmy do personal.balance + lifestyle tax.
-    Uruchamiana raz na game-miesiąc (day == 1).
+    Uruchamiana raz na game-miesiąc.
     """
     if today is None:
         today = dt.date.today()
-    if today.day != 1:
-        return
+    current_month_str = today.strftime('%Y-%m')
 
     for p_doc in db.collection('players').stream():
         pid = p_doc.id
@@ -20,9 +19,16 @@ def _pay_ceo_salary_and_lifestyle(db, today=None):
             continue
 
         data = p_doc.to_dict() or {}
-        company = data.get('company') or {}
+        personal_data = data.get('personal') or {}
+        last_paid = personal_data.get('lastPaidMonth')
+        if last_paid == current_month_str:
+            continue
+        if today.day != 1 and last_paid:
+            # If already paid previous month and today is not day 1, wait for day 1
+            continue
+
         finance_balance = (data.get('finance') or {}).get('balance', 0)
-        personal_balance = (data.get('personal') or {}).get('balance', 0)
+        personal_balance = personal_data.get('balance', 0)
 
         updates = {}
 
@@ -44,6 +50,7 @@ def _pay_ceo_salary_and_lifestyle(db, today=None):
             updates['finance.balance'] = finance_balance - ceo_salary
             personal_balance += ceo_salary
             updates['personal.balance'] = personal_balance
+            updates['personal.lastPaidMonth'] = current_month_str
             # Zapisz do ledgera firmy
             date_str = today.isoformat()
             ledger_ref = db.collection(f'players/{pid}/financeLedger').document(date_str)
@@ -55,6 +62,7 @@ def _pay_ceo_salary_and_lifestyle(db, today=None):
         if lifestyle > 0:
             personal_balance = max(0, personal_balance - lifestyle)
             updates['personal.balance'] = personal_balance
+            updates['personal.lastPaidMonth'] = current_month_str
 
         if updates:
             db.collection('players').document(pid).update(updates)
