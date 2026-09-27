@@ -132,10 +132,10 @@ def calc_daily_demand(event: scheduler_fn.ScheduledEvent) -> None:
     _check_game_day_rollover(db)
 
 
-@scheduler_fn.on_schedule(schedule='*/15 * * * *', timezone='Europe/Warsaw')
+@scheduler_fn.on_schedule(schedule='*/30 * * * *', timezone='Europe/Warsaw')
 def tick_boarding(event: scheduler_fn.ScheduledEvent) -> None:
-    """Cloud Function: game day rollover check (runs every 15 real min ≈ 7.5 virtual hours).
-    Boarding simulation is now handled by the frontend; backend simulates only at midnight."""
+    """Cloud Function: game day rollover check (runs every 30 real min = 15 virtual hours).
+    Boarding simulation is handled by the frontend; backend checks only for day rollover."""
     db = firestore.client()
     _check_game_day_rollover(db)
 

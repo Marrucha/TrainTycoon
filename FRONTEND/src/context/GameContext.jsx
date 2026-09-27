@@ -38,7 +38,8 @@ export function GameProvider({ children }) {
 
   const [realNow, setRealNow] = useState(Date.now())
   useEffect(() => {
-    const id = setInterval(() => setRealNow(Date.now()), 100)
+    // 1000ms wystarczy — zegar pokazuje sekundy, 100ms generowało 10 re-renderów/s
+    const id = setInterval(() => setRealNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
 

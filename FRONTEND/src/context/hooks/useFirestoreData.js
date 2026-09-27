@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { collection, onSnapshot, doc, query, orderBy, limit } from 'firebase/firestore'
+﻿import { useState, useEffect } from 'react'
+import { collection, onSnapshot, doc, query, orderBy, limit, getDocs, getDoc } from 'firebase/firestore'
 import { db, auth } from '../../firebase/config'
 
 export function useFirestoreData() {
@@ -31,74 +31,98 @@ export function useFirestoreData() {
       if (loadedCount >= TOTAL) setLoading(false)
     }
 
-    const unsubCities = onSnapshot(collection(db, 'cities'), (snap) => {
-      setCities(snap.docs.map(d => d.data()))
-      markLoaded()
+    // -----------------------------------------------------------------------
+    // DANE STATYCZNE — pobrane jednorazowo (getDocs/getDoc), bez nasłuchu.
+    // Zmieniane tylko przez admina; gracz nie potrzebuje live updates.
+    // Oszczędność: eliminuje ~10 otwartych WebSocket listenerów.
+    // -----------------------------------------------------------------------
+
+    // cities, trains (bazowe), routes — nigdy nie zmieniają się w trakcie gry
+    Promise.all([
+      getDocs(collection(db, 'cities')),
+      getDocs(collection(db, 'trains')),
+      getDocs(collection(db, 'routes')),
+    ]).then(([citiesSnap, trainsSnap, routesSnap]) => {
+      setCities(citiesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      setBaseTrains(trainsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      setRoutes(routesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      markLoaded() // cities
+      markLoaded() // trains
+      markLoaded() // routes
+    }).catch(err => {
+      console.error('[StaticData] Bład pobierania danych statycznych:', err)
+      markLoaded(); markLoaded(); markLoaded()
     })
-    const unsubBaseTrains = onSnapshot(collection(db, 'trains'), (snap) => {
-      setBaseTrains(snap.docs.map(d => d.data()))
-      markLoaded()
+
+    // gameSettings, pictures, sunTimes, depositRates, hallOfFame — rzadko zmieniane
+    Promise.all([
+      getDoc(doc(db, 'gameSettings', 'config')),
+      getDoc(doc(db, 'gameConfig', 'pictures')),
+      getDoc(doc(db, 'gameConfig', 'sunTimes')),
+      getDoc(doc(db, 'gameConfig', 'depositRates')),
+      getDoc(doc(db, 'globalStats', 'hallOfFame')),
+    ]).then(([settingsSnap, picturesSnap, sunSnap, ratesSnap, fameSnap]) => {
+      setGameSettings(settingsSnap.exists() ? settingsSnap.data() : {})
+      setPictures(picturesSnap.exists() ? picturesSnap.data() : {})
+      setSunTimes(sunSnap.exists() ? sunSnap.data() : {})
+      setDepositRates(ratesSnap.exists() ? ratesSnap.data() : {})
+      setHallOfFame(fameSnap.exists() ? fameSnap.data() : {})
+      markLoaded() // gameSettings
+      markLoaded() // pictures
+    }).catch(err => {
+      console.error('[StaticData] Bład pobierania konfiguracji:', err)
+      markLoaded(); markLoaded()
     })
-    const unsubPlayerTrains = onSnapshot(collection(db, `players/${auth.currentUser.uid}/trains`), (snap) => {
-      setPlayerTrains(snap.docs.map(d => d.data()))
-      markLoaded()
-    })
-    const unsubTrainsSets = onSnapshot(collection(db, `players/${auth.currentUser.uid}/trainSet`), (snap) => {
-      setTrainsSets(snap.docs.map(d => d.data()))
-      markLoaded()
-    })
-    const unsubRoutes = onSnapshot(collection(db, 'routes'), (snap) => {
-      setRoutes(snap.docs.map(d => d.data()))
-      markLoaded()
-    })
-    const unsubPlayer = onSnapshot(doc(db, 'players', auth.currentUser.uid), (snap) => {
-      setPlayerDoc(snap.exists() ? snap.data() : {})
-      markLoaded()
-    })
-    const unsubSettings = onSnapshot(doc(db, 'gameSettings', 'config'), (snap) => {
-      setGameSettings(snap.exists() ? snap.data() : {})
-      markLoaded()
-    })
-    const unsubPictures = onSnapshot(doc(db, 'gameConfig', 'pictures'), (snap) => {
-      setPictures(snap.exists() ? snap.data() : {})
-      markLoaded()
-    })
-    const unsubSun = onSnapshot(doc(db, 'gameConfig', 'sunTimes'), (snap) => {
-      setSunTimes(snap.exists() ? snap.data() : {})
-    })
-    const unsubFame = onSnapshot(doc(db, 'globalStats', 'hallOfFame'), (snap) => {
-      setHallOfFame(snap.exists() ? snap.data() : {})
-    }, (err) => console.error('[HallOfFame] Firestore error:', err))
+
+    // Gielda — aktualizowana raz dziennie przez backend EOD
+    getDocs(collection(db, 'exchange')).then(snap => {
+      setListedCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    }).catch(err => console.error('[Exchange] Bład pobierania gieldy:', err))
+
+    // -----------------------------------------------------------------------
+    // DANE DYNAMICZNE — onSnapshot, bo zmieniają się w trakcie sesji gracza.
+    // -----------------------------------------------------------------------
+
+    // gameConfig/constants — moze byc naprawiane automatycznie przez GameContext
     const unsubConstants = onSnapshot(doc(db, 'gameConfig', 'constants'), (snap) => {
       setGameConstants(snap.exists() ? snap.data() : {})
     })
 
-    // Lokaty i oprocentowanie — nie blokują głównego loadingu
+    // Dane gracza — balance, reputation, defaultPricing itp.
+    const unsubPlayer = onSnapshot(doc(db, 'players', auth.currentUser.uid), (snap) => {
+      setPlayerDoc(snap.exists() ? snap.data() : {})
+      markLoaded()
+    })
+
+    // Wagony gracza — przy zakupie nowego taboru
+    const unsubPlayerTrains = onSnapshot(collection(db, `players/${auth.currentUser.uid}/trains`), (snap) => {
+      setPlayerTrains(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      markLoaded()
+    })
+
+    // Sklady — aktualizowane przez boarding_tick i przez gracza
+    const unsubTrainsSets = onSnapshot(collection(db, `players/${auth.currentUser.uid}/trainSet`), (snap) => {
+      setTrainsSets(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      markLoaded()
+    })
+
+    // Lokaty — przy zakladaniu/zamykaniu lokaty
     const unsubDeposits = onSnapshot(collection(db, `players/${auth.currentUser.uid}/deposits`), (snap) => {
       setDeposits(snap.docs.map(d => d.data()))
     })
-    const unsubDepositRates = onSnapshot(doc(db, 'gameConfig', 'depositRates'), (snap) => {
-      setDepositRates(snap.exists() ? snap.data() : {})
-    })
 
-    // Pracownicy (kadry)
+    // Pracownicy (kadry) — przy zmianach kadrowych
     const unsubEmployees = onSnapshot(
       collection(db, `players/${auth.currentUser.uid}/kadry`),
       (snap) => setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     )
 
-    // Giełda — notowane spółki
-    const unsubExchange = onSnapshot(collection(db, 'exchange'), (snap) => {
-      setListedCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    })
-
-    // Portfel giełdowy gracza
+    // Portfel gieldowy — przy transakcjach gieldowych
     const unsubPortfolio = onSnapshot(doc(db, 'portfolios', auth.currentUser.uid), (snap) => {
       setMyPortfolio(snap.exists() ? snap.data() : null)
     })
 
-
-    // Księga finansowa – ostatnie 30 wpisów
+    // Ksiega finansowa — ostatnie 30 wpisow (zmienia sie raz dziennie przy EOD)
     const ledgerQuery = query(
       collection(db, `players/${auth.currentUser.uid}/financeLedger`),
       orderBy('date', 'desc'),
@@ -109,26 +133,16 @@ export function useFirestoreData() {
     })
 
     return () => {
-      unsubCities()
-      unsubBaseTrains()
+      unsubConstants()
+      unsubPlayer()
       unsubPlayerTrains()
       unsubTrainsSets()
-      unsubRoutes()
-      unsubPlayer()
-      unsubSettings()
-      unsubPictures()
       unsubDeposits()
-      unsubDepositRates()
       unsubEmployees()
-      unsubLedger()
-      unsubSun()
-      unsubFame()
-      unsubConstants()
-      unsubExchange()
       unsubPortfolio()
+      unsubLedger()
     }
   }, [])
 
   return { baseTrains, playerTrains, trainsSets, routes, cities, playerDoc, gameSettings, pictures, deposits, depositRates, employees, financeLedger, sunTimes, hallOfFame, gameConstants, listedCompanies, myPortfolio, loading }
 }
-;
